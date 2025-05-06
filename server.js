@@ -279,4 +279,6 @@ function sendPlayers(roomId) {
   io.to(roomId).emit('playersList', list);
 }
 
-server.listen(3001, () => console.log('✅ Server started on port 3001'));
+const PORT = process.env.PORT || 3001;
+server.listen(PORT, () => console.log(`✅ Server started on port ${PORT}`));
+
