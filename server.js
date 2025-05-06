@@ -1,5 +1,5 @@
 const express = require('express');
-const http = require('https://pokdeng-online-1.onrender.com/');
+const http = require('http');
 const { Server } = require('socket.io');
 
 const app = express();
