@@ -241,22 +241,24 @@ function App() {
           <h4>ผู้เล่นภายในห้องนี้:</h4>
           <ul>{players.map((p, i) => <li key={i}>{p}</li>)}</ul>
 
-          {myCards.length > 0 && (
-            <div>
-              <h3>ไพ่ของคุณ:</h3>
-              <p>
-                {myCards.map(c => `${c.value}${c.suit}`).join(', ')} {calculateRank(myCards)}
-              </p>
-              {!hasStayed && myCards.length === 2 && isMyTurn && (
-                <>
-                <p style={{ color: 'blue' }}>เวลาคิด: {countdown} วินาที</p>
-                  <button onClick={drawCard}>จั่ว</button>
-                  <button onClick={stay}>ไม่จั่ว</button>
-                </>
-              )}
-              {!isMyTurn && !result.length && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
-            </div>
-          )}
+          {myCards.length > 0 && result.length === 0 && (
+  <div>
+    <h3>ไพ่ของคุณ:</h3>
+    <p>
+      {myCards.map(c => `${c.value}${c.suit}`).join(', ')} {calculateRank(myCards)}
+    </p>
+    {!hasStayed && myCards.length === 2 && isMyTurn && (
+      <>
+        <p style={{ color: 'blue' }}>เวลาคิด: {countdown} วินาที</p>
+        <button onClick={drawCard}>จั่ว</button>
+        <button onClick={stay}>ไม่จั่ว</button>
+      </>
+    )}
+    {!isMyTurn && result.length === 0 && myCards.length > 0 && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
+
+  </div>
+)}
+
 
           {result.length > 0 && (
             <div>
