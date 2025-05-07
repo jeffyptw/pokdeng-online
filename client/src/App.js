@@ -23,7 +23,6 @@ function App() {
   const [summaryData, setSummaryData] = useState([]);
   const [showResultBtn, setShowResultBtn] = useState(false);
   const [showStartAgain, setShowStartAgain] = useState(false);
-  const [showStartGame, setShowStartGame] = useState(false);
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
@@ -73,7 +72,6 @@ function App() {
 
   const drawCard = () => {
     socket.emit('drawCard', { roomId });
-    setShowStartGame(false);
     setHasStayed(true);
   };
 
