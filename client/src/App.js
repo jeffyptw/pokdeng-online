@@ -173,8 +173,8 @@ function App() {
 
     if (cards.length === 2) {
       const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
-      if (score === 9) return `= 9  (${isDouble ? ' สองเด้ง' : 'ป๊อก 9'})`;
-      if (score === 8) return `= 8  (${isDouble ? ' สองเด้ง' : 'ป๊อก 8'})`;
+      if (score === 9) return `=${isDouble ? ' ป๊อก 9สองเด้ง' : 'ป๊อก 9'}`;
+      if (score === 8) return `=${isDouble ? ' ป๊อก 8สองเด้ง' : 'ป๊อก 8'}`;
     }
 
     if (cards.length === 3) {
