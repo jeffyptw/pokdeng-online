@@ -297,12 +297,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && currentPlayer && (
-              <p style={{ color: 'gray' }}>
-               รอ...({turnPlayerRole}) {turnPlayerName} จั่วก่อน⌛
-              </p>
-              )}
-
+              {!isMyTurn && currentPlayer && <p style={{ color: 'gray' }}>รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛</p>}
             </div>
           )}
           {result.length > 0 && (
