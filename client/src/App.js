@@ -189,7 +189,7 @@ function App() {
       return `= ${score} แต้มสองเด้ง`;
     }
 
-    return `= ${score} แต้มธรรมดา`;
+    return `= ${score} แต้ม`;
   };
 
   if (showSummary) {
