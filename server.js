@@ -2,8 +2,8 @@ const express = require('express');
 const http = require('http');
 const cors = require('cors');
 const { Server } = require('socket.io');
-const app = express();
 
+const app = express();
 app.use(cors());
 
 const server = http.createServer(app);
@@ -111,7 +111,7 @@ function startNextTurn(roomId, index = 0) {
   }, 15000);
 }
 
-function handleResultAndSummary(roomId) {
+function handleResultOnly(roomId) {
   const room = rooms[roomId];
   const dealer = room?.players.find(p => p.role === 'เจ้ามือ');
   if (!room || !dealer) return;
@@ -168,7 +168,11 @@ function handleResultAndSummary(roomId) {
   });
 
   io.to(roomId).emit('result', results);
+}
 
+function sendSummary(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
   const summary = room.players.map(p => ({
     name: `${p.name} (${p.role})`,
     balance: p.balance,
@@ -272,7 +276,7 @@ io.on('connection', socket => {
   });
 
   socket.on('showResult', ({ roomId }) => {
-    handleResultAndSummary(roomId);
+    handleResultOnly(roomId);
     sendPlayers(roomId);
   });
 
@@ -282,19 +286,11 @@ io.on('connection', socket => {
     room.isGameStarted = false;
     clearTurnTimer(roomId);
     io.to(roomId).emit('gameEnded');
+    sendSummary(roomId);
   });
 
   socket.on('requestSummary', ({ roomId }) => {
-    const room = rooms[roomId];
-    if (!room) return;
-    const summary = room.players.map(p => ({
-      name: `${p.name} (${p.role})`,
-      balance: p.balance,
-      net: p.balance - p.originalBalance,
-      income: p.income,
-      expense: p.expense
-    }));
-    io.to(roomId).emit('summaryData', summary);
+    sendSummary(roomId);
   });
 
   socket.on('disconnect', () => {
@@ -304,10 +300,10 @@ io.on('connection', socket => {
       if (index !== -1) {
         const player = room.players[index];
 
-        // ถ้าเป็นเจ้ามือให้สรุปผลก่อนออก
         if (player.role === 'เจ้ามือ' && room.isGameStarted) {
-          handleResultAndSummary(roomId);
+          handleResultOnly(roomId);
           io.to(roomId).emit('gameEnded');
+          sendSummary(roomId);
         }
 
         room.players.splice(index, 1);
@@ -317,6 +313,7 @@ io.on('connection', socket => {
           clearTurnTimer(roomId);
           delete rooms[roomId];
         }
+
         break;
       }
     }
