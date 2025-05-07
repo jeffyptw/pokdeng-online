@@ -24,7 +24,6 @@ function App() {
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
-
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
       const timer = setTimeout(() => {
@@ -91,48 +90,6 @@ function App() {
   };
 
   const exitGame = () => window.location.reload();
-
-  const getCardPoint = (value) => {
-    if (['J', 'Q', 'K'].includes(value)) return 0;
-    if (value === 'A') return 1;
-    return parseInt(value);
-  };
-
-  const calculateRank = (cards) => {
-    const values = cards.map(c => c.value);
-    const suits = cards.map(c => c.suit);
-    const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
-    const count = {};
-    values.forEach(v => count[v] = (count[v] || 0) + 1);
-    const allJQK = values.every(v => ['J', 'Q', 'K'].includes(v));
-    const sameSuit = suits.every(s => s === suits[0]);
-    const sorted = cards.map(c => {
-      const map = { A: 1, J: 11, Q: 12, K: 13 };
-      return map[c.value] || parseInt(c.value);
-    }).sort((a, b) => a - b);
-    const isStraight = cards.length === 3 && sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1;
-
-    if (cards.length === 2) {
-      const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
-      if (score === 9) return `= 9 แต้ม (${isDouble ? 'ป๊อก 9 สองเด้ง' : 'ป๊อก 9'})`;
-      if (score === 8) return `= 8 แต้ม (${isDouble ? 'ป๊อก 8 สองเด้ง' : 'ป๊อก 8'})`;
-    }
-
-    if (cards.length === 3) {
-      if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
-      if (isStraight && sameSuit) return `= ${score} แต้ม (สเตรทฟลัช)`;
-      if (isStraight) return `= ${score} แต้ม (เรียง)`;
-      if (allJQK) return `= ${score} แต้ม (เซียน)`;
-      if (sameSuit) return `= ${score} แต้ม (แต้มธรรมดา สามเด้ง)`;
-    }
-
-    if (cards.length === 2 && (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)) {
-      return `= ${score} แต้ม (แต้มธรรมดา สองเด้ง)`;
-    }
-
-    return `= ${score} แต้ม (แต้มธรรมดา)`;
-  };
-
   useEffect(() => {
     socket.on('yourCards', data => setMyCards(data.cards));
     socket.on('resetGame', () => {
@@ -147,7 +104,7 @@ function App() {
     });
     socket.on('result', data => {
       setResult(data);
-      setShowSummary(false); // ป้องกันการขึ้น summary ทันที
+      setShowSummary(false);
     });
     socket.on('errorMessage', msg => setErrorMsg(msg));
     socket.on('lockRoom', () => setRoomLocked(true));
@@ -162,19 +119,13 @@ function App() {
     });
     socket.on('currentTurn', ({ id }) => {
       setCurrentTurnId(id);
-      if (id === socket.id) {
-        setCountdown(15);
-      }
+      if (id === socket.id) setCountdown(15);
     });
-    socket.on('enableShowResult', () => {
-      setShowResultBtn(true);
-    });
-
+    socket.on('enableShowResult', () => setShowResultBtn(true));
     return () => socket.off();
   }, [name]);
 
   const isMyTurn = currentTurnId === socket.id;
-
   if (showSummary) {
     return (
       <div style={{ padding: 20 }}>
@@ -211,6 +162,45 @@ function App() {
     );
   }
 
+  const getCardPoint = (v) => {
+    if (['J', 'Q', 'K'].includes(v)) return 0;
+    if (v === 'A') return 1;
+    return parseInt(v);
+  };
+  const calculateRank = (cards) => {
+    const values = cards.map(c => c.value);
+    const suits = cards.map(c => c.suit);
+    const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
+    const count = {};
+    values.forEach(v => count[v] = (count[v] || 0) + 1);
+    const allJQK = values.every(v => ['J', 'Q', 'K'].includes(v));
+    const sameSuit = suits.every(s => s === suits[0]);
+    const sorted = cards.map(c => {
+      const map = { A: 1, J: 11, Q: 12, K: 13 };
+      return map[c.value] || parseInt(c.value);
+    }).sort((a, b) => a - b);
+    const isStraight = cards.length === 3 && sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1;
+
+    if (cards.length === 2) {
+      const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
+      if (score === 9) return `= 9 แต้ม (${isDouble ? 'ป๊อก 9 สองเด้ง' : 'ป๊อก 9'})`;
+      if (score === 8) return `= 8 แต้ม (${isDouble ? 'ป๊อก 8 สองเด้ง' : 'ป๊อก 8'})`;
+    }
+
+    if (cards.length === 3) {
+      if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
+      if (isStraight && sameSuit) return `= ${score} แต้ม (สเตรทฟลัช)`;
+      if (isStraight) return `= ${score} แต้ม (เรียง)`;
+      if (allJQK) return `= ${score} แต้ม (เซียน)`;
+      if (sameSuit) return `= ${score} แต้ม (แต้มธรรมดา สามเด้ง)`;
+    }
+
+    if (cards.length === 2 && (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)) {
+      return `= ${score} แต้ม (แต้มธรรมดา สองเด้ง)`;
+    }
+
+    return `= ${score} แต้ม (แต้มธรรมดา)`;
+  };
   return (
     <div style={{ padding: 20 }}>
       {!inRoom ? (
