@@ -23,6 +23,7 @@ function App() {
   const [summaryData, setSummaryData] = useState([]);
   const [showResultBtn, setShowResultBtn] = useState(false);
   const [showStartAgain, setShowStartAgain] = useState(false);
+  const [showStartGame, setShowStartGame] = useState(false);
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
@@ -43,7 +44,7 @@ function App() {
   const createRoom = () => {
     const bal = parseInt(money);
     if (bal < 100 || bal % 10 !== 0) {
-      alert('จำนวนเงินขั้นต่ำ 100 และหาร 10 ลงตัว');
+      alert('จำนวนเงินขั้นต่ำ 100 และต้องลงท้ายด้วย 0 เท่านั้น');
       return;
     }
     socket.emit('createRoom', { name, balance: bal }, ({ roomId }) => {
@@ -55,7 +56,7 @@ function App() {
   const joinRoom = () => {
     const bal = parseInt(money);
     if (bal < 100 || bal % 10 !== 0) {
-      alert('จำนวนเงินขั้นต่ำ 100 และหาร 10 ลงตัว');
+      alert('จำนวนเงินขั้นต่ำ 100 และต้องลงท้ายด้วย 0 เท่านั้น');
       return;
     }
     socket.emit('joinRoom', { roomId, name, balance: bal }, res => {
@@ -72,6 +73,7 @@ function App() {
 
   const drawCard = () => {
     socket.emit('drawCard', { roomId });
+    setShowStartGame(false);
     setHasStayed(true);
   };
 
@@ -173,16 +175,16 @@ function App() {
 
     if (cards.length === 2) {
       const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
-      if (score === 9) return `= 9 แต้ม (${isDouble ? 'ป๊อก 9 สองเด้ง' : 'ป๊อก 9'})`;
-      if (score === 8) return `= 8 แต้ม (${isDouble ? 'ป๊อก 8 สองเด้ง' : 'ป๊อก 8'})`;
+      if (score === 9) return `= 9  (${isDouble ? ' สองเด้ง' : 'ป๊อก 9'})`;
+      if (score === 8) return `= 8  (${isDouble ? ' สองเด้ง' : 'ป๊อก 8'})`;
     }
 
     if (cards.length === 3) {
       if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
-      if (isStraight && sameSuit) return `= ${score} แต้ม (สเตรทฟลัช)`;
-      if (isStraight) return `= ${score} แต้ม (เรียง)`;
-      if (allJQK) return `= ${score} แต้ม (เซียน)`;
-      if (sameSuit) return `= ${score} แต้ม (แต้มธรรมดา สามเด้ง)`;
+      if (isStraight && sameSuit) return `= สเตรทฟลัช`;
+      if (isStraight) return `= เรียง`;
+      if (allJQK) return `= เซียน`;
+      if (sameSuit) return `= ${score} แต้ม  สามเด้ง`;
     }
 
     if (cards.length === 2 && (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)) {
