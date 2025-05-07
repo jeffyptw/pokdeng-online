@@ -161,6 +161,9 @@ function App() {
     });
     socket.on('currentTurn', ({ id }) => {
       setCurrentTurnId(id);
+      if (id === socket.id) {
+        setCountdown(15);
+      }
     });
     socket.on('enableShowResult', () => {
       setShowResultBtn(true);
