@@ -237,7 +237,7 @@ function App() {
             โอนให้ : {finalExpense.map(e => `${e.name} (${e.amount} บาท)`).join(', ') || '-'}
           </span>
         </h3>
-        <button onClick={exitGame}>Exit</button>
+        <button onClick={exitGame}>ออกจากเกม</button>
       </div>
     );
   }
