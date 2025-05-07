@@ -26,19 +26,18 @@ function App() {
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
 
-  const isMyTurn = currentTurnId === socket.id;
-
   useEffect(() => {
-    let timer;
-    if (isMyTurn && countdown > 0 && !hasStayed && myCards.length === 2 && result.length === 0) {
-      timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
+      const timer = setTimeout(() => {
+        setCountdown(c => c - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
     }
-    if (countdown === 0 && !hasStayed && isMyTurn && result.length === 0) {
+    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
       socket.emit('stay', { roomId });
       setHasStayed(true);
     }
-    return () => clearTimeout(timer);
-  }, [countdown, isMyTurn, hasStayed, myCards.length, result.length]);
+  }, [countdown, currentTurnId, hasStayed]);
 
   const createRoom = () => {
     const bal = parseInt(money);
@@ -68,7 +67,6 @@ function App() {
     socket.emit('startGame', { roomId });
     setShowResultBtn(false);
     setShowStartAgain(false);
-    setCountdown(15);
   };
 
   const drawCard = () => {
@@ -142,7 +140,6 @@ function App() {
       setHasStayed(false);
       setResult([]);
       setErrorMsg('');
-      setCountdown(15);
     });
     socket.on('playersList', names => {
       setPlayers(names);
@@ -165,12 +162,12 @@ function App() {
       setCurrentTurnId(id);
       if (id === socket.id) setCountdown(15);
     });
-    socket.on('enableShowResult', () => {
-      setShowResultBtn(true);
-    });
+    socket.on('enableShowResult', () => setShowResultBtn(true));
 
     return () => socket.off();
   }, [name]);
+
+  const isMyTurn = currentTurnId === socket.id;
 
   if (showSummary) {
     return (
@@ -216,8 +213,7 @@ function App() {
           <input placeholder="ชื่อคุณ" onChange={e => setName(e.target.value)} />
           <input placeholder="จำนวนเงิน (ขั้นต่ำ 100)" onChange={e => setMoney(e.target.value)} />
           <input placeholder="Room ID" onChange={e => setRoomId(e.target.value)} />
-          <br />
-          <button onClick={createRoom}>สร้างห้องใหม่</button>
+          <br /><button onClick={createRoom}>สร้างห้องใหม่</button>
           <button onClick={joinRoom} disabled={roomLocked}>เข้าร่วมห้อง</button>
           {roomLocked && <p style={{ color: 'orange' }}>เกมกำลังเล่นอยู่ ไม่สามารถเข้าร่วมห้องได้</p>}
         </div>
@@ -251,7 +247,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && !hasStayed && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
+              {!isMyTurn && myCards.length > 0 && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
             </div>
           )}
 
