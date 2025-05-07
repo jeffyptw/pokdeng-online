@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 
-const socket = io('https://pokdeng-online.onrender.com');
+const socket = io('https://pokdeng-online-th.onrender.com');
 
 function App() {
   const [name, setName] = useState('');
