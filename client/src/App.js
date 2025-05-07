@@ -98,6 +98,10 @@ function App() {
   const exitGame = () => window.location.reload();
 
   const isMyTurn = currentTurnId === socket.id;
+  const currentPlayer = players.find(p => p.includes(currentTurnId));
+  const turnPlayerName = currentPlayer?.split(' ')[0];
+  const turnPlayerRole = currentPlayer?.match(/\(([^)]+)\)/)?.[1];
+
 
   const summarizeTransactions = (me) => {
     const incomeMap = {};
@@ -288,7 +292,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
+              {!isMyTurn && <p style={{ color: 'gray' }}>รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛</p>}
             </div>
           )}
           {result.length > 0 && (
