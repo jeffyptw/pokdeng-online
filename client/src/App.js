@@ -149,6 +149,7 @@ function App() {
       setMyCards([]);
       setHasStayed(false);
       setRoomLocked(false);
+      setShowStartAgain(false); // แสดงปุ่มอีกครั้งในรอบต่อไป
     });
     socket.on('summaryData', data => {
       setSummaryData(data);
