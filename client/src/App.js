@@ -26,6 +26,8 @@ function App() {
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
+  const [gameStarted, setGameStarted] = useState(false);
+
 
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
@@ -68,7 +70,9 @@ function App() {
     socket.emit('startGame', { roomId });
     setShowResultBtn(false);
     setShowStartAgain(false);
+    setGameStarted(true); // ซ่อนปุ่มเมื่อเริ่มเกม
   };
+  
 
   const drawCard = () => {
     socket.emit('drawCard', { roomId });
@@ -259,7 +263,11 @@ function App() {
           <p>บท: {isDealer ? 'เจ้ามือ' : players.find(p => p.includes(name))?.split('(')[1]?.replace(')', '')}</p>
           {isDealer && (
             <>
-              {(gameRound === 0 || showStartAgain) && <button onClick={startGame}>{gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}</button>}
+              {(gameRound === 0 || showStartAgain) && !gameStarted && (
+              <button onClick={startGame}>
+              {gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}
+              </button>
+             )}
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
               {result.length > 0 && <button onClick={endGame}>จบเกม</button>}
             </>
