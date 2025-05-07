@@ -254,7 +254,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
+              {!isMyTurn && !result.length && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
             </div>
           )}
 
