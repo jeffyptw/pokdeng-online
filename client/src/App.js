@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 
+
 const socket = io('https://pokdeng-online-th.onrender.com', {
   transports: ['websocket'],
 });
@@ -28,7 +29,9 @@ function App() {
 
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
-      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+      const timer = setTimeout(() => {
+        setCountdown(c => c - 1);
+      }, 1000);
       return () => clearTimeout(timer);
     }
     if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
@@ -91,15 +94,33 @@ function App() {
 
   const exitGame = () => window.location.reload();
 
-  const summarize = (transactions, key) => {
-    const summary = {};
-    for (const item of transactions) {
-      const who = item[key];
-      summary[who] = (summary[who] || 0) + item.amount;
-    }
-    return Object.entries(summary)
-      .map(([person, total]) => `${person} (${total} บาท)`)
-      .join(', ');
+  const isMyTurn = currentTurnId === socket.id;
+
+  const summarizeTransactions = (me) => {
+    const incomeMap = {};
+    const expenseMap = {};
+
+    me.income.forEach(entry => {
+      incomeMap[entry.from] = (incomeMap[entry.from] || 0) + entry.amount;
+    });
+
+    me.expense.forEach(entry => {
+      expenseMap[entry.to] = (expenseMap[entry.to] || 0) + entry.amount;
+    });
+
+    const allNames = new Set([...Object.keys(incomeMap), ...Object.keys(expenseMap)]);
+    const finalIncome = [];
+    const finalExpense = [];
+
+    allNames.forEach(person => {
+      const get = incomeMap[person] || 0;
+      const give = expenseMap[person] || 0;
+
+      if (get > give) finalIncome.push({ name: person, amount: get - give });
+      else if (give > get) finalExpense.push({ name: person, amount: give - get });
+    });
+
+    return { finalIncome, finalExpense };
   };
 
   useEffect(() => {
@@ -134,23 +155,21 @@ function App() {
       if (id === socket.id) setCountdown(15);
     });
     socket.on('enableShowResult', () => setShowResultBtn(true));
+
     return () => socket.off();
   }, [name]);
 
-  const isMyTurn = currentTurnId === socket.id;
-
-  const getCardPoint = v => ['J', 'Q', 'K'].includes(v) ? 0 : v === 'A' ? 1 : parseInt(v);
-
-  const calculateRank = cards => {
+  const getCardPoint = v => ['J','Q','K'].includes(v) ? 0 : v === 'A' ? 1 : parseInt(v);
+  const calculateRank = (cards) => {
     const values = cards.map(c => c.value);
     const suits = cards.map(c => c.suit);
     const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
     const count = {};
     values.forEach(v => count[v] = (count[v] || 0) + 1);
-    const allJQK = values.every(v => ['J', 'Q', 'K'].includes(v));
+    const allJQK = values.every(v => ['J','Q','K'].includes(v));
     const sameSuit = suits.every(s => s === suits[0]);
-    const sorted = cards.map(c => ({ A:1, J:11, Q:12, K:13 }[c.value] || parseInt(c.value))).sort((a, b) => a - b);
-    const isStraight = cards.length === 3 && sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1;
+    const sorted = cards.map(c => ({'A':1,'J':11,'Q':12,'K':13}[c.value] || parseInt(c.value))).sort((a,b)=>a-b);
+    const isStraight = cards.length === 3 && sorted[1] === sorted[0]+1 && sorted[2] === sorted[1]+1;
 
     if (cards.length === 2) {
       const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
@@ -174,7 +193,9 @@ function App() {
   };
 
   if (showSummary) {
-    const me = summaryData.find(p => p.name.includes(name));
+    const me = summaryData.find(p => p.name.startsWith(name));
+    const { finalIncome, finalExpense } = me ? summarizeTransactions(me) : { finalIncome: [], finalExpense: [] };
+
     return (
       <div style={{ padding: 20 }}>
         <h2>สรุปยอดเงินหลังจบเกม</h2>
@@ -198,26 +219,25 @@ function App() {
                 <td style={{ color: p.net >= 0 ? 'green' : 'red' }}>
                   {p.net >= 0 ? `+${p.net}` : p.net} บาท
                 </td>
-                <td style={{ color: 'green' }}>
-                  {summarize(p.income, 'from') || '-'}
-                </td>
-                <td style={{ color: 'red' }}>
-                  {summarize(p.expense, 'to') || '-'}
-                </td>
+                <td style={{ color: 'green' }}>{p.income.map(e => `${e.from} (${e.amount} บาท)`).join(', ') || '-'}</td>
+                <td style={{ color: 'red' }}>{p.expense.map(e => `${e.to} (${e.amount} บาท)`).join(', ') || '-'}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {me && (
-          <>
-            <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
-            <h3>ชื่อ : {me.name}</h3>
-            <h3><span style={{ color: 'green' }}>ได้จาก : {summarize(me.income, 'from') || 'ไม่มี'}</span></h3>
-            <h3><span style={{ color: 'red' }}>โอนให้ : {summarize(me.expense, 'to') || 'ไม่มี'}</span></h3>
-          </>
-        )}
-        <br />
+        <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
+        <h3>ชื่อ : {me?.name}</h3>
+        <h3>
+          <span style={{ color: 'green' }}>
+            ได้จาก : {finalIncome.map(e => `${e.name} (${e.amount} บาท)`).join(', ') || '-'}
+          </span>
+        </h3>
+        <h3>
+          <span style={{ color: 'red' }}>
+            โอนให้ : {finalExpense.map(e => `${e.name} (${e.amount} บาท)`).join(', ') || '-'}
+          </span>
+        </h3>
         <button onClick={exitGame}>Exit</button>
       </div>
     );
