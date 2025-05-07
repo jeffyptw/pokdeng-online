@@ -206,8 +206,6 @@ function App() {
               <th>ชื่อ</th>
               <th>ยอดเงินคงเหลือ</th>
               <th>กำไร/ขาดทุน</th>
-              <th>ได้เงินจาก</th>
-              <th>เสียเงินให้</th>
             </tr>
           </thead>
           <tbody>
@@ -219,8 +217,6 @@ function App() {
                 <td style={{ color: p.net >= 0 ? 'green' : 'red' }}>
                   {p.net >= 0 ? `+${p.net}` : p.net} บาท
                 </td>
-                <td style={{ color: 'green' }}>{p.income.map(e => `${e.from} (${e.amount} บาท)`).join(', ') || '-'}</td>
-                <td style={{ color: 'red' }}>{p.expense.map(e => `${e.to} (${e.amount} บาท)`).join(', ') || '-'}</td>
               </tr>
             ))}
           </tbody>
