@@ -27,6 +27,8 @@ function App() {
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
   const [startClicked, setStartClicked] = useState(false);
+  const [playerData, setPlayerData] = useState([]);
+
 
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
@@ -98,9 +100,9 @@ function App() {
   const exitGame = () => window.location.reload();
 
   const isMyTurn = currentTurnId === socket.id;
-  const currentPlayer = players.find(p => p.includes(currentTurnId));
-  const turnPlayerName = currentPlayer?.split(' ')[0];
-  const turnPlayerRole = currentPlayer?.match(/\(([^)]+)\)/)?.[1];
+  const currentPlayer = playerData.find(p => p.id === currentTurnId);
+ const turnPlayerName = currentPlayer?.name;
+ const turnPlayerRole = currentPlayer?.role;
 
 
   const summarizeTransactions = (me) => {
@@ -141,6 +143,9 @@ function App() {
       setPlayers(names);
       const me = names.find(p => p.includes(name));
       setIsDealer(me && me.includes('เจ้ามือ'));
+    });
+    socket.on('playersData', data => {
+      setPlayerData(data); 
     });
     socket.on('result', data => {
       setResult(data);
@@ -292,7 +297,12 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && <p style={{ color: 'gray' }}>รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛</p>}
+              {!isMyTurn && currentPlayer && (
+              <p style={{ color: 'gray' }}>
+               รอ...({turnPlayerRole}) {turnPlayerName} จั่วก่อน⌛
+              </p>
+              )}
+
             </div>
           )}
           {result.length > 0 && (
