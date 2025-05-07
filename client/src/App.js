@@ -1,5 +1,7 @@
+// 🔻 โค้ดเต็ม App.js ด้านล่างนี้
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
+
 
 const socket = io('https://pokdeng-online-th.onrender.com', {
   transports: ['websocket'],
@@ -24,11 +26,12 @@ function App() {
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
-  const [gameStarted, setGameStarted] = useState(false);
 
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
-      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+      const timer = setTimeout(() => {
+        setCountdown(c => c - 1);
+      }, 1000);
       return () => clearTimeout(timer);
     }
     if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
@@ -65,7 +68,6 @@ function App() {
     socket.emit('startGame', { roomId });
     setShowResultBtn(false);
     setShowStartAgain(false);
-    setGameStarted(true);
   };
 
   const drawCard = () => {
@@ -88,7 +90,6 @@ function App() {
   const endGame = () => {
     socket.emit('endGame', { roomId });
     socket.emit('requestSummary', { roomId });
-    setGameStarted(false);
   };
 
   const exitGame = () => window.location.reload();
@@ -96,17 +97,29 @@ function App() {
   const isMyTurn = currentTurnId === socket.id;
 
   const summarizeTransactions = (me) => {
-    const incomeMap = {}, expenseMap = {};
-    me.income.forEach(e => incomeMap[e.from] = (incomeMap[e.from] || 0) + e.amount);
-    me.expense.forEach(e => expenseMap[e.to] = (expenseMap[e.to] || 0) + e.amount);
-    const names = new Set([...Object.keys(incomeMap), ...Object.keys(expenseMap)]);
-    const finalIncome = [], finalExpense = [];
-    names.forEach(person => {
-      const income = incomeMap[person] || 0;
-      const expense = expenseMap[person] || 0;
-      if (income > expense) finalIncome.push({ name: person, amount: income - expense });
-      else if (expense > income) finalExpense.push({ name: person, amount: expense - income });
+    const incomeMap = {};
+    const expenseMap = {};
+
+    me.income.forEach(entry => {
+      incomeMap[entry.from] = (incomeMap[entry.from] || 0) + entry.amount;
     });
+
+    me.expense.forEach(entry => {
+      expenseMap[entry.to] = (expenseMap[entry.to] || 0) + entry.amount;
+    });
+
+    const allNames = new Set([...Object.keys(incomeMap), ...Object.keys(expenseMap)]);
+    const finalIncome = [];
+    const finalExpense = [];
+
+    allNames.forEach(person => {
+      const get = incomeMap[person] || 0;
+      const give = expenseMap[person] || 0;
+
+      if (get > give) finalIncome.push({ name: person, amount: get - give });
+      else if (give > get) finalExpense.push({ name: person, amount: give - get });
+    });
+
     return { finalIncome, finalExpense };
   };
 
@@ -142,62 +155,85 @@ function App() {
       if (id === socket.id) setCountdown(15);
     });
     socket.on('enableShowResult', () => setShowResultBtn(true));
+
     return () => socket.off();
   }, [name]);
 
-  const getCardPoint = v => ['J', 'Q', 'K'].includes(v) ? 0 : v === 'A' ? 1 : parseInt(v);
-
+  const getCardPoint = v => ['J','Q','K'].includes(v) ? 0 : v === 'A' ? 1 : parseInt(v);
   const calculateRank = (cards) => {
     const values = cards.map(c => c.value);
     const suits = cards.map(c => c.suit);
     const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
     const count = {};
     values.forEach(v => count[v] = (count[v] || 0) + 1);
-    const sameSuit = suits.every(s => s === suits[0]);
     const allJQK = values.every(v => ['J','Q','K'].includes(v));
-    const sorted = cards.map(c => ({A:1, J:11, Q:12, K:13}[c.value] || parseInt(c.value))).sort((a,b)=>a-b);
-    const isStraight = cards.length === 3 && sorted[2] === sorted[1]+1 && sorted[1] === sorted[0]+1;
+    const sameSuit = suits.every(s => s === suits[0]);
+    const sorted = cards.map(c => ({'A':1,'J':11,'Q':12,'K':13}[c.value] || parseInt(c.value))).sort((a,b)=>a-b);
+    const isStraight = cards.length === 3 && sorted[1] === sorted[0]+1 && sorted[2] === sorted[1]+1;
+
     if (cards.length === 2) {
-      const isDouble = suits[0] === suits[1] || values[0] === values[1];
-      if (score === 9) return `(ป๊อก 9${isDouble ? ' สองเด้ง' : ''})`;
-      if (score === 8) return `(ป๊อก 8${isDouble ? ' สองเด้ง' : ''})`;
+      const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
+      if (score === 9) return `=${isDouble ? ' ป๊อก 9สองเด้ง' : 'ป๊อก 9'}`;
+      if (score === 8) return `=${isDouble ? ' ป๊อก 8สองเด้ง' : 'ป๊อก 8'}`;
     }
+
     if (cards.length === 3) {
-      if (Object.values(count).includes(3)) return `(ตอง)`;
-      if (isStraight && sameSuit) return `(สเตรทฟลัช)`;
-      if (isStraight) return `(เรียง)`;
-      if (allJQK) return `(เซียน)`;
-      if (sameSuit) return `(แต้มธรรมดา สามเด้ง)`;
+      if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
+      if (isStraight && sameSuit) return `= สเตรทฟลัช`;
+      if (isStraight) return `= เรียง`;
+      if (allJQK) return `= เซียน`;
+      if (sameSuit) return `= ${score} แต้มสามเด้ง`;
     }
-    if (cards.length === 2 && (values[0] === values[1] || suits[0] === suits[1])) return `(แต้มธรรมดา สองเด้ง)`;
-    return `(แต้มธรรมดา)`;
+
+    if (cards.length === 2 && (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)) {
+      return `= ${score} แต้มสองเด้ง`;
+    }
+
+    return `= ${score} แต้ม`;
   };
 
   if (showSummary) {
     const me = summaryData.find(p => p.name.startsWith(name));
     const { finalIncome, finalExpense } = me ? summarizeTransactions(me) : { finalIncome: [], finalExpense: [] };
+
     return (
       <div style={{ padding: 20 }}>
         <h2>สรุปยอดเงินหลังจบเกม</h2>
         <table border="1" cellPadding="10">
-          <thead><tr><th>ลำดับ</th><th>ชื่อ</th><th>ยอดเงินคงเหลือ</th><th>กำไร/ขาดทุน</th></tr></thead>
+          <thead>
+            <tr>
+              <th>ลำดับ</th>
+              <th>ชื่อ</th>
+              <th>ยอดเงินคงเหลือ</th>
+              <th>กำไร/ขาดทุน</th>
+            </tr>
+          </thead>
           <tbody>
             {summaryData.map((p, i) => (
               <tr key={i}>
-                <td>{i + 1}</td><td>{p.name}</td>
+                <td>{i + 1}</td>
+                <td>{p.name}</td>
                 <td>{p.balance} บาท</td>
-                <td style={{ color: p.net >= 0 ? 'green' : 'red' }}>{p.net >= 0 ? `+${p.net}` : p.net} บาท</td>
+                <td style={{ color: p.net >= 0 ? 'green' : 'red' }}>
+                  {p.net >= 0 ? `+${p.net}` : p.net} บาท
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
         <h3>ชื่อ : {me?.name}</h3>
-        <h4 style={{ color: 'green' }}>
-          ได้จาก : {finalIncome.map(e => `${e.name} (${e.amount} บาท)`).join(', ') || '-'}
-        </h4>
-        <h4 style={{ color: 'red' }}>
-          โอนให้ : {finalExpense.map(e => `${e.name} (${e.amount} บาท)`).join(', ') || '-'}
-        </h4>
+        <h3>
+          <span style={{ color: 'green' }}>
+            ได้จาก : {finalIncome.map(e => `${e.name} (${e.amount} บาท)`).join(', ') || '-'}
+          </span>
+        </h3>
+        <h3>
+          <span style={{ color: 'red' }}>
+            โอนให้ : {finalExpense.map(e => `${e.name} (${e.amount} บาท)`).join(', ') || '-'}
+          </span>
+        </h3>
         <button onClick={exitGame}>Exit</button>
       </div>
     );
@@ -222,14 +258,20 @@ function App() {
           <p>ชื่อ : {name}</p>
           <p>บท: {isDealer ? 'เจ้ามือ' : players.find(p => p.includes(name))?.split('(')[1]?.replace(')', '')}</p>
           {isDealer && (
-            <>
-              {!gameStarted && (
-                <button onClick={startGame}>{gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}</button>
-              )}
-              {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
-              {result.length > 0 && <button onClick={endGame}>จบเกม</button>}
-            </>
-          )}
+  <>
+    {gameRound === 0 && !showResultBtn && !result.length && (
+      <button onClick={startGame}>เริ่มเกม</button>
+    )}
+    {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
+    {result.length > 0 && (
+      <>
+        <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
+        <button onClick={endGame}>จบเกม</button>
+      </>
+    )}
+  </>
+)}
+
           {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
           <h4>ผู้เล่นภายในห้องนี้:</h4>
           <ul>{players.map((p, i) => <li key={i}>{p}</li>)}</ul>
@@ -259,8 +301,7 @@ function App() {
                   if (isDealer) {
                     return (
                       <li key={i}>
-                        {r.name}: {r.cards} = {r.sum} แต้ม {r.specialType}
-                        {dealerNet > 0 && ` ✅ เจ้ามือ ได้ ${dealerNet} บาท`}
+                        {r.name}: {r.cards} = {r.sum} แต้ม ({r.specialType}){dealerNet > 0 && ` ✅ เจ้ามือ ได้ ${dealerNet} บาท`}
                         {dealerNet < 0 && ` ❌ เจ้ามือ เสีย ${-dealerNet} บาท`}
                         {dealerNet === 0 && ` ✅ ได้ 0 บาท`}
                       </li>
@@ -268,7 +309,7 @@ function App() {
                   }
                   return (
                     <li key={i}>
-                      {r.name}: {r.cards} = {r.sum} แต้ม {r.specialType}
+                      {r.name}: {r.cards} = {r.sum} แต้ม ({r.specialType})
                       {r.outcome === 'win' && ` ✅ ชนะ : ได้ ${r.moneyChange} บาท`}
                       {r.outcome === 'lose' && ` ❌ แพ้ : เสีย ${-r.moneyChange} บาท`}
                       {r.outcome === 'draw' && ` 🤝 เสมอ`}
