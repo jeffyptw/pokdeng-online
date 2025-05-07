@@ -182,14 +182,14 @@ function App() {
       if (isStraight && sameSuit) return `= สเตรทฟลัช`;
       if (isStraight) return `= เรียง`;
       if (allJQK) return `= เซียน`;
-      if (sameSuit) return `= ${score} แต้ม  สามเด้ง`;
+      if (sameSuit) return `= ${score} แต้มสามเด้ง`;
     }
 
     if (cards.length === 2 && (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)) {
-      return `= ${score} แต้ม (แต้มธรรมดา สองเด้ง)`;
+      return `= ${score} แต้มสองเด้ง`;
     }
 
-    return `= ${score} แต้ม (แต้มธรรมดา)`;
+    return `= ${score} แต้มธรรมดา`;
   };
 
   if (showSummary) {
