@@ -266,7 +266,6 @@ function App() {
     {result.length > 0 && (
       <>
         <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
-        <button onClick={endGame}>จบเกม</button>
       </>
     )}
   </>
