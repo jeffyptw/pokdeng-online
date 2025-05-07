@@ -268,10 +268,11 @@ function App() {
           {isDealer && (
             <>
               {(gameRound === 0 || showStartAgain) && !gameStarted && (
-               <button onClick={startGame}>
-               {gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}
-               </button>
-            )}
+  <button onClick={startGame}>
+    {gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}
+  </button>
+)}
+
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
               {result.length > 0 && <button onClick={endGame}>จบเกม</button>}
             </>
