@@ -317,6 +317,8 @@ function App() {
                   );
                 })}
               </ul>
+              <br></br>
+              <button onClick={endGame}>จบเกม</button>
             </div>
           )}
         </div>
