@@ -9,9 +9,9 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: 'https://pokdeng-online-1.onrender.com',
+    origin: 'https://pokdeng-online1.onrender.com',
     methods: ['GET', 'POST']
-  }
+  }  
 });
 
 const SUITS = ['♠', '♥', '♦', '♣'];
