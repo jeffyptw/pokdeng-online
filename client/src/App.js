@@ -265,18 +265,13 @@ function App() {
           <h2>ห้อง: {roomId}</h2>
           <p>ชื่อ : {name}</p>
           <p>บท: {isDealer ? 'เจ้ามือ' : players.find(p => p.includes(name))?.split('(')[1]?.replace(')', '')}</p>
-          {isDealer && (
-            <>
-              {(gameRound === 0 || showStartAgain) && !gameStarted && (
+          {isDealer && !gameStarted && !showSummary && (
   <button onClick={startGame}>
     {gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}
   </button>
 )}
-
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
               {result.length > 0 && <button onClick={endGame}>จบเกม</button>}
-            </>
-          )}
           {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
           <h4>ผู้เล่นภายในห้องนี้:</h4>
           <ul>{players.map((p, i) => <li key={i}>{p}</li>)}</ul>
