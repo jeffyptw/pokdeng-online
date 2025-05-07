@@ -94,7 +94,10 @@ function App() {
   const endGame = () => {
     socket.emit('endGame', { roomId });
     socket.emit('requestSummary', { roomId });
+    setGameStarted(false); // ✅ เพื่อให้ปุ่มกลับมาแสดงอีกครั้ง
+    setShowStartAgain(true); // ✅ ให้ขึ้นปุ่ม "เริ่มเกมอีกครั้ง"
   };
+  
 
   const exitGame = () => window.location.reload();
 
@@ -265,10 +268,10 @@ function App() {
           {isDealer && (
             <>
               {(gameRound === 0 || showStartAgain) && !gameStarted && (
-              <button onClick={startGame}>
-              {gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}
-              </button>
-             )}
+               <button onClick={startGame}>
+               {gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}
+               </button>
+            )}
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
               {result.length > 0 && <button onClick={endGame}>จบเกม</button>}
             </>
