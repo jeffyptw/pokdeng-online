@@ -1,3 +1,4 @@
+// 🔻 โค้ดเต็ม App.js ด้านล่างนี้
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 
@@ -24,11 +25,10 @@ function App() {
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
+
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
-      const timer = setTimeout(() => {
-        setCountdown(c => c - 1);
-      }, 1000);
+      const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
       return () => clearTimeout(timer);
     }
     if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
@@ -90,6 +90,18 @@ function App() {
   };
 
   const exitGame = () => window.location.reload();
+
+  const summarize = (transactions, key) => {
+    const summary = {};
+    for (const item of transactions) {
+      const who = item[key];
+      summary[who] = (summary[who] || 0) + item.amount;
+    }
+    return Object.entries(summary)
+      .map(([person, total]) => `${person} (${total} บาท)`)
+      .join(', ');
+  };
+
   useEffect(() => {
     socket.on('yourCards', data => setMyCards(data.cards));
     socket.on('resetGame', () => {
@@ -126,7 +138,43 @@ function App() {
   }, [name]);
 
   const isMyTurn = currentTurnId === socket.id;
+
+  const getCardPoint = v => ['J', 'Q', 'K'].includes(v) ? 0 : v === 'A' ? 1 : parseInt(v);
+
+  const calculateRank = cards => {
+    const values = cards.map(c => c.value);
+    const suits = cards.map(c => c.suit);
+    const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
+    const count = {};
+    values.forEach(v => count[v] = (count[v] || 0) + 1);
+    const allJQK = values.every(v => ['J', 'Q', 'K'].includes(v));
+    const sameSuit = suits.every(s => s === suits[0]);
+    const sorted = cards.map(c => ({ A:1, J:11, Q:12, K:13 }[c.value] || parseInt(c.value))).sort((a, b) => a - b);
+    const isStraight = cards.length === 3 && sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1;
+
+    if (cards.length === 2) {
+      const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
+      if (score === 9) return `= 9 แต้ม (${isDouble ? 'ป๊อก 9 สองเด้ง' : 'ป๊อก 9'})`;
+      if (score === 8) return `= 8 แต้ม (${isDouble ? 'ป๊อก 8 สองเด้ง' : 'ป๊อก 8'})`;
+    }
+
+    if (cards.length === 3) {
+      if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
+      if (isStraight && sameSuit) return `= ${score} แต้ม (สเตรทฟลัช)`;
+      if (isStraight) return `= ${score} แต้ม (เรียง)`;
+      if (allJQK) return `= ${score} แต้ม (เซียน)`;
+      if (sameSuit) return `= ${score} แต้ม (แต้มธรรมดา สามเด้ง)`;
+    }
+
+    if (cards.length === 2 && (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)) {
+      return `= ${score} แต้ม (แต้มธรรมดา สองเด้ง)`;
+    }
+
+    return `= ${score} แต้ม (แต้มธรรมดา)`;
+  };
+
   if (showSummary) {
+    const me = summaryData.find(p => p.name.includes(name));
     return (
       <div style={{ padding: 20 }}>
         <h2>สรุปยอดเงินหลังจบเกม</h2>
@@ -150,57 +198,31 @@ function App() {
                 <td style={{ color: p.net >= 0 ? 'green' : 'red' }}>
                   {p.net >= 0 ? `+${p.net}` : p.net} บาท
                 </td>
-                <td>{p.income.map(e => `${e.from} (${e.amount}฿)`).join(', ') || '-'}</td>
-                <td>{p.expense.map(e => `${e.to} (${e.amount}฿)`).join(', ') || '-'}</td>
+                <td style={{ color: 'green' }}>
+                  {summarize(p.income, 'from') || '-'}
+                </td>
+                <td style={{ color: 'red' }}>
+                  {summarize(p.expense, 'to') || '-'}
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
+
+        {me && (
+          <>
+            <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
+            <h3>ชื่อ : {me.name}</h3>
+            <h3><span style={{ color: 'green' }}>ได้จาก : {summarize(me.income, 'from') || 'ไม่มี'}</span></h3>
+            <h3><span style={{ color: 'red' }}>โอนให้ : {summarize(me.expense, 'to') || 'ไม่มี'}</span></h3>
+          </>
+        )}
         <br />
         <button onClick={exitGame}>Exit</button>
       </div>
     );
   }
 
-  const getCardPoint = (v) => {
-    if (['J', 'Q', 'K'].includes(v)) return 0;
-    if (v === 'A') return 1;
-    return parseInt(v);
-  };
-  const calculateRank = (cards) => {
-    const values = cards.map(c => c.value);
-    const suits = cards.map(c => c.suit);
-    const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
-    const count = {};
-    values.forEach(v => count[v] = (count[v] || 0) + 1);
-    const allJQK = values.every(v => ['J', 'Q', 'K'].includes(v));
-    const sameSuit = suits.every(s => s === suits[0]);
-    const sorted = cards.map(c => {
-      const map = { A: 1, J: 11, Q: 12, K: 13 };
-      return map[c.value] || parseInt(c.value);
-    }).sort((a, b) => a - b);
-    const isStraight = cards.length === 3 && sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1;
-
-    if (cards.length === 2) {
-      const isDouble = cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
-      if (score === 9) return `= 9 แต้ม (${isDouble ? 'ป๊อก 9 สองเด้ง' : 'ป๊อก 9'})`;
-      if (score === 8) return `= 8 แต้ม (${isDouble ? 'ป๊อก 8 สองเด้ง' : 'ป๊อก 8'})`;
-    }
-
-    if (cards.length === 3) {
-      if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
-      if (isStraight && sameSuit) return `= ${score} แต้ม (สเตรทฟลัช)`;
-      if (isStraight) return `= ${score} แต้ม (เรียง)`;
-      if (allJQK) return `= ${score} แต้ม (เซียน)`;
-      if (sameSuit) return `= ${score} แต้ม (แต้มธรรมดา สามเด้ง)`;
-    }
-
-    if (cards.length === 2 && (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)) {
-      return `= ${score} แต้ม (แต้มธรรมดา สองเด้ง)`;
-    }
-
-    return `= ${score} แต้ม (แต้มธรรมดา)`;
-  };
   return (
     <div style={{ padding: 20 }}>
       {!inRoom ? (
@@ -209,7 +231,8 @@ function App() {
           <input placeholder="ชื่อคุณ" onChange={e => setName(e.target.value)} />
           <input placeholder="จำนวนเงิน (ขั้นต่ำ 100)" onChange={e => setMoney(e.target.value)} />
           <input placeholder="Room ID" onChange={e => setRoomId(e.target.value)} />
-          <br /><button onClick={createRoom}>สร้างห้องใหม่</button>
+          <br />
+          <button onClick={createRoom}>สร้างห้องใหม่</button>
           <button onClick={joinRoom} disabled={roomLocked}>เข้าร่วมห้อง</button>
           {roomLocked && <p style={{ color: 'orange' }}>เกมกำลังเล่นอยู่ ไม่สามารถเข้าร่วมห้องได้</p>}
         </div>
@@ -218,7 +241,6 @@ function App() {
           <h2>ห้อง: {roomId}</h2>
           <p>ชื่อ : {name}</p>
           <p>บท: {isDealer ? 'เจ้ามือ' : players.find(p => p.includes(name))?.split('(')[1]?.replace(')', '')}</p>
-
           {isDealer && (
             <>
               {(gameRound === 0 || showStartAgain) && <button onClick={startGame}>{gameRound === 0 ? 'เริ่มเกม' : 'เริ่มเกมอีกครั้ง'}</button>}
@@ -226,18 +248,13 @@ function App() {
               {result.length > 0 && <button onClick={endGame}>จบเกม</button>}
             </>
           )}
-
           {errorMsg && <p style={{ color: 'red' }}>{errorMsg}</p>}
-
           <h4>ผู้เล่นภายในห้องนี้:</h4>
           <ul>{players.map((p, i) => <li key={i}>{p}</li>)}</ul>
-
           {myCards.length > 0 && result.length === 0 && (
             <div>
               <h3>ไพ่ของคุณ:</h3>
-              <p>
-                {myCards.map(c => `${c.value}${c.suit}`).join(', ')} {calculateRank(myCards)}
-              </p>
+              <p>{myCards.map(c => `${c.value}${c.suit}`).join(', ')} {calculateRank(myCards)}</p>
               {!hasStayed && myCards.length === 2 && isMyTurn && (
                 <>
                   <p style={{ color: 'blue' }}>เวลาคิด: {countdown} วินาที</p>
@@ -245,10 +262,9 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && result.length === 0 && myCards.length > 0 && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
+              {!isMyTurn && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
             </div>
           )}
-
           {result.length > 0 && (
             <div>
               <h3>ผลลัพธ์:</h3>
@@ -258,23 +274,18 @@ function App() {
                   const dealerIncome = result.filter(x => x.outcome === 'lose').reduce((sum, x) => sum + (-x.moneyChange), 0);
                   const dealerLoss = result.filter(x => x.outcome === 'win').reduce((sum, x) => sum + x.moneyChange, 0);
                   const dealerNet = dealerIncome - dealerLoss;
-
                   if (isDealer) {
                     return (
                       <li key={i}>
-                        {r.name}: {r.cards} = {r.sum} แต้ม
-                        {r.specialType ? ` (${r.specialType})` : ''}
-                        {dealerNet > 0 && ` ✅ เจ้ามือ ได้ ${dealerNet} บาท`}
+                        {r.name}: {r.cards} = {r.sum} แต้ม ({r.specialType}){dealerNet > 0 && ` ✅ เจ้ามือ ได้ ${dealerNet} บาท`}
                         {dealerNet < 0 && ` ❌ เจ้ามือ เสีย ${-dealerNet} บาท`}
                         {dealerNet === 0 && ` ✅ ได้ 0 บาท`}
                       </li>
                     );
                   }
-
                   return (
                     <li key={i}>
-                      {r.name}: {r.cards} = {r.sum} แต้ม
-                      {r.specialType ? ` (${r.specialType})` : ''}
+                      {r.name}: {r.cards} = {r.sum} แต้ม ({r.specialType})
                       {r.outcome === 'win' && ` ✅ ชนะ : ได้ ${r.moneyChange} บาท`}
                       {r.outcome === 'lose' && ` ❌ แพ้ : เสีย ${-r.moneyChange} บาท`}
                       {r.outcome === 'draw' && ` 🤝 เสมอ`}
