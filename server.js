@@ -11,7 +11,7 @@ const io = new Server(server, {
   cors: {
     origin: 'https://pokdeng-online1.onrender.com',
     methods: ['GET', 'POST']
-  }  
+  }
 });
 
 const SUITS = ['♠', '♥', '♦', '♣'];
@@ -91,7 +91,7 @@ function startNextTurn(roomId, index = 0) {
 
   const ordered = [...room.players.filter(p => p.role !== 'เจ้ามือ')];
   const dealer = room.players.find(p => p.role === 'เจ้ามือ');
-  if (dealer) ordered.push(dealer); // เจ้ามือเป็นคนสุดท้าย
+  if (dealer) ordered.push(dealer);
 
   if (index >= ordered.length) {
     io.to(dealer.id).emit('enableShowResult');
@@ -106,9 +106,84 @@ function startNextTurn(roomId, index = 0) {
 
   turnTimers[roomId] = setTimeout(() => {
     player.hasChosen = true;
-    io.to(player.id).emit('yourCards', { cards: player.cards }); // เคลียร์ UI ปุ่ม
+    io.to(player.id).emit('yourCards', { cards: player.cards });
     startNextTurn(roomId, index + 1);
   }, 15000);
+}
+
+function handleResultAndSummary(roomId) {
+  const room = rooms[roomId];
+  const dealer = room?.players.find(p => p.role === 'เจ้ามือ');
+  if (!room || !dealer) return;
+
+  const dealerRank = getHandRank(dealer.cards);
+  const payoutRate = {
+    'ป๊อก 9 สองเด้ง': 2, 'ป๊อก 8 สองเด้ง': 2,
+    'ป๊อก 9': 1, 'ป๊อก 8': 1,
+    'ตอง': 5, 'สเตรทฟลัช': 5,
+    'เรียง': 3, 'เซียน': 3,
+    'แต้มธรรมดา สามเด้ง': 3,
+    'แต้มธรรมดา สองเด้ง': 2,
+    'แต้มธรรมดา': 1
+  };
+  const bet = 5;
+
+  const results = room.players.map(p => {
+    const rank = getHandRank(p.cards);
+    const result = {
+      name: `${p.name} (${p.role})`,
+      cards: p.cards.map(c => `${c.value}${c.suit}`).join(', '),
+      sum: calculateScore(p.cards),
+      specialType: rank.type,
+      outcome: '',
+      moneyChange: 0
+    };
+
+    if (p.role === 'เจ้ามือ') {
+      result.outcome = 'dealer';
+    } else {
+      const payout = payoutRate[rank.type] || 1;
+      const dealerPayout = payoutRate[dealerRank.type] || 1;
+
+      if (rank.rank < dealerRank.rank || (rank.rank === dealerRank.rank && rank.score > dealerRank.score)) {
+        result.outcome = 'win';
+        result.moneyChange = payout * bet;
+        p.balance += result.moneyChange;
+        dealer.balance -= result.moneyChange;
+        p.income.push({ from: dealer.name, amount: result.moneyChange });
+        dealer.expense.push({ to: p.name, amount: result.moneyChange });
+      } else if (rank.rank > dealerRank.rank || (rank.rank === dealerRank.rank && rank.score < dealerRank.score)) {
+        result.outcome = 'lose';
+        result.moneyChange = -dealerPayout * bet;
+        p.balance += result.moneyChange;
+        dealer.balance -= result.moneyChange;
+        p.expense.push({ to: dealer.name, amount: -result.moneyChange });
+        dealer.income.push({ from: p.name, amount: -result.moneyChange });
+      } else {
+        result.outcome = 'draw';
+      }
+    }
+
+    return result;
+  });
+
+  io.to(roomId).emit('result', results);
+
+  const summary = room.players.map(p => ({
+    name: `${p.name} (${p.role})`,
+    balance: p.balance,
+    net: p.balance - p.originalBalance,
+    income: p.income,
+    expense: p.expense
+  }));
+  io.to(roomId).emit('summaryData', summary);
+}
+
+function sendPlayers(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  const list = room.players.map(p => `${p.name} (${p.role}) = ${p.balance} บาท`);
+  io.to(roomId).emit('playersList', list);
 }
 
 io.on('connection', socket => {
@@ -197,64 +272,7 @@ io.on('connection', socket => {
   });
 
   socket.on('showResult', ({ roomId }) => {
-    const room = rooms[roomId];
-    const dealer = room?.players.find(p => p.role === 'เจ้ามือ');
-    if (!room || !dealer) return;
-    const allReady = room.players.filter(p => p.role !== 'เจ้ามือ').every(p => p.hasChosen);
-    if (!allReady || !dealer.hasChosen) return io.to(dealer.id).emit('errorMessage', 'ทุกคนต้องเลือกก่อนรวมถึงเจ้ามือ');
-
-    const dealerRank = getHandRank(dealer.cards);
-    const payoutRate = {
-      'ป๊อก 9 สองเด้ง': 2, 'ป๊อก 8 สองเด้ง': 2,
-      'ป๊อก 9': 1, 'ป๊อก 8': 1,
-      'ตอง': 5, 'สเตรทฟลัช': 5,
-      'เรียง': 3, 'เซียน': 3,
-      'แต้มธรรมดา สามเด้ง': 3,
-      'แต้มธรรมดา สองเด้ง': 2,
-      'แต้มธรรมดา': 1
-    };
-    const bet = 5;
-
-    const results = room.players.map(p => {
-      const rank = getHandRank(p.cards);
-      const result = {
-        name: `${p.name} (${p.role})`,
-        cards: p.cards.map(c => `${c.value}${c.suit}`).join(', '),
-        sum: calculateScore(p.cards),
-        specialType: rank.type,
-        outcome: '',
-        moneyChange: 0
-      };
-
-      if (p.role === 'เจ้ามือ') {
-        result.outcome = 'dealer';
-      } else {
-        const payout = payoutRate[rank.type] || 1;
-        const dealerPayout = payoutRate[dealerRank.type] || 1;
-
-        if (rank.rank < dealerRank.rank || (rank.rank === dealerRank.rank && rank.score > dealerRank.score)) {
-          result.outcome = 'win';
-          result.moneyChange = payout * bet;
-          p.balance += result.moneyChange;
-          dealer.balance -= result.moneyChange;
-          p.income.push({ from: dealer.name, amount: result.moneyChange });
-          dealer.expense.push({ to: p.name, amount: result.moneyChange });
-        } else if (rank.rank > dealerRank.rank || (rank.rank === dealerRank.rank && rank.score < dealerRank.score)) {
-          result.outcome = 'lose';
-          result.moneyChange = -dealerPayout * bet;
-          p.balance += result.moneyChange;
-          dealer.balance -= result.moneyChange;
-          p.expense.push({ to: dealer.name, amount: -result.moneyChange });
-          dealer.income.push({ from: p.name, amount: -result.moneyChange });
-        } else {
-          result.outcome = 'draw';
-        }
-      }
-
-      return result;
-    });
-
-    io.to(roomId).emit('result', results);
+    handleResultAndSummary(roomId);
     sendPlayers(roomId);
   });
 
@@ -278,15 +296,32 @@ io.on('connection', socket => {
     }));
     io.to(roomId).emit('summaryData', summary);
   });
-});
 
-function sendPlayers(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
-  const list = room.players.map(p => `${p.name} (${p.role}) = ${p.balance} บาท`);
-  io.to(roomId).emit('playersList', list);
-}
+  socket.on('disconnect', () => {
+    for (const roomId in rooms) {
+      const room = rooms[roomId];
+      const index = room.players.findIndex(p => p.id === socket.id);
+      if (index !== -1) {
+        const player = room.players[index];
+
+        // ถ้าเป็นเจ้ามือให้สรุปผลก่อนออก
+        if (player.role === 'เจ้ามือ' && room.isGameStarted) {
+          handleResultAndSummary(roomId);
+          io.to(roomId).emit('gameEnded');
+        }
+
+        room.players.splice(index, 1);
+        sendPlayers(roomId);
+
+        if (room.players.length === 0) {
+          clearTurnTimer(roomId);
+          delete rooms[roomId];
+        }
+        break;
+      }
+    }
+  });
+});
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, () => console.log(`✅ Server started on port ${PORT}`));
-

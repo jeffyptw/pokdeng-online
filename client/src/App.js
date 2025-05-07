@@ -6,7 +6,6 @@ const socket = io('https://pokdeng-online-th.onrender.com', {
   transports: ['websocket'],
 });
 
-
 function App() {
   const [name, setName] = useState('');
   const [roomId, setRoomId] = useState('');
@@ -27,19 +26,20 @@ function App() {
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
 
+  const isMyTurn = currentTurnId === socket.id;
+
   useEffect(() => {
-    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
-      const timer = setTimeout(() => {
-        setCountdown(c => c - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
+    let timer;
+    if (isMyTurn && countdown > 0 && !hasStayed && myCards.length === 2 && result.length === 0) {
+      timer = setTimeout(() => setCountdown(c => c - 1), 1000);
     }
-    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
+    if (countdown === 0 && !hasStayed && isMyTurn && result.length === 0) {
       socket.emit('stay', { roomId });
       setHasStayed(true);
     }
-  }, [countdown, currentTurnId, hasStayed]);
-  
+    return () => clearTimeout(timer);
+  }, [countdown, isMyTurn, hasStayed, myCards.length, result.length]);
+
   const createRoom = () => {
     const bal = parseInt(money);
     if (bal < 100 || bal % 10 !== 0) {
@@ -68,6 +68,7 @@ function App() {
     socket.emit('startGame', { roomId });
     setShowResultBtn(false);
     setShowStartAgain(false);
+    setCountdown(15);
   };
 
   const drawCard = () => {
@@ -141,6 +142,7 @@ function App() {
       setHasStayed(false);
       setResult([]);
       setErrorMsg('');
+      setCountdown(15);
     });
     socket.on('playersList', names => {
       setPlayers(names);
@@ -161,9 +163,7 @@ function App() {
     });
     socket.on('currentTurn', ({ id }) => {
       setCurrentTurnId(id);
-      if (id === socket.id) {
-        setCountdown(15);
-      }
+      if (id === socket.id) setCountdown(15);
     });
     socket.on('enableShowResult', () => {
       setShowResultBtn(true);
@@ -208,8 +208,6 @@ function App() {
     );
   }
 
-  const isMyTurn = currentTurnId === socket.id;
-
   return (
     <div style={{ padding: 20 }}>
       {!inRoom ? (
@@ -218,7 +216,8 @@ function App() {
           <input placeholder="ชื่อคุณ" onChange={e => setName(e.target.value)} />
           <input placeholder="จำนวนเงิน (ขั้นต่ำ 100)" onChange={e => setMoney(e.target.value)} />
           <input placeholder="Room ID" onChange={e => setRoomId(e.target.value)} />
-          <br /><button onClick={createRoom}>สร้างห้องใหม่</button>
+          <br />
+          <button onClick={createRoom}>สร้างห้องใหม่</button>
           <button onClick={joinRoom} disabled={roomLocked}>เข้าร่วมห้อง</button>
           {roomLocked && <p style={{ color: 'orange' }}>เกมกำลังเล่นอยู่ ไม่สามารถเข้าร่วมห้องได้</p>}
         </div>
@@ -242,23 +241,19 @@ function App() {
           <ul>{players.map((p, i) => <li key={i}>{p}</li>)}</ul>
 
           {myCards.length > 0 && result.length === 0 && (
-  <div>
-    <h3>ไพ่ของคุณ:</h3>
-    <p>
-      {myCards.map(c => `${c.value}${c.suit}`).join(', ')} {calculateRank(myCards)}
-    </p>
-    {!hasStayed && myCards.length === 2 && isMyTurn && (
-      <>
-        <p style={{ color: 'blue' }}>เวลาคิด: {countdown} วินาที</p>
-        <button onClick={drawCard}>จั่ว</button>
-        <button onClick={stay}>ไม่จั่ว</button>
-      </>
-    )}
-    {!isMyTurn && result.length === 0 && myCards.length > 0 && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
-
-  </div>
-)}
-
+            <div>
+              <h3>ไพ่ของคุณ:</h3>
+              <p>{myCards.map(c => `${c.value}${c.suit}`).join(', ')} {calculateRank(myCards)}</p>
+              {!hasStayed && myCards.length === 2 && isMyTurn && (
+                <>
+                  <p style={{ color: 'blue' }}>เวลาคิด: {countdown} วินาที</p>
+                  <button onClick={drawCard}>จั่ว</button>
+                  <button onClick={stay}>ไม่จั่ว</button>
+                </>
+              )}
+              {!isMyTurn && !hasStayed && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
+            </div>
+          )}
 
           {result.length > 0 && (
             <div>
@@ -275,7 +270,7 @@ function App() {
                       <li key={i}>
                         {r.name}: {r.cards} = {r.sum} แต้ม
                         {r.specialType ? ` (${r.specialType})` : ''}
-                        {dealerNet >= 0 ? `✅ได้ ${dealerNet} บาท` : `❌เสีย ${-dealerNet} บาท`}
+                        {dealerNet >= 0 ? ` ✅ เจ้ามือ ได้ ${dealerNet} บาท` : ` ❌ เจ้ามือ เสีย ${-dealerNet} บาท`}
                       </li>
                     );
                   }
