@@ -25,26 +25,26 @@ function App() {
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
   const [countdown, setCountdown] = useState(15);
+  const [hasShownResult, setHasShownResult] = useState(false); // flag กันโชว์ summary ก่อน
+
+  const isMyTurn = currentTurnId === socket.id;
 
   useEffect(() => {
-    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
+    if (isMyTurn && countdown > 0 && !hasStayed) {
       const timer = setTimeout(() => {
         setCountdown(c => c - 1);
       }, 1000);
       return () => clearTimeout(timer);
     }
-    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
+    if (countdown === 0 && isMyTurn && !hasStayed) {
       socket.emit('stay', { roomId });
       setHasStayed(true);
     }
-  }, [countdown, currentTurnId, hasStayed]);
+  }, [countdown, isMyTurn, hasStayed]);
 
   const createRoom = () => {
     const bal = parseInt(money);
-    if (bal < 100 || bal % 10 !== 0) {
-      alert('จำนวนเงินขั้นต่ำ 100 และหาร 10 ลงตัว');
-      return;
-    }
+    if (bal < 100 || bal % 10 !== 0) return alert('จำนวนเงินขั้นต่ำ 100 และหาร 10 ลงตัว');
     socket.emit('createRoom', { name, balance: bal }, ({ roomId }) => {
       setRoomId(roomId);
       setInRoom(true);
@@ -53,10 +53,7 @@ function App() {
 
   const joinRoom = () => {
     const bal = parseInt(money);
-    if (bal < 100 || bal % 10 !== 0) {
-      alert('จำนวนเงินขั้นต่ำ 100 และหาร 10 ลงตัว');
-      return;
-    }
+    if (bal < 100 || bal % 10 !== 0) return alert('จำนวนเงินขั้นต่ำ 100 และหาร 10 ลงตัว');
     socket.emit('joinRoom', { roomId, name, balance: bal }, res => {
       if (res.success) setInRoom(true);
       else alert(res.message || 'ไม่สามารถเข้าห้องได้');
@@ -67,14 +64,17 @@ function App() {
     socket.emit('startGame', { roomId });
     setShowResultBtn(false);
     setShowStartAgain(false);
+    setHasShownResult(false);
   };
 
   const drawCard = () => {
+    if (hasStayed) return;
     socket.emit('drawCard', { roomId });
     setHasStayed(true);
   };
 
   const stay = () => {
+    if (hasStayed) return;
     socket.emit('stay', { roomId });
     setHasStayed(true);
   };
@@ -84,6 +84,7 @@ function App() {
     setGameRound(prev => prev + 1);
     setShowStartAgain(true);
     setShowResultBtn(false);
+    setHasShownResult(true);
   };
 
   const endGame = () => {
@@ -91,7 +92,10 @@ function App() {
     socket.emit('requestSummary', { roomId });
   };
 
-  const exitGame = () => window.location.reload();
+  const exitGame = () => {
+    socket.disconnect();
+    window.location.reload();
+  };
 
   const getCardPoint = (value) => {
     if (['J', 'Q', 'K'].includes(value)) return 0;
@@ -155,19 +159,21 @@ function App() {
       setRoomLocked(false);
     });
     socket.on('summaryData', data => {
-      setSummaryData(data);
-      setShowSummary(true);
+      if (hasShownResult) {
+        setSummaryData(data);
+        setShowSummary(true);
+      }
     });
     socket.on('currentTurn', ({ id }) => {
       setCurrentTurnId(id);
       if (id === socket.id) setCountdown(15);
     });
-    socket.on('enableShowResult', () => setShowResultBtn(true));
+    socket.on('enableShowResult', () => {
+      setShowResultBtn(true);
+    });
 
     return () => socket.off();
-  }, [name]);
-
-  const isMyTurn = currentTurnId === socket.id;
+  }, [name, hasShownResult]);
 
   if (showSummary) {
     return (
@@ -190,9 +196,7 @@ function App() {
                 <td>{i + 1}</td>
                 <td>{p.name}</td>
                 <td>{p.balance} บาท</td>
-                <td style={{ color: p.net >= 0 ? 'green' : 'red' }}>
-                  {p.net >= 0 ? `+${p.net}` : p.net} บาท
-                </td>
+                <td style={{ color: p.net >= 0 ? 'green' : 'red' }}>{p.net >= 0 ? `+${p.net}` : p.net} บาท</td>
                 <td>{p.income.map(e => `${e.from} (${e.amount}฿)`).join(', ') || '-'}</td>
                 <td>{p.expense.map(e => `${e.to} (${e.amount}฿)`).join(', ') || '-'}</td>
               </tr>
@@ -247,7 +251,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && myCards.length > 0 && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
+              {!isMyTurn && !hasStayed && <p style={{ color: 'gray' }}>รอผู้เล่นอื่น...</p>}
             </div>
           )}
 
