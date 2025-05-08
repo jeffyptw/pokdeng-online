@@ -328,11 +328,15 @@ function App() {
                   );
                 })}
               </ul>
-              {myCards.length > 0 && result.length === 0 && (
-            <div>
-              <button onClick={endGame}>จบเกม</button>
-            </div>
-          )}
+              {isDealer && (
+  <>
+    {result.length > 0 && (
+      <>
+        <button onClick={endGame}>จบเกม</button>
+      </>
+    )}
+  </>
+)}
             </div>
           )}
         </div>
