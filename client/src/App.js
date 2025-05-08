@@ -47,18 +47,24 @@ function App() {
   }, [countdown, currentTurnId, hasStayed]);
 
   useEffect(() => {
+    let timer;
     if (myCards.length === 3 && !revealed && isMyTurn) {
-      const timer = setTimeout(() => {
-        setRevealCountdown((c) => c - 1);
+      timer = setInterval(() => {
+        setRevealCountdown((prev) => {
+          if (prev === 1) {
+            setRevealed(true);
+            clearInterval(timer);
+            return 0;
+          }
+          return prev - 1;
+        });
       }, 1000);
-
-      if (revealCountdown === 0) {
-        setRevealed(true);
-      }
-
-      return () => clearTimeout(timer);
+    } else {
+      setRevealCountdown(10);
     }
-  }, [myCards, revealed, revealCountdown, isMyTurn]);
+
+    return () => clearInterval(timer);
+  }, [myCards, revealed, isMyTurn]);
 
   const createRoom = () => {
     const bal = parseInt(money);
