@@ -99,6 +99,7 @@ function App() {
 
   const isMyTurn = currentTurnId === socket.id;
   const currentPlayer = playerData.find((p) => p.id === currentTurnId);
+  const isCurrentPlayerLeft = currentPlayer?.leftEarly;
   const turnPlayerName = currentPlayer?.name;
   const turnPlayerRole = currentPlayer?.role;
 
@@ -375,7 +376,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && currentPlayer && !currentPlayer.leftEarly && (
+              {!isMyTurn && currentPlayer && !isCurrentPlayerLeft && (
                 <p style={{ color: "gray" }}>
                   รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
                 </p>
