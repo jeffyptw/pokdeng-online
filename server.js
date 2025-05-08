@@ -126,7 +126,6 @@ function sendPlayersData(roomId) {
     name: p.name,
     role: p.role,
     balance: p.balance,
-    leftEarly: p.leftEarly || false,
   }));
   io.to(roomId).emit("playersData", data);
 }
@@ -222,7 +221,6 @@ function handleResultOnly(roomId) {
   });
 
   io.to(roomId).emit("result", results);
-  sendPlayersData(roomId);
 }
 
 function startNextTurn(roomId, index = 0) {
@@ -232,14 +230,6 @@ function startNextTurn(roomId, index = 0) {
   const ordered = [...room.players.filter((p) => p.role !== "เจ้ามือ")];
   const dealer = room.players.find((p) => p.role === "เจ้ามือ");
   if (dealer) ordered.push(dealer);
-
-  // 🔻 ข้ามคนที่ออกหรือเลือกแล้ว
-  while (
-    index < ordered.length &&
-    (ordered[index].leftEarly || ordered[index].hasChosen)
-  ) {
-    index++;
-  }
 
   if (index >= ordered.length) {
     io.to(dealer.id).emit("enableShowResult");
@@ -253,7 +243,6 @@ function startNextTurn(roomId, index = 0) {
   io.to(roomId).emit("currentTurn", { id: player.id });
   sendPlayersData(roomId);
 
-  clearTurnTimer(roomId); // สำคัญ: ล้าง timer เดิม
   turnTimers[roomId] = setTimeout(() => {
     player.hasChosen = true;
     io.to(player.id).emit("yourCards", { cards: player.cards });
@@ -412,27 +401,23 @@ io.on("connection", (socket) => {
       if (index !== -1) {
         const player = room.players[index];
 
-        // ✅ ถ้าเจ้ามือออกกลางเกม ให้จบเกม
+        // ถ้าเจ้ามือออกกลางเกม ให้ปิดเกม
         if (player.role === "เจ้ามือ" && room.isGameStarted) {
           handleResultOnly(roomId);
           io.to(roomId).emit("gameEnded");
           sendSummary(roomId);
         }
 
-        // ✅ ถ้าเป็นผู้เล่นธรรมดา: เปิดไพ่ไว้ใช้คำนวณ และ mark ว่าออกจากห้อง
+        // ถ้าไม่ใช่เจ้ามือ เปิดไพ่เพื่อใช้คำนวณ
         if (player.role !== "เจ้ามือ" && room.isGameStarted) {
           forceStayAndReveal(player);
         }
 
-        // ✅ mark ออกห้องแล้ว แต่ **ไม่ลบ player ออก**
-        room.players[index].leftEarly = true;
-
-        // ✅ ส่งข้อมูลอัปเดตให้ client
+        room.players.splice(index, 1);
         sendPlayers(roomId);
         sendPlayersData(roomId);
         sendUsersInRoom(roomId);
 
-        // ✅ ล้างห้องถ้าไม่มีใครอยู่แล้ว
         if (room.players.length === 0) {
           clearTurnTimer(roomId);
           delete rooms[roomId];

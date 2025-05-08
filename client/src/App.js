@@ -30,31 +30,17 @@ function App() {
   const [isGameEnded, setIsGameEnded] = useState(false);
 
   useEffect(() => {
-    const currentPlayer = playerData.find((p) => p.id === currentTurnId);
-    const isCurrentPlayerLeft = currentPlayer?.leftEarly;
-
-    if (
-      currentTurnId === socket.id &&
-      countdown > 0 &&
-      !hasStayed &&
-      !isCurrentPlayerLeft
-    ) {
+    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
       const timer = setTimeout(() => {
         setCountdown((c) => c - 1);
       }, 1000);
       return () => clearTimeout(timer);
     }
-
-    if (
-      countdown === 0 &&
-      !hasStayed &&
-      currentTurnId === socket.id &&
-      !isCurrentPlayerLeft
-    ) {
+    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
       socket.emit("stay", { roomId });
       setHasStayed(true);
     }
-  }, [countdown, currentTurnId, hasStayed, playerData]);
+  }, [countdown, currentTurnId, hasStayed]);
 
   const createRoom = () => {
     const bal = parseInt(money);
@@ -113,7 +99,6 @@ function App() {
 
   const isMyTurn = currentTurnId === socket.id;
   const currentPlayer = playerData.find((p) => p.id === currentTurnId);
-  const isCurrentPlayerLeft = currentPlayer?.leftEarly;
   const turnPlayerName = currentPlayer?.name;
   const turnPlayerRole = currentPlayer?.role;
 
@@ -188,11 +173,6 @@ function App() {
     });
     socket.on("enableShowResult", () => setShowResultBtn(true));
 
-    socket.on("skippedPlayer", ({ name, role }) => {
-      setErrorMsg(`ข้าม ${name} (${role}) เนื่องจากออกจากห้องแล้ว`);
-      setTimeout(() => setErrorMsg(""), 4000);
-    });
-
     return () => {
       socket.off("yourCards");
       socket.off("resetGame");
@@ -206,7 +186,6 @@ function App() {
       socket.off("summaryData");
       socket.off("currentTurn");
       socket.off("enableShowResult");
-      socket.off("skippedPlayer");
     };
   }, [name]);
 
@@ -390,7 +369,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && currentPlayer && !isCurrentPlayerLeft && (
+              {!isMyTurn && currentPlayer && (
                 <p style={{ color: "gray" }}>
                   รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
                 </p>
