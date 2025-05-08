@@ -233,8 +233,11 @@ function startNextTurn(roomId, index = 0) {
   const dealer = room.players.find((p) => p.role === "เจ้ามือ");
   if (dealer) ordered.push(dealer);
 
-  // 🔁 วนข้ามคนที่ออกห้องแล้ว
-  while (index < ordered.length && ordered[index].leftEarly) {
+  // ข้ามผู้เล่นที่ออกจากห้องหรือเลือกแล้ว
+  while (
+    index < ordered.length &&
+    (ordered[index].leftEarly || ordered[index].hasChosen)
+  ) {
     index++;
   }
 
@@ -246,11 +249,6 @@ function startNextTurn(roomId, index = 0) {
   const player = ordered[index];
   if (!player) return;
 
-  if (player.leftEarly) {
-    startNextTurn(roomId, index + 1);
-    return;
-  }
-
   room.currentTurnId = player.id;
   io.to(roomId).emit("currentTurn", { id: player.id });
   sendPlayersData(roomId);
@@ -258,7 +256,7 @@ function startNextTurn(roomId, index = 0) {
   turnTimers[roomId] = setTimeout(() => {
     player.hasChosen = true;
     io.to(player.id).emit("yourCards", { cards: player.cards });
-    startNextTurn(roomId, index + 1);
+    startNextTurn(roomId, index + 1); // เรียกต่อ
   }, 15000);
 }
 
