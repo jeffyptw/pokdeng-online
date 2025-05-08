@@ -250,6 +250,13 @@ function startNextTurn(roomId, index = 0) {
   }, 15000);
 }
 
+function forceStayAndReveal(player) {
+  if (!player.hasChosen) {
+    player.hasChosen = true;
+    io.to(player.id).emit("yourCards", { cards: player.cards });
+  }
+}
+
 io.on("connection", (socket) => {
   socket.on("createRoom", ({ name, balance }, cb) => {
     const roomId = Math.random().toString(36).substring(2, 6);
@@ -393,14 +400,24 @@ io.on("connection", (socket) => {
       const index = room.players.findIndex((p) => p.id === socket.id);
       if (index !== -1) {
         const player = room.players[index];
+
+        // ถ้าเจ้ามือออกกลางเกม ให้ปิดเกม
         if (player.role === "เจ้ามือ" && room.isGameStarted) {
           handleResultOnly(roomId);
           io.to(roomId).emit("gameEnded");
           sendSummary(roomId);
         }
+
+        // ถ้าไม่ใช่เจ้ามือ เปิดไพ่เพื่อใช้คำนวณ
+        if (player.role !== "เจ้ามือ" && room.isGameStarted) {
+          forceStayAndReveal(player);
+        }
+
         room.players.splice(index, 1);
         sendPlayers(roomId);
         sendPlayersData(roomId);
+        sendUsersInRoom(roomId);
+
         if (room.players.length === 0) {
           clearTurnTimer(roomId);
           delete rooms[roomId];
