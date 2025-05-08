@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import io from "socket.io-client";
 
-const socket = io("https://pokdeng-online-th.onrender.com", {
-  transports: ["websocket"],
-});
+const socket = io(
+  "[https://pokdeng-online-th.onrender.com](https://pokdeng-online-th.onrender.com)",
+  {
+    transports: ["websocket"],
+  }
+);
 
 function App() {
   const [name, setName] = useState("");
@@ -23,51 +26,24 @@ function App() {
   const [showStartAgain, setShowStartAgain] = useState(false);
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
-  const [countdown, setCountdown] = useState(30);
+  const [countdown, setCountdown] = useState(15);
   const [startClicked, setStartClicked] = useState(false);
   const [playerData, setPlayerData] = useState([]);
   const [usersInRoom, setUsersInRoom] = useState([]);
   const [isGameEnded, setIsGameEnded] = useState(false);
 
-  const [revealed, setRevealed] = useState(false);
-  const [revealCountdown, setRevealCountdown] = useState(10);
-
-  const isMyTurn = currentTurnId === socket.id;
-  const currentPlayer = playerData.find((p) => p.id === currentTurnId);
-  const turnPlayerName = currentPlayer?.name;
-  const turnPlayerRole = currentPlayer?.role;
-
   useEffect(() => {
-    if (isMyTurn && countdown > 0 && !hasStayed) {
+    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
       const timer = setTimeout(() => {
         setCountdown((c) => c - 1);
       }, 1000);
       return () => clearTimeout(timer);
     }
-    if (countdown === 0 && isMyTurn && !hasStayed) {
+    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
       socket.emit("stay", { roomId });
       setHasStayed(true);
     }
-  }, [countdown, isMyTurn, hasStayed]);
-
-  useEffect(() => {
-    let timer;
-    if (myCards.length === 3 && !revealed && isMyTurn) {
-      timer = setInterval(() => {
-        setRevealCountdown((prev) => {
-          if (prev === 1) {
-            setRevealed(true);
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    } else {
-      setRevealCountdown(10);
-    }
-    return () => clearInterval(timer);
-  }, [myCards, revealed, isMyTurn]);
+  }, [countdown, currentTurnId, hasStayed]);
 
   const createRoom = () => {
     const bal = parseInt(money);
@@ -97,16 +73,12 @@ function App() {
     socket.emit("startGame", { roomId });
     setShowResultBtn(false);
     setShowStartAgain(false);
-    setStartClicked(true);
-    setRevealed(false);
-    setRevealCountdown(10);
+    setStartClicked(true); // ซ่อนปุ่มเมื่อกด
   };
 
   const drawCard = () => {
     socket.emit("drawCard", { roomId });
     setHasStayed(true);
-    setRevealed(false);
-    setRevealCountdown(10);
   };
 
   const stay = () => {
@@ -128,22 +100,62 @@ function App() {
 
   const exitGame = () => window.location.reload();
 
+  const isMyTurn = currentTurnId === socket.id;
+  const currentPlayer = playerData.find((p) => p.id === currentTurnId);
+  const turnPlayerName = currentPlayer?.name;
+  const turnPlayerRole = currentPlayer?.role;
+
+  const summarizeTransactions = (me) => {
+    const incomeMap = {};
+    const expenseMap = {};
+
+    ```
+me.income.forEach((entry) => {
+  incomeMap[entry.from] = (incomeMap[entry.from] || 0) + entry.amount;
+});
+
+me.expense.forEach((entry) => {
+  expenseMap[entry.to] = (expenseMap[entry.to] || 0) + entry.amount;
+});
+
+const allNames = new Set([
+  ...Object.keys(incomeMap),
+  ...Object.keys(expenseMap),
+]);
+const finalIncome = [];
+const finalExpense = [];
+
+allNames.forEach((person) => {
+  const get = incomeMap[person] || 0;
+  const give = expenseMap[person] || 0;
+
+  if (get > give) finalIncome.push({ name: person, amount: get - give });
+  else if (give > get)
+    finalExpense.push({ name: person, amount: give - get });
+});
+
+return { finalIncome, finalExpense };
+```;
+  };
+
   useEffect(() => {
     socket.on("yourCards", (data) => setMyCards(data.cards));
     socket.on("resetGame", () => {
       setHasStayed(false);
       setResult([]);
       setErrorMsg("");
-      setRevealed(false);
-      setRevealCountdown(10);
     });
     socket.on("playersList", (names) => {
       setPlayers(names);
       const me = names.find((p) => p.includes(name));
       setIsDealer(me && me.includes("เจ้ามือ"));
     });
-    socket.on("usersInRoom", (users) => setUsersInRoom(users));
-    socket.on("playersData", (data) => setPlayerData(data));
+    socket.on("usersInRoom", (users) => {
+      setUsersInRoom(users);
+    });
+    socket.on("playersData", (data) => {
+      setPlayerData(data);
+    });
     socket.on("result", (data) => {
       setResult(data);
       setShowSummary(false);
@@ -162,22 +174,30 @@ function App() {
     });
     socket.on("currentTurn", ({ id }) => {
       setCurrentTurnId(id);
-      if (id === socket.id) {
-        setCountdown(30);
-        setRevealed(false);
-        setRevealCountdown(10);
-      }
+      if (id === socket.id) setCountdown(15);
     });
     socket.on("enableShowResult", () => setShowResultBtn(true));
 
-    return () => {
-      socket.off();
-    };
+    ```
+return () => {
+  socket.off("yourCards");
+  socket.off("resetGame");
+  socket.off("playersList");
+  socket.off("playersData");
+  socket.off("usersInRoom"); // <- ตรงนี้
+  socket.off("result");
+  socket.off("errorMessage");
+  socket.off("lockRoom");
+  socket.off("gameEnded");
+  socket.off("summaryData");
+  socket.off("currentTurn");
+  socket.off("enableShowResult");
+};
+```;
   }, [name]);
 
   const getCardPoint = (v) =>
     ["J", "Q", "K"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
-
   const calculateRank = (cards) => {
     const values = cards.map((c) => c.value);
     const suits = cards.map((c) => c.suit);
@@ -223,10 +243,65 @@ function App() {
     return `= ${score} แต้ม`;
   };
 
+  if (showSummary) {
+    const me = summaryData.find((p) => p.name.startsWith(name));
+    const { finalIncome, finalExpense } = me
+      ? summarizeTransactions(me)
+      : { finalIncome: [], finalExpense: [] };
+
+    return (
+      <div style={{ padding: 20 }}>
+        <h2>สรุปยอดเงินหลังจบเกม</h2>
+        <table border="1" cellPadding="10">
+          <thead>
+            <tr>
+              <th>ลำดับ</th>
+              <th>ชื่อ</th>
+              <th>ยอดเงินคงเหลือ</th>
+              <th>กำไร/ขาดทุน</th>
+            </tr>
+          </thead>
+          <tbody>
+            {summaryData.map((p, i) => (
+              <tr key={i}>
+                <td>{i + 1}</td>
+                <td>{p.name}</td>
+                <td>{p.balance} บาท</td>
+                <td style={{ color: p.net >= 0 ? "green" : "red" }}>
+                  {p.net >= 0 ? `+${p.net}` : p.net} บาท
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
+        <h3>ชื่อ : {me?.name}</h3>
+        <h3>
+          <span style={{ color: "green" }}>
+            ได้จาก :{" "}
+            {finalIncome.map((e) => `${e.name} (${e.amount} บาท)`).join(", ") ||
+              "-"}
+          </span>
+        </h3>
+        <h3>
+          <span style={{ color: "red" }}>
+            โอนให้ :{" "}
+            {finalExpense
+              .map((e) => `${e.name} (${e.amount} บาท)`)
+              .join(", ") || "-"}
+          </span>
+        </h3>
+        <button onClick={exitGame}>ออกจากเกม</button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: 20 }}>
       {!inRoom ? (
         <div>
+          {" "}
           <h2>ป๊อกเด้งออนไลน์</h2>
           <input
             placeholder="ชื่อคุณ"
@@ -239,22 +314,21 @@ function App() {
           <input
             placeholder="Room ID"
             onChange={(e) => setRoomId(e.target.value)}
-          />
-          <br />
-          <button onClick={createRoom}>สร้างห้องใหม่</button>
+          />{" "}
+          <br /> <button onClick={createRoom}>สร้างห้องใหม่</button>{" "}
           <button onClick={joinRoom} disabled={roomLocked}>
-            เข้าร่วมห้อง
+            เข้าร่วมห้อง{" "}
           </button>
           {roomLocked && (
             <p style={{ color: "orange" }}>
-              เกมกำลังเล่นอยู่ ไม่สามารถเข้าห้องได้
+              เกมกำลังเล่นอยู่ ไม่สามารถเข้าร่วมห้องได้{" "}
             </p>
-          )}
+          )}{" "}
         </div>
       ) : (
         <div>
-          <h2>ห้อง: {roomId}</h2>
-          <p>ชื่อ : {name}</p>
+          {" "}
+          <h2>ห้อง: {roomId}</h2> <p>ชื่อ : {name}</p>{" "}
           <p>
             บท:{" "}
             {isDealer
@@ -262,7 +336,7 @@ function App() {
               : players
                   .find((p) => p.includes(name))
                   ?.split("(")[1]
-                  ?.replace(")", "")}
+                  ?.replace(")", "")}{" "}
           </p>
           {isDealer && (
             <>
@@ -272,12 +346,12 @@ function App() {
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
               {result.length > 0 && (
                 <>
+                  {" "}
                   <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
                 </>
               )}
             </>
           )}
-
           {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
           <h4>ผู้เล่นภายในห้องนี้:</h4>
           <ul>
@@ -288,31 +362,13 @@ function App() {
               </li>
             ))}
           </ul>
-
           {myCards.length > 0 && result.length === 0 && (
             <div>
               <h3>ไพ่ของคุณ:</h3>
               <p>
-                {myCards
-                  .slice(0, 2)
-                  .map((c) => `${c.value}${c.suit}`)
-                  .join(", ")}
-                {myCards.length === 3 &&
-                  (revealed
-                    ? `, ${myCards[2].value}${myCards[2].suit}`
-                    : `, ❓❓ (กดปุ่มเพื่อเปิดไพ่) ${revealCountdown}วินาที`)}{" "}
+                {myCards.map((c) => `${c.value}${c.suit}`).join(", ")}{" "}
                 {calculateRank(myCards)}
               </p>
-
-              {!revealed && myCards.length === 3 && isMyTurn && (
-                <button
-                  onClick={() => setRevealed(true)}
-                  style={{ color: "red" }}
-                >
-                  เปิดไพ่ใบที่ 3
-                </button>
-              )}
-
               {!hasStayed && myCards.length === 2 && isMyTurn && (
                 <>
                   <p style={{ color: "blue" }}>เวลาคิด: {countdown} วินาที</p>
@@ -320,7 +376,6 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-
               {!isMyTurn && currentPlayer && (
                 <p style={{ color: "gray" }}>
                   รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
@@ -328,7 +383,6 @@ function App() {
               )}
             </div>
           )}
-
           {result.length > 0 && (
             <div>
               <h3>ผลลัพธ์:</h3>
