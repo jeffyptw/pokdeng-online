@@ -328,8 +328,11 @@ function App() {
                   );
                 })}
               </ul>
-              <br></br>
+              {myCards.length > 0 && result.length === 0 && (
+            <div>
               <button onClick={endGame}>จบเกม</button>
+            </div>
+          )}
             </div>
           )}
         </div>
