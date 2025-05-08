@@ -35,12 +35,7 @@ function getHandRank(cards) {
   const count = {};
   values.forEach(v => count[v] = (count[v] || 0) + 1);
   const allJQK = values.every(v => ['J', 'Q', 'K'].includes(v));
-
-  const sorted = cards.map(c => {
-    const map = { A: 1, J: 11, Q: 12, K: 13 };
-    return map[c.value] || parseInt(c.value);
-  }).sort((a, b) => a - b);
-
+  const sorted = cards.map(c => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value))).sort((a, b) => a - b);
   const isStraight = cards.length === 3 && sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1;
 
   if (cards.length === 2) {
@@ -85,30 +80,36 @@ function clearTurnTimer(roomId) {
   }
 }
 
-function startNextTurn(roomId, index = 0) {
+function sendPlayers(roomId) {
   const room = rooms[roomId];
   if (!room) return;
+  const list = room.players.map(p => `${p.name} (${p.role}) = ${p.balance} บาท`);
+  io.to(roomId).emit('playersList', list);
+}
 
-  const ordered = [...room.players.filter(p => p.role !== 'เจ้ามือ')];
-  const dealer = room.players.find(p => p.role === 'เจ้ามือ');
-  if (dealer) ordered.push(dealer);
+function sendPlayersData(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  const data = room.players.map(p => ({
+    id: p.id,
+    name: p.name,
+    role: p.role,
+    balance: p.balance
+  }));
+  io.to(roomId).emit('playersData', data);
+}
 
-  if (index >= ordered.length) {
-    io.to(dealer.id).emit('enableShowResult');
-    return;
-  }
-
-  const player = ordered[index];
-  if (!player) return;
-
-  room.currentTurnId = player.id;
-  io.to(roomId).emit('currentTurn', { id: player.id });
-
-  turnTimers[roomId] = setTimeout(() => {
-    player.hasChosen = true;
-    io.to(player.id).emit('yourCards', { cards: player.cards });
-    startNextTurn(roomId, index + 1);
-  }, 15000);
+function sendSummary(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  const summary = room.players.map(p => ({
+    name: `${p.name} (${p.role})`,
+    balance: p.balance,
+    net: p.balance - p.originalBalance,
+    income: p.income,
+    expense: p.expense
+  }));
+  io.to(roomId).emit('summaryData', summary);
 }
 
 function handleResultOnly(roomId) {
@@ -170,24 +171,31 @@ function handleResultOnly(roomId) {
   io.to(roomId).emit('result', results);
 }
 
-function sendSummary(roomId) {
+function startNextTurn(roomId, index = 0) {
   const room = rooms[roomId];
   if (!room) return;
-  const summary = room.players.map(p => ({
-    name: `${p.name} (${p.role})`,
-    balance: p.balance,
-    net: p.balance - p.originalBalance,
-    income: p.income,
-    expense: p.expense
-  }));
-  io.to(roomId).emit('summaryData', summary);
-}
 
-function sendPlayers(roomId) {
-  const room = rooms[roomId];
-  if (!room) return;
-  const list = room.players.map(p => `${p.name} (${p.role}) = ${p.balance} บาท`);
-  io.to(roomId).emit('playersList', list);
+  const ordered = [...room.players.filter(p => p.role !== 'เจ้ามือ')];
+  const dealer = room.players.find(p => p.role === 'เจ้ามือ');
+  if (dealer) ordered.push(dealer);
+
+  if (index >= ordered.length) {
+    io.to(dealer.id).emit('enableShowResult');
+    return;
+  }
+
+  const player = ordered[index];
+  if (!player) return;
+
+  room.currentTurnId = player.id;
+  io.to(roomId).emit('currentTurn', { id: player.id });
+  sendPlayersData(roomId);
+
+  turnTimers[roomId] = setTimeout(() => {
+    player.hasChosen = true;
+    io.to(player.id).emit('yourCards', { cards: player.cards });
+    startNextTurn(roomId, index + 1);
+  }, 15000);
 }
 
 io.on('connection', socket => {
@@ -208,6 +216,7 @@ io.on('connection', socket => {
     socket.join(roomId);
     cb({ roomId });
     sendPlayers(roomId);
+    sendPlayersData(roomId);
   });
 
   socket.on('joinRoom', ({ roomId, name, balance }, cb) => {
@@ -226,6 +235,7 @@ io.on('connection', socket => {
     socket.join(roomId);
     cb({ success: true });
     sendPlayers(roomId);
+    sendPlayersData(roomId);
   });
 
   socket.on('startGame', ({ roomId }) => {
@@ -246,6 +256,7 @@ io.on('connection', socket => {
     });
     io.to(roomId).emit('lockRoom');
     sendPlayers(roomId);
+    sendPlayersData(roomId);
     startNextTurn(roomId, 0);
   });
 
@@ -299,21 +310,18 @@ io.on('connection', socket => {
       const index = room.players.findIndex(p => p.id === socket.id);
       if (index !== -1) {
         const player = room.players[index];
-
         if (player.role === 'เจ้ามือ' && room.isGameStarted) {
           handleResultOnly(roomId);
           io.to(roomId).emit('gameEnded');
           sendSummary(roomId);
         }
-
         room.players.splice(index, 1);
         sendPlayers(roomId);
-
+        sendPlayersData(roomId);
         if (room.players.length === 0) {
           clearTurnTimer(roomId);
           delete rooms[roomId];
         }
-
         break;
       }
     }
