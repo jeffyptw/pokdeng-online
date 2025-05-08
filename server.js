@@ -233,7 +233,7 @@ function startNextTurn(roomId, index = 0) {
   const dealer = room.players.find((p) => p.role === "เจ้ามือ");
   if (dealer) ordered.push(dealer);
 
-  // ข้ามผู้เล่นที่ออกจากห้องหรือเลือกแล้ว
+  // 🔻 ข้ามคนที่ออกหรือเลือกแล้ว
   while (
     index < ordered.length &&
     (ordered[index].leftEarly || ordered[index].hasChosen)
@@ -253,10 +253,11 @@ function startNextTurn(roomId, index = 0) {
   io.to(roomId).emit("currentTurn", { id: player.id });
   sendPlayersData(roomId);
 
+  clearTurnTimer(roomId); // สำคัญ: ล้าง timer เดิม
   turnTimers[roomId] = setTimeout(() => {
     player.hasChosen = true;
     io.to(player.id).emit("yourCards", { cards: player.cards });
-    startNextTurn(roomId, index + 1); // เรียกต่อ
+    startNextTurn(roomId, index + 1);
   }, 15000);
 }
 
@@ -411,23 +412,27 @@ io.on("connection", (socket) => {
       if (index !== -1) {
         const player = room.players[index];
 
-        // ถ้าเจ้ามือออกกลางเกม ให้ปิดเกม
+        // ✅ ถ้าเจ้ามือออกกลางเกม ให้จบเกม
         if (player.role === "เจ้ามือ" && room.isGameStarted) {
           handleResultOnly(roomId);
           io.to(roomId).emit("gameEnded");
           sendSummary(roomId);
         }
 
-        // ถ้าไม่ใช่เจ้ามือ เปิดไพ่เพื่อใช้คำนวณ
+        // ✅ ถ้าเป็นผู้เล่นธรรมดา: เปิดไพ่ไว้ใช้คำนวณ และ mark ว่าออกจากห้อง
         if (player.role !== "เจ้ามือ" && room.isGameStarted) {
           forceStayAndReveal(player);
         }
 
+        // ✅ mark ออกห้องแล้ว แต่ **ไม่ลบ player ออก**
         room.players[index].leftEarly = true;
+
+        // ✅ ส่งข้อมูลอัปเดตให้ client
         sendPlayers(roomId);
         sendPlayersData(roomId);
         sendUsersInRoom(roomId);
 
+        // ✅ ล้างห้องถ้าไม่มีใครอยู่แล้ว
         if (room.players.length === 0) {
           clearTurnTimer(roomId);
           delete rooms[roomId];
