@@ -24,13 +24,31 @@ function App() {
   const [showStartAgain, setShowStartAgain] = useState(false);
   const [gameRound, setGameRound] = useState(0);
   const [currentTurnId, setCurrentTurnId] = useState(null);
-  const [countdown, setCountdown] = useState(15);
+  const [countdown, setCountdown] = useState(30);
   const [startClicked, setStartClicked] = useState(false);
   const [playerData, setPlayerData] = useState([]);
   const [usersInRoom, setUsersInRoom] = useState([]);
   const [isGameEnded, setIsGameEnded] = useState(false);
   const [hasRevealed, setHasRevealed] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const [revealCountdown, setRevealCountdown] = useState(10);
 
+  // ⏱ ใช้สำหรับเปิดไพ่ใบที่ 3 หลัง 10 วินาที
+  useEffect(() => {
+    if (myCards.length === 3 && !revealed && isMyTurn) {
+      const timer = setTimeout(() => {
+        setRevealCountdown((c) => c - 1);
+      }, 1000);
+
+      if (revealCountdown === 0) {
+        setRevealed(true);
+      }
+
+      return () => clearTimeout(timer);
+    }
+  }, [myCards, revealed, revealCountdown, isMyTurn]);
+
+  // ⏱ ใช้สำหรับเวลาต่อตา (30 วินาที)
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
       const timer = setTimeout(() => {
@@ -174,7 +192,9 @@ function App() {
     });
     socket.on("currentTurn", ({ id }) => {
       setCurrentTurnId(id);
-      if (id === socket.id) setCountdown(15);
+      if (id === socket.id) setCountdown(30);
+      setRevealed(false);
+      setRevealCountdown(10);
     });
     socket.on("enableShowResult", () => setShowResultBtn(true));
 
@@ -364,23 +384,37 @@ function App() {
           {myCards.length > 0 && result.length === 0 && (
             <div>
               <h3>ไพ่ของคุณ:</h3>
+              <p>
+                {/* ใบที่ 1-2 แสดงทันที */}
+                {myCards
+                  .slice(0, 2)
+                  .map((c) => `${c.value}${c.suit}`)
+                  .join(", ")}
 
-              {!hasRevealed ? (
-                <>
-                  <p>❓❓ (กดปุ่มเพื่อเปิดไพ่)</p>
-                  {isMyTurn && (
-                    <button onClick={() => setHasRevealed(true)}>
-                      เปิดไพ่
-                    </button>
-                  )}
-                </>
-              ) : (
-                <p>
-                  {myCards.map((c) => `${c.value}${c.suit}`).join(", ")}{" "}
-                  {calculateRank(myCards)}
-                </p>
+                {/* ใบที่ 3 แสดงตามเงื่อนไข */}
+                {myCards.length === 3 && !revealed ? (
+                  <span style={{ color: "red" }}>
+                    , ❓❓ (กดปุ่มเพื่อเปิดไพ่) {revealCountdown} วินาที
+                  </span>
+                ) : myCards.length === 3 ? (
+                  `, ${myCards[2].value}${myCards[2].suit}`
+                ) : (
+                  ""
+                )}
+
+                {/* แสดงแต้มเมื่อเปิดไพ่แล้วหรือมี 2 ใบ */}
+                {(myCards.length === 2 || revealed) &&
+                  ` ${calculateRank(myCards)}`}
+              </p>
+
+              {/* ปุ่มเปิดไพ่ใบที่ 3 */}
+              {myCards.length === 3 && !revealed && isMyTurn && (
+                <button onClick={() => setRevealed(true)}>
+                  เปิดไพ่ใบที่ 3
+                </button>
               )}
 
+              {/* ปุ่มจั่ว/ไม่จั่ว */}
               {!hasStayed && myCards.length === 2 && isMyTurn && (
                 <>
                   <p style={{ color: "blue" }}>เวลาคิด: {countdown} วินาที</p>
@@ -389,6 +423,7 @@ function App() {
                 </>
               )}
 
+              {/* กำลังรอผู้เล่นคนอื่น */}
               {!isMyTurn && currentPlayer && (
                 <p style={{ color: "gray" }}>
                   รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
@@ -396,6 +431,7 @@ function App() {
               )}
             </div>
           )}
+
           {result.length > 0 && (
             <div>
               <h3>ผลลัพธ์:</h3>
