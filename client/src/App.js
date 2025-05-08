@@ -173,6 +173,11 @@ function App() {
     });
     socket.on("enableShowResult", () => setShowResultBtn(true));
 
+    socket.on("skippedPlayer", ({ name, role }) => {
+      setErrorMsg(`ข้าม ${name} (${role}) เนื่องจากออกจากห้องแล้ว`);
+      setTimeout(() => setErrorMsg(""), 4000);
+    });
+
     return () => {
       socket.off("yourCards");
       socket.off("resetGame");
@@ -186,6 +191,7 @@ function App() {
       socket.off("summaryData");
       socket.off("currentTurn");
       socket.off("enableShowResult");
+      socket.off("skippedPlayer");
     };
   }, [name]);
 
