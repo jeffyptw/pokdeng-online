@@ -413,7 +413,7 @@ io.on("connection", (socket) => {
           forceStayAndReveal(player);
         }
 
-        room.players.splice(index, 1);
+        room.players[index].leftEarly = true;
         sendPlayers(roomId);
         sendPlayersData(roomId);
         sendUsersInRoom(roomId);

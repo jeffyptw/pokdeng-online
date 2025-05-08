@@ -347,8 +347,11 @@ function App() {
           {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
           <h4>ผู้เล่นภายในห้องนี้:</h4>
           <ul>
-            {players.map((p, i) => (
-              <li key={i}>{p}</li>
+            {usersInRoom.map((user) => (
+              <li key={user.id}>
+                {user.name} ({user.role}){" "}
+                {user.leftEarly && "💨 ออกจากห้องแล้ว"}
+              </li>
             ))}
           </ul>
           {myCards.length > 0 && result.length === 0 && (
