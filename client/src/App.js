@@ -332,13 +332,13 @@ function App() {
                   ?.split("(")[1]
                   ?.replace(")", "")}
           </p>
-          {isDealer && result.length > 0 && (
+          {isDealer && (
             <>
               {!startClicked && gameRound === 0 && (
                 <button onClick={startGame}>เริ่มเกม</button>
               )}
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
-              {isDealer && result.length > 0 && (
+              {isDealer && isGameEnded && (
                 <>
                   <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
                 </>
