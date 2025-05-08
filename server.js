@@ -246,6 +246,11 @@ function startNextTurn(roomId, index = 0) {
   const player = ordered[index];
   if (!player) return;
 
+  if (player.leftEarly) {
+    startNextTurn(roomId, index + 1);
+    return;
+  }
+
   room.currentTurnId = player.id;
   io.to(roomId).emit("currentTurn", { id: player.id });
   sendPlayersData(roomId);

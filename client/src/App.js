@@ -375,7 +375,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn && currentPlayer && (
+              {!isMyTurn && currentPlayer && !currentPlayer.leftEarly && (
                 <p style={{ color: "gray" }}>
                   รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
                 </p>
