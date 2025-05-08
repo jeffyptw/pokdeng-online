@@ -255,6 +255,30 @@ function App() {
         <div>
           <h2>ห้อง: {roomId}</h2>
           <p>ชื่อ : {name}</p>
+          <p>
+            บท:{" "}
+            {isDealer
+              ? "เจ้ามือ"
+              : players
+                  .find((p) => p.includes(name))
+                  ?.split("(")[1]
+                  ?.replace(")", "")}
+          </p>
+          {isDealer && (
+            <>
+              {!startClicked && gameRound === 0 && (
+                <button onClick={startGame}>เริ่มเกม</button>
+              )}
+              {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
+              {result.length > 0 && (
+                <>
+                  <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
+                </>
+              )}
+            </>
+          )}
+
+          {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
           <h4>ผู้เล่นภายในห้องนี้:</h4>
           <ul>
             {playerData.map((user) => (
