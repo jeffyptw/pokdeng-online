@@ -14,7 +14,7 @@ const io = new Server(server, {
   },
 });
 
-const SUITS = ["♠", "♥", "♦", "♣"];
+const SUITS = ["♠️", "♥️", "♦️", "♣️"];
 const VALUES = [
   "A",
   "2",
