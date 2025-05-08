@@ -28,6 +28,7 @@ function App() {
   const [startClicked, setStartClicked] = useState(false);
   const [playerData, setPlayerData] = useState([]);
   const [usersInRoom, setUsersInRoom] = useState([]);
+  const [isGameEnded, setIsGameEnded] = useState(false);
 
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
@@ -161,6 +162,7 @@ function App() {
       setMyCards([]);
       setHasStayed(false);
       setRoomLocked(false);
+      setIsGameEnded(true);
     });
     socket.on("summaryData", (data) => {
       setSummaryData(data);
@@ -330,13 +332,13 @@ function App() {
                   ?.split("(")[1]
                   ?.replace(")", "")}
           </p>
-          {isDealer && (
+          {isDealer && result.length > 0 && (
             <>
               {!startClicked && gameRound === 0 && (
                 <button onClick={startGame}>เริ่มเกม</button>
               )}
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
-              {result.length > 0 && (
+              {isDealer && result.length > 0 && (
                 <>
                   <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
                 </>
