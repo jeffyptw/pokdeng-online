@@ -222,6 +222,7 @@ function handleResultOnly(roomId) {
   });
 
   io.to(roomId).emit("result", results);
+  sendPlayersData(roomId);
 }
 
 function startNextTurn(roomId, index = 0) {
