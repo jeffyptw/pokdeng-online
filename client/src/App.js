@@ -30,17 +30,31 @@ function App() {
   const [isGameEnded, setIsGameEnded] = useState(false);
 
   useEffect(() => {
-    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
+    const currentPlayer = playerData.find((p) => p.id === currentTurnId);
+    const isCurrentPlayerLeft = currentPlayer?.leftEarly;
+
+    if (
+      currentTurnId === socket.id &&
+      countdown > 0 &&
+      !hasStayed &&
+      !isCurrentPlayerLeft
+    ) {
       const timer = setTimeout(() => {
         setCountdown((c) => c - 1);
       }, 1000);
       return () => clearTimeout(timer);
     }
-    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
+
+    if (
+      countdown === 0 &&
+      !hasStayed &&
+      currentTurnId === socket.id &&
+      !isCurrentPlayerLeft
+    ) {
       socket.emit("stay", { roomId });
       setHasStayed(true);
     }
-  }, [countdown, currentTurnId, hasStayed]);
+  }, [countdown, currentTurnId, hasStayed, playerData]);
 
   const createRoom = () => {
     const bal = parseInt(money);
