@@ -130,6 +130,17 @@ function sendPlayersData(roomId) {
   io.to(roomId).emit("playersData", data);
 }
 
+function sendUsersInRoom(roomId) {
+  const room = rooms[roomId];
+  if (!room) return;
+  const users = room.players.map((p) => ({
+    id: p.id,
+    name: p.name,
+    role: p.role,
+  }));
+  io.to(roomId).emit("usersInRoom", users);
+}
+
 function sendSummary(roomId) {
   const room = rooms[roomId];
   if (!room) return;
@@ -265,6 +276,7 @@ io.on("connection", (socket) => {
     cb({ roomId });
     sendPlayers(roomId);
     sendPlayersData(roomId);
+    sendUsersInRoom(roomId);
   });
 
   socket.on("joinRoom", ({ roomId, name, balance }, cb) => {
@@ -293,6 +305,7 @@ io.on("connection", (socket) => {
     cb({ success: true });
     sendPlayers(roomId);
     sendPlayersData(roomId);
+    sendUsersInRoom(roomId);
   });
 
   socket.on("startGame", ({ roomId }) => {
@@ -314,6 +327,7 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("lockRoom");
     sendPlayers(roomId);
     sendPlayersData(roomId);
+    sendUsersInRoom(roomId);
     startNextTurn(roomId, 0);
   });
 
@@ -366,6 +380,7 @@ io.on("connection", (socket) => {
     clearTurnTimer(roomId);
     io.to(roomId).emit("gameEnded");
     sendSummary(roomId);
+    sendUsersInRoom(roomId);
   });
 
   socket.on("requestSummary", ({ roomId }) => {

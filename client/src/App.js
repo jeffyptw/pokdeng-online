@@ -27,6 +27,7 @@ function App() {
   const [countdown, setCountdown] = useState(15);
   const [startClicked, setStartClicked] = useState(false);
   const [playerData, setPlayerData] = useState([]);
+  const [usersInRoom, setUsersInRoom] = useState([]);
 
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
@@ -144,6 +145,9 @@ function App() {
       const me = names.find((p) => p.includes(name));
       setIsDealer(me && me.includes("เจ้ามือ"));
     });
+    socket.on("usersInRoom", (users) => {
+      setUsersInRoom(users);
+    });
     socket.on("playersData", (data) => {
       setPlayerData(data);
     });
@@ -168,7 +172,20 @@ function App() {
     });
     socket.on("enableShowResult", () => setShowResultBtn(true));
 
-    return () => socket.off();
+    return () => {
+      socket.off("yourCards");
+      socket.off("resetGame");
+      socket.off("playersList");
+      socket.off("playersData");
+      socket.off("usersInRoom"); // <- ตรงนี้
+      socket.off("result");
+      socket.off("errorMessage");
+      socket.off("lockRoom");
+      socket.off("gameEnded");
+      socket.off("summaryData");
+      socket.off("currentTurn");
+      socket.off("enableShowResult");
+    };
   }, [name]);
 
   const getCardPoint = (v) =>
