@@ -275,7 +275,7 @@ io.on("connection", (socket) => {
         success: false,
         message: "เกมเริ่มไปแล้ว ไม่สามารถเข้าร่วมได้",
       });
-    if (room.players.length >= 6)
+    if (room.players.length >= 10)
       return cb({ success: false, message: "ห้องเต็มแล้ว" });
 
     room.players.push({
