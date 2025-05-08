@@ -338,7 +338,7 @@ function App() {
                 <button onClick={startGame}>เริ่มเกม</button>
               )}
               {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
-              {isDealer && isGameEnded && (
+              {result.length > 0 && (
                 <>
                   <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
                 </>
