@@ -29,6 +29,7 @@ function App() {
   const [playerData, setPlayerData] = useState([]);
   const [usersInRoom, setUsersInRoom] = useState([]);
   const [isGameEnded, setIsGameEnded] = useState(false);
+  const [hasRevealed, setHasRevealed] = useState(false);
 
   useEffect(() => {
     if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
@@ -135,7 +136,10 @@ function App() {
   };
 
   useEffect(() => {
-    socket.on("yourCards", (data) => setMyCards(data.cards));
+    socket.on("yourCards", (data) => {
+      setMyCards(data.cards);
+      setHasRevealed(false); // ซ่อนไพ่ทุกครั้งที่แจก
+    });
     socket.on("resetGame", () => {
       setHasStayed(false);
       setResult([]);
@@ -360,10 +364,23 @@ function App() {
           {myCards.length > 0 && result.length === 0 && (
             <div>
               <h3>ไพ่ของคุณ:</h3>
-              <p>
-                {myCards.map((c) => `${c.value}${c.suit}`).join(", ")}{" "}
-                {calculateRank(myCards)}
-              </p>
+
+              {!hasRevealed ? (
+                <>
+                  <p>❓❓ (กดปุ่มเพื่อเปิดไพ่)</p>
+                  {isMyTurn && (
+                    <button onClick={() => setHasRevealed(true)}>
+                      เปิดไพ่
+                    </button>
+                  )}
+                </>
+              ) : (
+                <p>
+                  {myCards.map((c) => `${c.value}${c.suit}`).join(", ")}{" "}
+                  {calculateRank(myCards)}
+                </p>
+              )}
+
               {!hasStayed && myCards.length === 2 && isMyTurn && (
                 <>
                   <p style={{ color: "blue" }}>เวลาคิด: {countdown} วินาที</p>
@@ -371,6 +388,7 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
+
               {!isMyTurn && currentPlayer && (
                 <p style={{ color: "gray" }}>
                   รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
