@@ -233,6 +233,11 @@ function startNextTurn(roomId, index = 0) {
   const dealer = room.players.find((p) => p.role === "เจ้ามือ");
   if (dealer) ordered.push(dealer);
 
+  // 🔁 วนข้ามคนที่ออกห้องแล้ว
+  while (index < ordered.length && ordered[index].leftEarly) {
+    index++;
+  }
+
   if (index >= ordered.length) {
     io.to(dealer.id).emit("enableShowResult");
     return;
