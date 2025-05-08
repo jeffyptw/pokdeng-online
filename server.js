@@ -126,6 +126,7 @@ function sendPlayersData(roomId) {
     name: p.name,
     role: p.role,
     balance: p.balance,
+    leftEarly: p.leftEarly || false,
   }));
   io.to(roomId).emit("playersData", data);
 }
