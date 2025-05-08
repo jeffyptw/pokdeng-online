@@ -109,33 +109,31 @@ function App() {
     const incomeMap = {};
     const expenseMap = {};
 
-    ```
-me.income.forEach((entry) => {
-  incomeMap[entry.from] = (incomeMap[entry.from] || 0) + entry.amount;
-});
+    me.income.forEach((entry) => {
+      incomeMap[entry.from] = (incomeMap[entry.from] || 0) + entry.amount;
+    });
 
-me.expense.forEach((entry) => {
-  expenseMap[entry.to] = (expenseMap[entry.to] || 0) + entry.amount;
-});
+    me.expense.forEach((entry) => {
+      expenseMap[entry.to] = (expenseMap[entry.to] || 0) + entry.amount;
+    });
 
-const allNames = new Set([
-  ...Object.keys(incomeMap),
-  ...Object.keys(expenseMap),
-]);
-const finalIncome = [];
-const finalExpense = [];
+    const allNames = new Set([
+      ...Object.keys(incomeMap),
+      ...Object.keys(expenseMap),
+    ]);
+    const finalIncome = [];
+    const finalExpense = [];
 
-allNames.forEach((person) => {
-  const get = incomeMap[person] || 0;
-  const give = expenseMap[person] || 0;
+    allNames.forEach((person) => {
+      const get = incomeMap[person] || 0;
+      const give = expenseMap[person] || 0;
 
-  if (get > give) finalIncome.push({ name: person, amount: get - give });
-  else if (give > get)
-    finalExpense.push({ name: person, amount: give - get });
-});
+      if (get > give) finalIncome.push({ name: person, amount: get - give });
+      else if (give > get)
+        finalExpense.push({ name: person, amount: give - get });
+    });
 
-return { finalIncome, finalExpense };
-```;
+    return { finalIncome, finalExpense };
   };
 
   useEffect(() => {
@@ -178,22 +176,20 @@ return { finalIncome, finalExpense };
     });
     socket.on("enableShowResult", () => setShowResultBtn(true));
 
-    ```
-return () => {
-  socket.off("yourCards");
-  socket.off("resetGame");
-  socket.off("playersList");
-  socket.off("playersData");
-  socket.off("usersInRoom"); // <- ตรงนี้
-  socket.off("result");
-  socket.off("errorMessage");
-  socket.off("lockRoom");
-  socket.off("gameEnded");
-  socket.off("summaryData");
-  socket.off("currentTurn");
-  socket.off("enableShowResult");
-};
-```;
+    return () => {
+      socket.off("yourCards");
+      socket.off("resetGame");
+      socket.off("playersList");
+      socket.off("playersData");
+      socket.off("usersInRoom"); // <- ตรงนี้
+      socket.off("result");
+      socket.off("errorMessage");
+      socket.off("lockRoom");
+      socket.off("gameEnded");
+      socket.off("summaryData");
+      socket.off("currentTurn");
+      socket.off("enableShowResult");
+    };
   }, [name]);
 
   const getCardPoint = (v) =>
