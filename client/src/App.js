@@ -349,7 +349,7 @@ function App() {
           <ul>
             {playerData.map((user) => (
               <li key={user.id}>
-                {user.name} ({user.role}){" "}
+                {user.name} ({user.role}) = {user.balance} บาท{" "}
                 {user.leftEarly && "💨 ออกจากห้องแล้ว"}
               </li>
             ))}
