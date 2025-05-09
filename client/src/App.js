@@ -14,7 +14,7 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [name, setName] = useState("");
-  const [money, setMoney] = useState("");
+  const [money, setMoney] = useState("50");
   const [inputRoomId, setInputRoomId] = useState("");
 
   const [roomId, setRoomId] = useState("");
@@ -305,8 +305,8 @@ function App() {
       addMessage("กรุณากรอกชื่อของคุณ", "error");
       return;
     }
-    if (bal < 10 || bal % 10 !== 0) {
-      addMessage("จำนวนเงินขั้นต่ำ 10 และต้องลงท้ายด้วย 0 เท่านั้น", "error");
+    if (bal < 50 || bal % 10 !== 0) {
+      addMessage("จำนวนเงินขั้นต่ำ 50 และต้องลงท้ายด้วย 0 เท่านั้น", "error");
       return;
     }
     console.log("[Client] Emitting 'createRoom'");
@@ -552,9 +552,11 @@ function App() {
         />
         <input
           type="number"
-          placeholder="เงินเริ่มต้น (ขั้นต่ำ 10)"
+          placeholder="เงินเริ่มต้น (ขั้นต่ำ 50)"
           value={money}
           onChange={(e) => setMoney(e.target.value)}
+          min="50"
+          step="10"
         />
         <div style={{ marginTop: 20 }}>
           {" "}
@@ -627,8 +629,8 @@ function App() {
               type="number"
               value={inputBetAmount}
               onChange={(e) => setInputBetAmount(e.target.value)}
-              step="10"
-              min="10"
+              step="5"
+              min="5"
             />
             <button onClick={handleSetBet}>ตั้งค่า</button>
           </div>
