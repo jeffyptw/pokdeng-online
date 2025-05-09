@@ -22,8 +22,8 @@ function App() {
   const [isDealer, setIsDealer] = useState(false);
   const [playerData, setPlayerData] = useState([]);
   const [betAmount, setBetAmount] = useState(0);
-  const [inputBetAmount, setInputBetAmount] = useState("10");
-  const [roomLocked, setRoomLocked] = useState(false);
+  const [inputBetAmount, setInputBetAmount] = useState("10"); // ผูกกับ input
+  const [roomLocked, setRoomLocked] = useState(false); // ผูกกับ UI และ event
 
   const [gameStarted, setGameStarted] = useState(false);
   const [myCards, setMyCards] = useState([]);
@@ -37,8 +37,8 @@ function App() {
   const [countdown, setCountdown] = useState(DEFAULT_TURN_DURATION);
 
   const [result, setResult] = useState([]);
-  const [showResultBtn, setShowResultBtn] = useState(false);
-  const [gameRound, setGameRound] = useState(0);
+  const [showResultBtn, setShowResultBtn] = useState(false); // ผูกกับ UI และ event
+  const [gameRound, setGameRound] = useState(0); // ผูกกับ UI
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState([]);
 
@@ -82,8 +82,7 @@ function App() {
       console.log("[Client] Disconnected from server. Reason:", reason);
       addMessage(`การเชื่อมต่อกับ Server หลุด! (${reason})`, "error");
       setIsConnected(false);
-      // Consider resetting states like inRoom, gameStarted etc. if appropriate
-      // setInRoom(false); setGameStarted(false);
+      // setInRoom(false); setGameStarted(false); // Consider full reset
     }
 
     socketClient.on("connect", onConnect);
@@ -140,7 +139,7 @@ function App() {
         );
         setMyCards([]);
       }
-      setHasStayed(false); // Reset for new hand
+      setHasStayed(false);
     });
 
     socketClient.on("gameStarted", (data) => {
@@ -170,7 +169,6 @@ function App() {
 
     socketClient.on("turnTimerUpdate", (timerData) => {
       if (currentTurnId === timerData.playerId) {
-        // currentTurnId from state
         setCurrentTurnInfo((prev) => ({
           ...prev,
           timeLeft: timerData.timeLeft,
@@ -254,10 +252,9 @@ function App() {
         socketClient.off("message");
         socketClient.off("lockRoom");
         socketClient.off("playerLeft");
-        // socketClient.disconnect(); // Optional: disconnect on App unmount
       }
     };
-  }, [myPlayerId]); // Re-run if myPlayerId changes (e.g., after initial connect)
+  }, [myPlayerId, name, roomId, currentTurnId]); // Added name, roomId, currentTurnId as they are used in some listener logic or conditions
 
   // Countdown timer effect
   useEffect(() => {
@@ -299,7 +296,6 @@ function App() {
     roomId,
   ]);
 
-  // --- Action Functions ---
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
       addMessage("ยังไม่ได้เชื่อมต่อกับ Server", "error");
@@ -382,6 +378,7 @@ function App() {
   };
 
   const handleDrawCard = () => {
+    // <--- ประกาศฟังก์ชันนี้
     if (
       socketClient &&
       socketClient.connected &&
@@ -398,6 +395,7 @@ function App() {
   };
 
   const handleStay = () => {
+    // <--- ประกาศฟังก์ชันนี้
     if (
       socketClient &&
       socketClient.connected &&
@@ -423,7 +421,7 @@ function App() {
     ) {
       console.log("[Client] Emitting 'showResult' for room:", roomId);
       socketClient.emit("showResult", roomId);
-      // setGameRound((prev) => prev + 1); // Server side doesn't use client gameRound, client can manage for display
+      // setGameRound((prev) => prev + 1); // Server doesn't rely on this, client updates on result
     } else {
       addMessage("ไม่สามารถแสดงผลได้ในขณะนี้", "error");
     }
@@ -447,7 +445,6 @@ function App() {
     window.location.reload();
   };
 
-  // --- Helper Functions ---
   const getCardDisplay = (card) => {
     if (
       card &&
@@ -455,13 +452,12 @@ function App() {
       typeof card.suit !== "undefined"
     )
       return `${card.value}${card.suit}`;
-    // console.warn("[Client] getCardDisplay invalid card:", card); // อาจจะ log เยอะไป
+    console.warn("[Client] getCardDisplay invalid card:", card);
     return "?";
   };
   const getCardPoint = (v) =>
     ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
   const calculateRankForDisplay = (cardsToRank) => {
-    // For client-side display only
     if (!cardsToRank || cardsToRank.length === 0)
       return { score: 0, type: "ยังไม่มีไพ่" };
     const calculatedScore =
@@ -482,17 +478,14 @@ function App() {
       const suits = cardsToRank.map((c) => c.suit);
       const sameSuit = suits.every((s) => s === suits[0]);
       if (sameSuit) type = `สามเด้ง (${calculatedScore} แต้ม)`;
-      // Add more complex 3-card logic if needed from server's getHandRank
     }
     return { score: calculatedScore, type };
   };
 
-  // --- Derived State for Rendering ---
   const myCurrentPlayerData = playerData.find((p) => p.id === myPlayerId);
   let myHandScore = "-";
   let myHandType = "ยังไม่มีไพ่";
-  if (myCards && myCards.length > 0 && (gameStarted || result.length > 0)) {
-    // Calculate if game started or results are shown
+  if (myCards && myCards.length > 0 && gameStarted) {
     const rankData = calculateRankForDisplay(myCards);
     myHandScore = rankData.score;
     myHandType = rankData.type;
@@ -647,11 +640,11 @@ function App() {
             onClick={handleStartGame}
             disabled={
               betAmount <= 0 ||
-              (roomLocked && playerData.length < 2 && !isDealer)
+              (roomLocked && playerData.length < 1 && !isDealer)
             }
           >
             {" "}
-            {/* Allow start if locked but enough players, or if dealer is alone */}
+            {/* Allow start if locked unless no other players*/}
             {gameRound > 0 || (result && result.length > 0)
               ? "เริ่มเกมรอบใหม่"
               : "เริ่มเกม"}
@@ -704,20 +697,26 @@ function App() {
             <p>
               แต้ม: {myHandScore}, ประเภท: {myHandType}
             </p>
-            {!isDealer && isMyTurn && myCards.length === 2 && !hasStayed && (
-              <div className="player-actions">
-                <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
-                <button onClick={handleDrawCard} disabled={myCards.length >= 3}>
-                  จั่ว
-                </button>
-                <button onClick={handleStay}>อยู่</button>
-              </div>
-            )}
+            {!isDealer &&
+              isMyTurn &&
+              myCards.length === 2 &&
+              !hasStayed && ( // เงื่อนไขปุ่มจั่ว/อยู่
+                <div className="player-actions">
+                  <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
+                  <button
+                    onClick={handleDrawCard}
+                    disabled={myCards.length >= 3}
+                  >
+                    จั่ว
+                  </button>
+                  <button onClick={handleStay}>อยู่</button>
+                </div>
+              )}
           </div>
         )}
       {gameStarted &&
         (!myCards || myCards.length === 0) &&
-        (!result || result.length === 0) && ( // Show this if game started but no cards for current player
+        (!result || result.length === 0) && (
           <p className="debug-message error">
             [DEBUG Client] {isDealer ? "เจ้ามือ:" : "ผู้เล่น:"} เกมเริ่มแล้ว
             แต่ยังไม่ได้รับไพ่/ไพ่ไม่แสดง. myCards: {JSON.stringify(myCards)}
