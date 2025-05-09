@@ -312,11 +312,19 @@ function App() {
     }
   };
 
+  // ใน App.js
+
   const startGame = () => {
-    socket.emit("startGame", { roomId }); // Server uses betAmount set for the room
-    // Client state changes will occur on 'gameStarted' event from server
-    // setStartClicked(true); // Handled by gameStarted event
-    // setShowResultBtn(false); // Handled by gameStarted event
+    console.log("[Client] Attempting to start game for room:", roomId); // เพิ่ม console.log เพื่อ debug
+    if (roomId && socket) {
+      // ตรวจสอบว่ามี roomId และ socket ก่อน emit
+      socket.emit("startGame", roomId); // <--- แก้ไขตรงนี้: ส่ง roomId เป็น string โดยตรง
+    } else {
+      console.error("[Client] Cannot start game: roomId or socket is missing.");
+      // อาจจะแสดงข้อความแจ้งเตือนผู้ใช้
+    }
+    // ไม่ควรตั้งค่า state ของ client (เช่น startClicked, showResultBtn) ที่นี่ทันที
+    // ควรให้ client รอรับ event "gameStarted" จาก server แล้วค่อยอัปเดต state
   };
 
   const drawCard = () => {
