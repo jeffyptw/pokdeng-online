@@ -1,7 +1,7 @@
 // App.js
 import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
-import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์นี้ หรือลบการ import ถ้าไม่ใช้
+import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์ CSS นี้
 
 const SERVER_URL = "https://pokdeng-online-th.onrender.com";
 // const SERVER_URL = "http://localhost:3001"; // สำหรับทดสอบ Local
@@ -14,7 +14,7 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [name, setName] = useState("");
-  const [money, setMoney] = useState("50");
+  const [money, setMoney] = useState("50"); // ค่าเริ่มต้นตามโค้ดที่คุณให้มา
   const [inputRoomId, setInputRoomId] = useState("");
 
   const [roomId, setRoomId] = useState("");
@@ -23,22 +23,22 @@ function App() {
   const [playerData, setPlayerData] = useState([]);
   const [betAmount, setBetAmount] = useState(0);
   const [inputBetAmount, setInputBetAmount] = useState("5"); // ผูกกับ input
-  const [roomLocked, setRoomLocked] = useState(false); // ผูกกับ UI และ event
+  const [roomLocked, setRoomLocked] = useState(false); // จะถูกอัปเดตจาก server
 
   const [gameStarted, setGameStarted] = useState(false);
   const [myCards, setMyCards] = useState([]);
   const [hasStayed, setHasStayed] = useState(false);
-  const [currentTurnId, setCurrentTurnId] = useState(null);
+  const [currentTurnId, setCurrentTurnId] = useState(null); // จะถูกอัปเดตจาก server
   const [currentTurnInfo, setCurrentTurnInfo] = useState({
     name: "",
     role: "",
     timeLeft: 0,
-  });
+  }); // จะถูกอัปเดตจาก server
   const [countdown, setCountdown] = useState(DEFAULT_TURN_DURATION);
 
   const [result, setResult] = useState([]);
-  const [showResultBtn, setShowResultBtn] = useState(false); // ผูกกับ UI และ event
-  const [gameRound, setGameRound] = useState(0); // ผูกกับ UI
+  const [showResultBtn, setShowResultBtn] = useState(false); // จะถูกอัปเดตจาก server
+  const [gameRound, setGameRound] = useState(0); // Client จัดการได้ หรืออัปเดตจาก server
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState([]);
 
@@ -82,7 +82,7 @@ function App() {
       console.log("[Client] Disconnected from server. Reason:", reason);
       addMessage(`การเชื่อมต่อกับ Server หลุด! (${reason})`, "error");
       setIsConnected(false);
-      // setInRoom(false); setGameStarted(false); // Consider full reset
+      // setInRoom(false); setGameStarted(false); // อาจจะ reset state เมื่อหลุด
     }
 
     socketClient.on("connect", onConnect);
@@ -131,7 +131,7 @@ function App() {
         JSON.stringify(cardsFromServer)
       );
       if (Array.isArray(cardsFromServer)) {
-        setMyCards(cardsFromServer); // <--- myCards จะถูกตั้งค่าที่นี่หลังจาก gameStarted
+        setMyCards(cardsFromServer);
       } else {
         console.warn(
           "[Client] 'yourCards' received non-array or invalid data:",
@@ -139,24 +139,26 @@ function App() {
         );
         setMyCards([]);
       }
-      setHasStayed(false); // Reset for new hand
+      setHasStayed(false);
     });
 
     socketClient.on("gameStarted", (data) => {
       console.log("[Client] Event 'gameStarted':", data);
       addMessage(`เกมเริ่มแล้ว! เดิมพัน: ${data.betAmount} บาท`, "info");
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
-      setGameStarted(true);
+      setGameStarted(true); // <--- ตั้งค่า gameStarted
       setResult([]);
+      // ไม่ต้อง setMyCards([]) ที่นี่ เพราะ Server จะส่ง yourCards มาให้
       setHasStayed(false);
-      setShowResultBtn(false);
+      setShowResultBtn(false); // <--- เรียกใช้ setShowResultBtn
       setShowSummary(false);
     });
 
     socketClient.on("currentTurn", (turnData) => {
       console.log("[Client] Event 'currentTurn':", turnData);
-      setCurrentTurnId(turnData.id);
+      setCurrentTurnId(turnData.id); // <--- เรียกใช้ setCurrentTurnId
       setCurrentTurnInfo({
+        // <--- เรียกใช้ setCurrentTurnInfo
         name: turnData.name,
         role: turnData.role,
         timeLeft: turnData.timeLeft,
@@ -171,36 +173,36 @@ function App() {
         setCurrentTurnInfo((prev) => ({
           ...prev,
           timeLeft: timerData.timeLeft,
-        }));
+        })); // <--- เรียกใช้ setCurrentTurnInfo
         if (timerData.playerId === myPlayerId) setCountdown(timerData.timeLeft);
       }
     });
 
     socketClient.on("enableShowResult", (canShow) => {
       console.log("[Client] Enable Show Result:", canShow);
-      setShowResultBtn(canShow);
+      setShowResultBtn(canShow); // <--- เรียกใช้ setShowResultBtn
     });
 
     socketClient.on("lockRoom", (isLockedFromServer) => {
       console.log("[Client] Room lock status from server:", isLockedFromServer);
-      setRoomLocked(isLockedFromServer);
+      setRoomLocked(isLockedFromServer); // <--- เรียกใช้ setRoomLocked
       addMessage(isLockedFromServer ? "ห้องถูกล็อค" : "ห้องถูกปลดล็อค");
     });
 
     socketClient.on("result", (roundResults) => {
       console.log("[Client] Event 'result':", roundResults);
       setResult(roundResults);
-      setGameStarted(false);
-      setCurrentTurnId(null);
-      setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
-      setShowResultBtn(false);
-      setGameRound((prev) => prev + 1);
+      setGameStarted(false); // <--- เรียกใช้ setGameStarted
+      setCurrentTurnId(null); // <--- เรียกใช้ setCurrentTurnId
+      setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 }); // <--- เรียกใช้ setCurrentTurnInfo
+      setShowResultBtn(false); // <--- เรียกใช้ setShowResultBtn
+      setGameRound((prev) => prev + 1); // <--- เรียกใช้ setGameRound
     });
 
     socketClient.on("resetGame", () => {
       console.log("[Client] Event 'resetGame'");
       addMessage("เกมถูกรีเซ็ต เตรียมเริ่มรอบใหม่", "info");
-      setGameStarted(false);
+      setGameStarted(false); // <--- เรียกใช้ setGameStarted
       setMyCards([]);
       setResult([]);
       setHasStayed(false);
@@ -213,7 +215,7 @@ function App() {
       console.log("[Client] Event 'gameEnded'. Summary:", gameSummary);
       setSummaryData(gameSummary);
       setShowSummary(true);
-      setGameStarted(false);
+      setGameStarted(false); // <--- เรียกใช้ setGameStarted
       setResult([]);
       setCurrentTurnId(null);
     });
@@ -227,31 +229,6 @@ function App() {
     socketClient.on("playerLeft", (data) =>
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`)
     );
-
-    // ใน App.js -> useEffect(() => { ... }, [myPlayerId, ...]);
-
-    socketClient.on("roomSettings", (settings) => {
-      console.log("[Client] Received 'roomSettings'. Data:", settings);
-      if (settings && typeof settings.betAmount === "number") {
-        addMessage(
-          `[EVENT] ราคาเดิมพันอัปเดตเป็น: ${settings.betAmount} (จาก roomSettings)`,
-          "info"
-        );
-        setBetAmount(settings.betAmount); // อัปเดต state ที่ใช้แสดงผลหลัก
-        if (
-          myPlayerId &&
-          playerData.find((p) => p.id === myPlayerId && p.isDealer)
-        ) {
-          // ตรวจสอบว่าเป็น Dealer จริงๆ
-          setInputBetAmount(settings.betAmount.toString()); // อัปเดต input field ของ Dealer
-        }
-      } else {
-        console.warn(
-          "[Client] 'roomSettings' received invalid data:",
-          settings
-        );
-      }
-    });
 
     return () => {
       console.log(
@@ -276,9 +253,11 @@ function App() {
         socketClient.off("message");
         socketClient.off("lockRoom");
         socketClient.off("playerLeft");
+        // พิจารณาการ disconnect ถ้า component unmount จริงๆ
+        // socketClient.disconnect();
       }
     };
-  }, [myPlayerId, name, roomId, currentTurnId]); // Added name, roomId, currentTurnId as they are used in some listener logic or conditions
+  }, [myPlayerId, name, roomId, currentTurnId]); // Dependencies สำคัญที่อาจทำให้ listener ต้องผูกใหม่
 
   // Countdown timer effect
   useEffect(() => {
@@ -305,7 +284,7 @@ function App() {
           "[Client] Countdown for my turn ended, auto-staying for room:",
           roomId
         );
-        socketClient.emit("stay", roomId);
+        socketClient.emit("stay", roomId); // ส่ง roomId เป็น string
         setHasStayed(true);
       }
     }
@@ -320,6 +299,7 @@ function App() {
     roomId,
   ]);
 
+  // --- Action Functions ---
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
       addMessage("ยังไม่ได้เชื่อมต่อกับ Server", "error");
@@ -366,12 +346,8 @@ function App() {
 
   const handleSetBet = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
-      const amount = parseInt(inputBetAmount);
-      if (
-        amount > 0 &&
-        (amount % 10 === 0 || amount % 5 === 0) &&
-        amount >= 5
-      ) {
+      const amount = parseInt(inputBetAmount); // ใช้ inputBetAmount จาก state
+      if (amount >= 5 && (amount % 10 === 0 || amount % 5 === 0)) {
         // ปรับเงื่อนไขตาม server
         console.log("[Client] Emitting 'setBetAmount' with amount:", amount);
         socketClient.emit("setBetAmount", { roomId, amount });
@@ -394,11 +370,14 @@ function App() {
   };
 
   const handleCopyRoomId = () => {
+    // เพิ่มฟังก์ชันนี้
     if (!roomId) return;
     navigator.clipboard
       .writeText(roomId)
-      .then(() => alert(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`))
-      .catch((err) => console.error("คัดลอกไม่สำเร็จ", err));
+      .then(() =>
+        addMessage(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`, "success")
+      )
+      .catch((err) => addMessage("คัดลอกไม่สำเร็จ: " + err, "error"));
   };
 
   const handleStartGame = () => {
@@ -411,7 +390,7 @@ function App() {
       isDealer
     );
     if (socketClient && socketClient.connected && roomId && isDealer) {
-      socketClient.emit("startGame", roomId);
+      socketClient.emit("startGame", roomId); // ส่ง roomId เป็น string
     } else {
       addMessage(
         "ไม่สามารถเริ่มเกมได้ (ตรวจสอบการเชื่อมต่อ, รหัสห้อง, หรือสิทธิ์เจ้ามือ)",
@@ -421,10 +400,9 @@ function App() {
   };
 
   const handleDrawCard = () => {
-    // <--- ประกาศฟังก์ชันนี้
     if (
       socketClient &&
-      socketClient.connected &&
+      isConnected &&
       gameStarted &&
       currentTurnId === myPlayerId &&
       !hasStayed &&
@@ -438,10 +416,9 @@ function App() {
   };
 
   const handleStay = () => {
-    // <--- ประกาศฟังก์ชันนี้
     if (
       socketClient &&
-      socketClient.connected &&
+      isConnected &&
       gameStarted &&
       currentTurnId === myPlayerId &&
       !hasStayed
@@ -457,28 +434,28 @@ function App() {
   const handleShowResult = () => {
     if (
       socketClient &&
-      socketClient.connected &&
+      isConnected &&
       isDealer &&
       gameStarted &&
       showResultBtn
     ) {
       console.log("[Client] Emitting 'showResult' for room:", roomId);
       socketClient.emit("showResult", roomId);
-      // setGameRound((prev) => prev + 1); // Server doesn't rely on this, client updates on result
+      // setGameRound((prev) => prev + 1); // Server ไม่ได้ใช้ gameRound จาก client, client อัปเดตเมื่อได้รับ result
     } else {
       addMessage("ไม่สามารถแสดงผลได้ในขณะนี้", "error");
     }
   };
 
   const handleResetGameHandler = () => {
-    if (socketClient && socketClient.connected && isDealer) {
+    if (socketClient && isConnected && isDealer) {
       console.log("[Client] Emitting 'resetGame' for room:", roomId);
       socketClient.emit("resetGame", roomId);
     }
   };
 
   const handleEndGame = () => {
-    if (socketClient && socketClient.connected && isDealer) {
+    if (socketClient && isConnected && isDealer) {
       console.log("[Client] Emitting 'endGame' for room:", roomId);
       socketClient.emit("endGame", roomId);
     }
@@ -488,6 +465,7 @@ function App() {
     window.location.reload();
   };
 
+  // --- Helper Functions ---
   const getCardDisplay = (card) => {
     if (
       card &&
@@ -528,7 +506,12 @@ function App() {
   const myCurrentPlayerData = playerData.find((p) => p.id === myPlayerId);
   let myHandScore = "-";
   let myHandType = "ยังไม่มีไพ่";
-  if (myCards && myCards.length > 0 && gameStarted) {
+  if (
+    myCards &&
+    myCards.length > 0 &&
+    gameStarted &&
+    (!result || result.length === 0)
+  ) {
     const rankData = calculateRankForDisplay(myCards);
     myHandScore = rankData.score;
     myHandType = rankData.type;
@@ -539,7 +522,7 @@ function App() {
     !hasStayed &&
     myCards.length < 3;
 
-  // --- JSX Rendering ---
+  // --- JSX Rendering (นำโครงสร้างจากที่คุณให้มาล่าสุด) ---
   if (showSummary) {
     return (
       <div className="App-summary">
@@ -581,18 +564,17 @@ function App() {
     return (
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
-        {errorMsg && <p className="error-message">{errorMsg}</p>}
         <p>
-          สถานะ:&nbsp;
+          สถานะ:{" "}
           <span
             className={isConnected ? "status-connected" : "status-connecting"}
           >
             {isConnected
-              ? "เชื่อมต่อกับเซิฟเวอร์แล้ว"
-              : "กำลังเชื่อมต่อกับเซิฟเวอร์..."}
+              ? `เชื่อมต่อแล้ว (ID: ${myPlayerId?.substring(0, 5)})`
+              : "กำลังเชื่อมต่อ..."}
           </span>
         </p>
-
+        {errorMsg && <p className="error-message">{errorMsg}</p>}
         <input
           type="text"
           placeholder="ชื่อคุณ"
@@ -637,11 +619,15 @@ function App() {
     <div className="App">
       <header>
         <h2>
-          ห้อง:&nbsp;
-          <button className="text-button2" onClick={handleCopyRoomId}>
-            {roomId}
+          ห้อง: {roomId}
+          <button
+            className="text-button2"
+            onClick={handleCopyRoomId}
+            style={{ marginLeft: "10px", fontSize: "0.8em" }}
+          >
+            (คัดลอก)
           </button>
-          <br></br>(ราคาเดิมพันต่อรอบ:{" "}
+          (เดิมพันรอบละ:{" "}
           {betAmount > 0
             ? `${betAmount.toLocaleString()} บาท`
             : "รอเจ้ามือกำหนด"}
@@ -651,13 +637,9 @@ function App() {
           คุณ: {name}{" "}
           {isDealer
             ? "(เจ้ามือ)"
-            : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}{" "}
+            : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}
           | ID: {myPlayerId?.substring(0, 5)} | เงิน:{" "}
-          {myCurrentPlayerData?.balance?.toLocaleString() || money} |
-          ห้อง:&nbsp;
-          <button className="text-button" onClick={handleCopyRoomId}>
-            {roomId}
-          </button>
+          {myCurrentPlayerData?.balance?.toLocaleString() || money}
         </p>
         <p style={{ color: roomLocked ? "red" : "green" }}>
           สถานะห้อง: {roomLocked ? "ล็อค" : "เปิด"}
@@ -704,7 +686,7 @@ function App() {
             }
           >
             {" "}
-            {/* Allow start if locked unless no other players*/}
+            {/* ปรับปรุง disabled condition */}
             {gameRound > 0 || (result && result.length > 0)
               ? "เริ่มเกมรอบใหม่"
               : "เริ่มเกม"}
@@ -757,29 +739,29 @@ function App() {
             <p>
               แต้ม: {myHandScore}, ประเภท: {myHandType}
             </p>
-            {!isDealer &&
-              isMyTurn &&
-              myCards.length === 2 &&
-              !hasStayed && ( // เงื่อนไขปุ่มจั่ว/อยู่
-                <div className="player-actions">
-                  <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
-                  <button
-                    onClick={handleDrawCard}
-                    disabled={myCards.length >= 3}
-                  >
-                    จั่ว
-                  </button>
-                  <button onClick={handleStay}>อยู่</button>
-                </div>
-              )}
+            {!isDealer && isMyTurn && myCards.length === 2 && !hasStayed && (
+              <div className="player-actions">
+                <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
+                <button onClick={handleDrawCard} disabled={myCards.length >= 3}>
+                  จั่ว
+                </button>
+                <button onClick={handleStay}>อยู่</button>
+              </div>
+            )}
           </div>
         )}
       {gameStarted &&
         (!myCards || myCards.length === 0) &&
         (!result || result.length === 0) && (
           <p className="debug-message error">
-            [DEBUG Client] {isDealer ? "เจ้ามือ:" : "ผู้เล่น:"} เกมเริ่มแล้ว
-            แต่ยังไม่ได้รับไพ่/ไพ่ไม่แสดง. myCards: {JSON.stringify(myCards)}
+            [DEBUG Client]{" "}
+            {isDealer
+              ? "เจ้ามือ:"
+              : myPlayerId === currentTurnId
+              ? "คุณ:"
+              : "ผู้เล่น:"}{" "}
+            เกมเริ่มแล้ว แต่ myCards ไม่มีข้อมูล (myPlayerId: {myPlayerId}).
+            myCards: {JSON.stringify(myCards)}
           </p>
         )}
 
