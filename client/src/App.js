@@ -364,6 +364,14 @@ function App() {
     }
   };
 
+  const handleCopyRoomId = () => {
+    if (!roomId) return;
+    navigator.clipboard
+      .writeText(roomId)
+      .then(() => alert(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`))
+      .catch((err) => console.error("คัดลอกไม่สำเร็จ", err));
+  };
+
   const handleStartGame = () => {
     console.log(
       "[Client] Attempting 'startGame'. Socket connected:",
@@ -607,6 +615,11 @@ function App() {
             : "รอเจ้ามือกำหนด"}
           )
         </h2>
+        <p>
+          <button className="btn-inroom-setting" onClick={handleCopyRoomId}>
+            คัดลอกเลขห้อง
+          </button>
+        </p>
         <p>
           คุณ: {name}{" "}
           {isDealer
