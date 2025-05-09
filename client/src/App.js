@@ -385,7 +385,7 @@ function App() {
             <div>
               <h3>ไพ่ของคุณ:</h3>
               <p>
-                {myCards.map((c) => `${c.value}${c.suit}`).join(", ")}{" "}
+                {myCards.map((c) => "${c.value}${c.suit}").join(", ")}{" "}
                 {calculateRank(myCards)}
               </p>
               {!hasStayed && myCards.length === 2 && isMyTurn && (
@@ -395,13 +395,11 @@ function App() {
                   <button onClick={stay}>ไม่จั่ว</button>
                 </>
               )}
-              {!isMyTurn &&
-                currentTurnId &&
-                playerData.find((p) => p.id === currentTurnId) && ( // ตรวจสอบว่า currentTurnId มีใน playerData
-                  <p style={{ color: "gray" }}>
-                    รอ...({turnPlayerRole}) {turnPlayerName} เล่น ⌛
-                  </p>
-                )}
+              {!isMyTurn && currentPlayer && (
+                <p style={{ color: "gray" }}>
+                  รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
+                </p>
+              )}
             </div>
           )}
           {result.length > 0 && (
