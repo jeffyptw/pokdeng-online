@@ -20,7 +20,7 @@ const io = socketIO(server, {
 });
 
 const rooms = {};
-const DEFAULT_BET_AMOUNT = 10;
+const DEFAULT_BET_AMOUNT = 5;
 const TURN_DURATION = 30; // seconds
 
 function generateRoomId() {
