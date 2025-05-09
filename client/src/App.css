@@ -11,7 +11,7 @@ body {
   max-width: 900px;
   margin: 20px auto;
   padding: 20px;
-  background-color: #ffffff;
+  background-color: #fff;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
@@ -49,8 +49,8 @@ body {
 .dealer-controls button[onClick*="StartGame"],
 .post-round-controls button[onClick*="StartGame"],
 .post-round-controls button[onClick*="ResetGame"] {
-  background-color: #47b447;
-  border-color: #286328;
+  background-color: #5cb85c;
+  border-color: #4cae4c;
 }
 .App-lobby button:hover,
 .dealer-controls button[onClick*="StartGame"]:hover,
@@ -100,7 +100,7 @@ body {
 
 button:disabled {
   background-color: #90e790;
-  color: #ffffff;
+  color: #888;
   cursor: not-allowed;
 }
 
