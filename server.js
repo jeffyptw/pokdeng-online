@@ -6,11 +6,10 @@ const cors = require("cors");
 
 const app = express();
 app.use(cors());
-
 const server = http.createServer(app);
-const io = new Server(server, {
+const io = socketIO(server, {
   cors: {
-    origin: "https://pokdeng-online1.onrender.com",
+    origin: ["https://pokdeng-online1.onrender.com"], // เพิ่ม Localhost สำหรับ Dev
     methods: ["GET", "POST"],
     credentials: true,
   },
