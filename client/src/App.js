@@ -4,7 +4,6 @@ import io from "socket.io-client";
 import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์นี้ หรือลบการ import ถ้าไม่ใช้
 
 const SERVER_URL = "https://pokdeng-online-th.onrender.com";
-// const SERVER_URL = "http://localhost:3001"; // สำหรับทดสอบ Local
 
 const socket = io(SERVER_URL, {
   transports: ["websocket"],
