@@ -14,7 +14,7 @@ function App() {
   const [isConnected, setIsConnected] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [name, setName] = useState("");
-  const [money, setMoney] = useState("1000");
+  const [money, setMoney] = useState("");
   const [inputRoomId, setInputRoomId] = useState("");
 
   const [roomId, setRoomId] = useState("");

@@ -33,7 +33,7 @@ body {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
-  border: 1px solid #ccc;
+  border: 1px solid #90e790;
   font-size: 1em;
 }
 .App-lobby button,
@@ -43,7 +43,7 @@ body {
 .post-round-controls button,
 .exit-button {
   cursor: pointer;
-  color: white;
+  color: #90e790;
 }
 .App-lobby button,
 .dealer-controls button[onClick*="StartGame"],
