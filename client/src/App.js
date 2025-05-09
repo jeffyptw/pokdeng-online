@@ -619,13 +619,9 @@ function App() {
     <div className="App">
       <header>
         <h2>
-          ห้อง: {roomId}
-          <button
-            className="text-button2"
-            onClick={handleCopyRoomId}
-            style={{ marginLeft: "10px", fontSize: "0.8em" }}
-          >
-            (คัดลอก)
+          ห้อง:&nbsp;
+          <button className="text-button2" onClick={handleCopyRoomId}>
+            {roomId}
           </button>
           (เดิมพันรอบละ:{" "}
           {betAmount > 0
@@ -639,7 +635,10 @@ function App() {
             ? "(เจ้ามือ)"
             : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}
           | ID: {myPlayerId?.substring(0, 5)} | เงิน:{" "}
-          {myCurrentPlayerData?.balance?.toLocaleString() || money}
+          {myCurrentPlayerData?.balance?.toLocaleString() || money}| ห้อง:&nbsp;
+          <button className="text-button" onClick={handleCopyRoomId}>
+            {roomId}
+          </button>
         </p>
         <p style={{ color: roomLocked ? "red" : "green" }}>
           สถานะห้อง: {roomLocked ? "ล็อค" : "เปิด"}
