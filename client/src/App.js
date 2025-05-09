@@ -1,37 +1,33 @@
 // App.js
 import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
-import "./App.css"; // สมมติว่ามีไฟล์ CSS สำหรับ Styling
+import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์นี้ หรือลบการ import ถ้าไม่ใช้
 
 const SERVER_URL = "https://pokdeng-online-th.onrender.com";
 // const SERVER_URL = "http://localhost:3001"; // สำหรับทดสอบ Local
 
 const socket = io(SERVER_URL, {
   transports: ["websocket"],
-  // autoConnect: false, // สามารถตั้งเป็น false แล้วค่อย socket.connect() เมื่อพร้อม
 });
 
-const DEFAULT_TURN_DURATION = 30; // วินาที
+const DEFAULT_TURN_DURATION = 30;
 
 function App() {
-  // --- States for connection and initial setup ---
   const [isConnected, setIsConnected] = useState(socket.connected);
   const [myPlayerId, setMyPlayerId] = useState(null);
-  const [name, setName] = useState(""); // User's own name input
-  const [money, setMoney] = useState("1000"); // Initial money input
-  const [inputRoomId, setInputRoomId] = useState(""); // For join room input
+  const [name, setName] = useState("");
+  const [money, setMoney] = useState("1000");
+  const [inputRoomId, setInputRoomId] = useState("");
 
-  // --- In-Room states ---
-  const [roomId, setRoomId] = useState(""); // Actual Room ID after create/join
+  const [roomId, setRoomId] = useState("");
   const [inRoom, setInRoom] = useState(false);
   const [isDealer, setIsDealer] = useState(false);
-  const [playerData, setPlayerData] = useState([]); // Active players in room {id, name, balance, role, isDealer}
+  const [playerData, setPlayerData] = useState([]);
   const [betAmount, setBetAmount] = useState(0);
   const [inputBetAmount, setInputBetAmount] = useState("10");
   const [roomLocked, setRoomLocked] = useState(false);
 
-  // --- Game Play states ---
-  const [gameStarted, setGameStarted] = useState(false); // Is a round currently active?
+  const [gameStarted, setGameStarted] = useState(false);
   const [myCards, setMyCards] = useState([]);
   const [hasStayed, setHasStayed] = useState(false);
   const [currentTurnId, setCurrentTurnId] = useState(null);
@@ -42,54 +38,58 @@ function App() {
   });
   const [countdown, setCountdown] = useState(DEFAULT_TURN_DURATION);
 
-  // --- Result and Summary states ---
-  const [result, setResult] = useState([]); // Array of result objects from server for the round
-  const [showResultBtn, setShowResultBtn] = useState(false); // For dealer to click 'show result'
-  const [gameRound, setGameRound] = useState(0); // Tracks rounds for UI text like "ผลลัพธ์รอบที่ X"
+  const [result, setResult] = useState([]);
+  const [showResultBtn, setShowResultBtn] = useState(false);
+  const [gameRound, setGameRound] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState([]);
 
-  // --- UI states ---
   const [errorMsg, setErrorMsg] = useState("");
-  const [messages, setMessages] = useState([]); // For a log of game events/messages
+  const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
-  // Auto-scroll for messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const addMessage = (text, type = "info") => {
-    // type can be 'info', 'error', 'success'
-    setMessages((prev) => [
-      ...prev,
-      { text, time: new Date().toLocaleTimeString(), type },
-    ]);
+    const fullText = `[${new Date().toLocaleTimeString()}] ${text}`;
+    setMessages((prev) => {
+      const newMessages = [...prev, { text: fullText, type }];
+      if (newMessages.length > 20)
+        return newMessages.slice(newMessages.length - 20); // Keep last 20 messages
+      return newMessages;
+    });
     if (type === "error") {
-      setErrorMsg(text); // Also show in a more prominent error spot
+      setErrorMsg(text);
       setTimeout(() => setErrorMsg(""), 7000);
+    } else if (type === "info" || type === "success") {
+      // Show info/success briefly in errorMsg spot too
+      setErrorMsg(text);
+      setTimeout(
+        () => setErrorMsg((current) => (current === text ? "" : current)),
+        5000
+      );
     }
   };
 
-  // Socket connection and event listeners setup
   useEffect(() => {
     function onConnect() {
       console.log("[Client] Connected to server with ID:", socket.id);
       setMyPlayerId(socket.id);
       setIsConnected(true);
     }
-    function onDisconnect() {
-      console.log("[Client] Disconnected from server.");
-      addMessage("การเชื่อมต่อกับ Server หลุด!", "error");
+    function onDisconnect(reason) {
+      console.log("[Client] Disconnected from server. Reason:", reason);
+      addMessage(`การเชื่อมต่อกับ Server หลุด! (${reason})`, "error");
       setIsConnected(false);
-      // Potentially reset all game states or redirect to lobby
+      // Consider resetting more states if full disconnect implies leaving room
       // setInRoom(false); setGameStarted(false); etc.
     }
 
     socket.on("connect", onConnect);
     socket.on("disconnect", onDisconnect);
 
-    // --- Room and Player Setup Events ---
     socket.on("roomCreated", (data) => {
       console.log("[Client] Room Created:", data);
       setRoomId(data.roomId);
@@ -99,8 +99,10 @@ function App() {
         `ห้อง ${data.roomId} ถูกสร้างโดย ${name || data.dealerName}`,
         "success"
       );
-      if (data.betAmount) setBetAmount(data.betAmount);
-      if (data.betAmount) setInputBetAmount(data.betAmount.toString());
+      if (typeof data.betAmount === "number") {
+        setBetAmount(data.betAmount);
+        setInputBetAmount(data.betAmount.toString());
+      }
     });
 
     socket.on("joinedRoom", (data) => {
@@ -113,8 +115,7 @@ function App() {
         }`,
         "success"
       );
-      if (data.betAmount) setBetAmount(data.betAmount);
-      // isDealer will be updated via 'playersData'
+      if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
     });
 
     socket.on("playersData", (activePlayers) => {
@@ -126,16 +127,18 @@ function App() {
 
     socket.on("roomSettings", (settings) => {
       console.log("[Client] Room Settings:", settings);
-      if (typeof settings.betAmount === "number")
+      if (typeof settings.betAmount === "number") {
         setBetAmount(settings.betAmount);
-      if (typeof settings.betAmount === "number")
         setInputBetAmount(settings.betAmount.toString());
+      }
     });
 
     socket.on("lockRoom", (isLocked) => {
       console.log("[Client] Room lock status:", isLocked);
       setRoomLocked(isLocked);
-      addMessage(isLocked ? "ห้องถูกล็อค" : "ห้องถูกปลดล็อค");
+      addMessage(
+        isLocked ? "ห้องถูกล็อคโดยเจ้ามือ" : "ห้องถูกปลดล็อคโดยเจ้ามือ"
+      );
     });
 
     socket.on("playerLeft", (data) => {
@@ -143,54 +146,54 @@ function App() {
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`);
     });
 
-    // --- Game Play Events ---
     socket.on("gameStarted", (data) => {
-      console.log("[Client] Game Started:", data);
-      addMessage(`เกมเริ่มแล้ว! เดิมพัน: ${data.betAmount} บาท`);
-      if (data.betAmount) setBetAmount(data.betAmount);
+      console.log("[Client] Event 'gameStarted':", data);
+      addMessage(`เกมเริ่มแล้ว! เดิมพัน: ${data.betAmount} บาท`, "info");
+      if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
       setGameStarted(true);
       setResult([]);
-      setMyCards([]);
+      setMyCards([]); // Crucial: Clear previous cards
       setHasStayed(false);
       setShowResultBtn(false);
-      setShowSummary(false); // Hide summary from previous game
+      setShowSummary(false);
     });
 
     socket.on("yourCards", (cardsFromServer) => {
       console.log(
-        "[Client] Received 'yourCards'. Data:",
+        `[Client ${myPlayerId || socket.id}] Received 'yourCards'. Data:`,
         JSON.stringify(cardsFromServer)
       );
       if (Array.isArray(cardsFromServer)) {
         setMyCards(cardsFromServer);
       } else {
         console.warn(
-          "[Client] 'yourCards' received non-array data:",
+          "[Client] 'yourCards' received non-array or invalid data:",
           cardsFromServer
         );
         setMyCards([]);
       }
-      setHasStayed(false); // Reset for new hand/turn
+      setHasStayed(false); // Reset for new hand
     });
 
     socket.on("currentTurn", (turnData) => {
-      console.log("[Client] Current Turn:", turnData);
+      console.log("[Client] Event 'currentTurn':", turnData);
       setCurrentTurnId(turnData.id);
       setCurrentTurnInfo({
         name: turnData.name,
         role: turnData.role,
         timeLeft: turnData.timeLeft,
       });
+      const newCountdown = turnData.timeLeft || DEFAULT_TURN_DURATION;
+      setCountdown(newCountdown);
       if (turnData.id === myPlayerId) {
-        setCountdown(turnData.timeLeft || DEFAULT_TURN_DURATION);
-        setHasStayed(false); // Critical: reset hasStayed when it becomes my turn with cards
-      } else {
-        setCountdown(turnData.timeLeft || DEFAULT_TURN_DURATION);
+        setHasStayed(false); // Player's turn, so they haven't stayed for *this* turn decision yet
       }
     });
 
     socket.on("turnTimerUpdate", (timerData) => {
+      // console.log("[Client] Event 'turnTimerUpdate':", timerData); // Can be very frequent
       if (currentTurnId === timerData.playerId) {
+        // Only update if it's for the currently displayed turn
         setCurrentTurnInfo((prev) => ({
           ...prev,
           timeLeft: timerData.timeLeft,
@@ -202,18 +205,19 @@ function App() {
     });
 
     socket.on("playerAction", (actionData) => {
+      console.log("[Client] Event 'playerAction':", actionData);
       addMessage(`${actionData.name}: ${actionData.action}`);
     });
 
     socket.on("enableShowResult", (canShow) => {
-      console.log("[Client] Enable Show Result:", canShow);
+      console.log("[Client] Event 'enableShowResult':", canShow);
       setShowResultBtn(canShow);
     });
 
     socket.on("result", (roundResults) => {
-      console.log("[Client] Received 'result':", roundResults);
+      console.log("[Client] Event 'result':", roundResults);
       setResult(roundResults);
-      setGameStarted(false); // Round is over
+      setGameStarted(false);
       setCurrentTurnId(null);
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
       setShowResultBtn(false);
@@ -221,7 +225,7 @@ function App() {
     });
 
     socket.on("resetGame", () => {
-      console.log("[Client] Received 'resetGame'");
+      console.log("[Client] Event 'resetGame'");
       addMessage("เกมถูกรีเซ็ต เตรียมเริ่มรอบใหม่", "info");
       setGameStarted(false);
       setMyCards([]);
@@ -234,17 +238,16 @@ function App() {
     });
 
     socket.on("gameEnded", (gameSummary) => {
-      console.log("[Client] Game Ended. Summary:", gameSummary);
+      console.log("[Client] Event 'gameEnded'. Summary:", gameSummary);
       setSummaryData(gameSummary);
       setShowSummary(true);
       setGameStarted(false);
-      setResult([]); // Clear last round results
+      setResult([]);
       setCurrentTurnId(null);
     });
 
-    // --- Error/Message Handling ---
     socket.on("errorMessage", (msg) => {
-      console.error("[Client] Error Message from Server:", msg);
+      console.error("[Client] Event 'errorMessage':", msg);
       addMessage(
         msg.text ||
           (typeof msg === "string" ? msg : "เกิดข้อผิดพลาดไม่ทราบสาเหตุ"),
@@ -253,8 +256,7 @@ function App() {
     });
 
     socket.on("message", (msg) => {
-      // General info messages from server
-      console.log("[Client] Info Message from Server:", msg);
+      console.log("[Client] Event 'message':", msg);
       addMessage(
         msg.text || (typeof msg === "string" ? msg : "ได้รับข้อความจาก Server")
       );
@@ -262,7 +264,7 @@ function App() {
 
     return () => {
       console.log(
-        "[Client] Cleaning up ALL socket listeners for ID:",
+        "[Client] Cleaning up ALL socket listeners for ID (useEffect cleanup):",
         socket.id
       );
       socket.off("connect", onConnect);
@@ -285,32 +287,39 @@ function App() {
       socket.off("errorMessage");
       socket.off("message");
     };
-  }, [myPlayerId, name, roomId, currentTurnId]); // Dependencies that might affect how listeners are set up or behave internally
+    // }, [myPlayerId, name, roomId, currentTurnId]); // Original dependencies
+    // Broader dependencies might be needed if states used inside listeners change and require re-binding
+    // However, for listeners, usually just socket or myPlayerId is enough if the handlers don't close over stale state
+    // For now, let's stick to myPlayerId to re-evaluate if this client is the current player.
+    // If socket instance itself can change (e.g. using useState for socket), then socket should be in deps.
+    // Since socket is a const outside, it won't change.
+  }, [myPlayerId, name, roomId, currentTurnId]); // Add currentTurnId for timer logic re-evaluation
 
-  // Countdown timer specific effect
+  // Countdown timer effect
   useEffect(() => {
     let timer;
+    // Only run timer if it's my turn, game started, I have 2 cards, and haven't stayed
     if (
+      gameStarted &&
       currentTurnId === myPlayerId &&
-      countdown > 0 &&
-      !hasStayed &&
       myCards.length === 2 &&
-      gameStarted
+      !hasStayed &&
+      countdown > 0
     ) {
       timer = setTimeout(() => {
-        setCountdown((c) => Math.max(0, c - 1));
+        setCountdown((c) => Math.max(0, c - 1)); // Ensure countdown doesn't go below 0
       }, 1000);
     } else if (
-      countdown === 0 &&
+      gameStarted &&
       currentTurnId === myPlayerId &&
-      !hasStayed &&
       myCards.length === 2 &&
-      gameStarted
+      !hasStayed &&
+      countdown === 0
     ) {
       if (socket) {
-        console.log("[Client] Countdown ended for my turn, auto-staying.");
+        console.log("[Client] Countdown for my turn ended, auto-staying.");
         socket.emit("stay", roomId);
-        setHasStayed(true); // Optimistically set, server will confirm turn change
+        setHasStayed(true); // Optimistically set
       }
     }
     return () => clearTimeout(timer);
@@ -318,11 +327,11 @@ function App() {
     countdown,
     currentTurnId,
     hasStayed,
-    roomId,
     myPlayerId,
     myCards.length,
     gameStarted,
-  ]);
+    roomId,
+  ]); // Add gameStarted and roomId
 
   // --- Action Functions ---
   const handleCreateRoom = () => {
@@ -335,6 +344,7 @@ function App() {
       addMessage("จำนวนเงินขั้นต่ำ 10 และต้องลงท้ายด้วย 0 เท่านั้น", "error");
       return;
     }
+    console.log("[Client] Emitting 'createRoom'");
     socket.emit("createRoom", { playerName: name, initialBalance: bal });
   };
 
@@ -352,6 +362,7 @@ function App() {
       addMessage("จำนวนเงินขั้นต่ำ 10 และต้องลงท้ายด้วย 0 เท่านั้น", "error");
       return;
     }
+    console.log("[Client] Emitting 'joinRoom' to room:", inputRoomId.trim());
     socket.emit("joinRoom", {
       roomId: inputRoomId.trim(),
       playerName: name,
@@ -363,6 +374,7 @@ function App() {
     if (isDealer && !gameStarted) {
       const amount = parseInt(inputBetAmount);
       if (amount > 0 && amount % 10 === 0) {
+        console.log("[Client] Emitting 'setBetAmount'");
         socket.emit("setBetAmount", { roomId, amount });
       } else {
         addMessage("จำนวนเงินเดิมพันต้องมากกว่า 0 และลงท้ายด้วย 0", "error");
@@ -372,24 +384,25 @@ function App() {
 
   const handleToggleLockRoom = () => {
     if (isDealer && !gameStarted) {
+      console.log("[Client] Emitting 'lockRoom'");
       socket.emit("lockRoom", { roomId, lock: !roomLocked });
     }
   };
 
   const handleStartGame = () => {
-    console.log("[Client] User clicked Start Game for room:", roomId);
+    console.log("[Client] Emitting 'startGame' for room:", roomId);
     if (roomId && socket && isDealer) {
-      socket.emit("startGame", roomId);
+      socket.emit("startGame", roomId); // Send roomId as string
     } else {
       addMessage(
-        "ไม่สามารถเริ่มเกมได้ (อาจไม่ใช่เจ้ามือ หรือยังไม่ได้เข้าร่วมห้อง)",
+        "ไม่สามารถเริ่มเกมได้ (อาจไม่ใช่เจ้ามือ, ยังไม่ได้เข้าร่วมห้อง, หรือเกมเริ่มไปแล้ว)",
         "error"
       );
     }
   };
 
   const handleDrawCard = () => {
-    console.log("[Client] User clicked Draw Card in room:", roomId);
+    console.log("[Client] Emitting 'drawCard' in room:", roomId);
     if (
       gameStarted &&
       currentTurnId === myPlayerId &&
@@ -397,45 +410,49 @@ function App() {
       myCards.length < 3
     ) {
       socket.emit("drawCard", roomId);
-      // setHasStayed(true); // Optimistic, but server will confirm with turn change or new cards
+      // setHasStayed(true); // Server should confirm this implicitly by changing turn or by player having 3 cards
     }
   };
 
   const handleStay = () => {
-    console.log("[Client] User clicked Stay in room:", roomId);
+    console.log("[Client] Emitting 'stay' in room:", roomId);
     if (gameStarted && currentTurnId === myPlayerId && !hasStayed) {
       socket.emit("stay", roomId);
-      setHasStayed(true); // Player has made their decision for this turn
+      setHasStayed(true); // User has actively stayed for this decision
     }
   };
 
   const handleShowResult = () => {
-    console.log("[Client] Dealer clicked Show Result for room:", roomId);
+    console.log("[Client] Emitting 'showResult' for room:", roomId);
     if (isDealer && gameStarted && showResultBtn) {
-      // Ensure game is started but results not yet shown
       socket.emit("showResult", roomId);
+    } else {
+      addMessage("ไม่สามารถแสดงผลได้ในขณะนี้", "error");
     }
   };
 
   const handleResetGameHandler = () => {
-    console.log("[Client] Dealer clicked Reset Game for room:", roomId);
+    console.log("[Client] Emitting 'resetGame' for room:", roomId);
     if (isDealer) {
+      // No need to check gameStarted, dealer can reset if needed
       socket.emit("resetGame", roomId);
     }
   };
 
   const handleEndGame = () => {
-    console.log("[Client] Dealer clicked End Game for room:", roomId);
+    console.log("[Client] Emitting 'endGame' for room:", roomId);
     if (isDealer) {
       socket.emit("endGame", roomId);
     }
   };
 
   const handleExitGame = () => {
+    // Maybe emit a 'leaveRoom' event to server before reloading
+    // For now, simple reload
+    console.log("[Client] Exiting game (reloading page).");
     window.location.reload();
   };
 
-  // --- Helper Functions ---
   const getCardDisplay = (card) => {
     if (
       card &&
@@ -472,8 +489,8 @@ function App() {
     } else if (cardsToRank.length === 3) {
       const suits = cardsToRank.map((c) => c.suit);
       const sameSuit = suits.every((s) => s === suits[0]);
-      // Add more complex 3-card logic for display if needed (ตอง, เรียง, etc.)
       if (sameSuit) type = `สามเด้ง (${calculatedScore} แต้ม)`;
+      // Add more complex 3-card logic for display if needed (ตอง, เรียง, etc.) from getHandRank if desired
     }
     return { score: calculatedScore, type };
   };
@@ -484,14 +501,15 @@ function App() {
       ? calculateRankForDisplay(myCards)
       : { score: "-", type: "N/A" };
 
-  const isMyTurn = currentTurnId === myPlayerId;
+  const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
 
   // --- JSX Rendering ---
+  // (ใช้ JSX จากโค้ด App.js ที่ผมให้ไปก่อนหน้านี้ ที่มีการแสดงผล Lobby, InRoom, Results, Summary)
+  // (ผมจะยกมาเฉพาะส่วนสำคัญๆ และคุณสามารถนำ JSX เต็มๆ จากตัวอย่างก่อนหน้าของผมมาปรับใช้ได้)
+
   if (showSummary) {
     return (
       <div className="App-summary">
-        {" "}
-        {/* Added class for potential styling */}
         <h2>สรุปยอดเงินหลังจบเกม (ห้อง: {roomId})</h2>
         <table border="1" cellPadding="5">
           <thead>
@@ -512,11 +530,7 @@ function App() {
                 <td>{p.role}</td>
                 <td>{p.initialBalance?.toLocaleString()}</td>
                 <td>{p.finalBalance?.toLocaleString()}</td>
-                <td
-                  className={
-                    p.netChange > 0 ? "profit" : p.netChange < 0 ? "loss" : ""
-                  }
-                >
+                <td className={p.netChange >= 0 ? "profit" : "loss"}>
                   {p.netChange >= 0
                     ? `+${p.netChange?.toLocaleString()}`
                     : p.netChange?.toLocaleString()}
@@ -533,7 +547,7 @@ function App() {
   if (!inRoom) {
     return (
       <div className="App-lobby">
-        <h2>ป๊อกเด้ง ออนไลน์</h2>
+        <h2>ป๊อกเด้ง ออนไลน์ (Pok Deng Online)</h2>
         {errorMsg && <p className="error-message">{errorMsg}</p>}
         <input
           type="text"
@@ -543,7 +557,7 @@ function App() {
         />
         <input
           type="number"
-          placeholder="เงินเริ่มต้น (100, 200..)"
+          placeholder="เงินเริ่มต้น (10, 20..)"
           value={money}
           onChange={(e) => setMoney(e.target.value)}
         />
@@ -588,50 +602,32 @@ function App() {
           สถานะห้อง: {roomLocked ? "ล็อค" : "เปิด"}
         </p>
       </header>
-      {errorMsg && (
-        <p
-          className="error-message"
-          style={{
-            border: "1px solid orange",
-            padding: "5px",
-            backgroundColor: "#fff3cd",
-          }}
-        >
-          {errorMsg}
-        </p>
-      )}
+      {errorMsg && <p className="error-message">{errorMsg}</p>}
 
-      {!gameStarted &&
-        isDealer &&
-        !result.length && ( // Dealer controls before game starts or after a round if no results yet
-          <div className="dealer-controls pre-game">
-            <h4>ตั้งค่าเกม (เจ้ามือ):</h4>
-            <div>
-              <label>เงินเดิมพัน: </label>
-              <input
-                type="number"
-                value={inputBetAmount}
-                onChange={(e) => setInputBetAmount(e.target.value)}
-                step="10"
-                min="10"
-              />
-              <button onClick={handleSetBet}>ตั้งค่า</button>
-            </div>
-            <button onClick={handleToggleLockRoom}>
-              {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
-            </button>
-            <button
-              onClick={handleStartGame}
-              disabled={betAmount <= 0 || (roomLocked && playerData.length < 2)}
-            >
-              {" "}
-              {/* Lock might prevent start if no players */}
-              {gameRound > 0 || result.length > 0
-                ? "เริ่มเกมรอบใหม่"
-                : "เริ่มเกม"}
-            </button>
+      {!gameStarted && isDealer && (!result || result.length === 0) && (
+        <div className="dealer-controls pre-game">
+          <h4>ตั้งค่าเกม (เจ้ามือ):</h4>
+          <div>
+            <label>เงินเดิมพัน: </label>
+            <input
+              type="number"
+              value={inputBetAmount}
+              onChange={(e) => setInputBetAmount(e.target.value)}
+              step="10"
+              min="10"
+            />
+            <button onClick={handleSetBet}>ตั้งค่า</button>
           </div>
-        )}
+          <button onClick={handleToggleLockRoom}>
+            {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
+          </button>
+          <button onClick={handleStartGame} disabled={betAmount <= 0}>
+            {gameRound > 0 || (result && result.length > 0)
+              ? "เริ่มเกมรอบใหม่"
+              : "เริ่มเกม"}
+          </button>
+        </div>
+      )}
 
       <div className="players-list">
         <h4>ผู้เล่นในห้อง ({playerData.length} คน):</h4>
@@ -645,6 +641,7 @@ function App() {
               บาท
               {user.id === currentTurnId &&
                 currentTurnInfo.timeLeft > 0 &&
+                gameStarted &&
                 ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}
             </li>
           ))}
@@ -658,7 +655,9 @@ function App() {
         "myCards.length:",
         myCards?.length,
         "result.length:",
-        result?.length
+        result?.length,
+        "myPlayerId:",
+        myPlayerId
       )}
       {gameStarted &&
         myCards &&
@@ -690,12 +689,20 @@ function App() {
         (!result || result.length === 0) &&
         !isDealer && (
           <p className="debug-message error">
-            [DEBUG Client] เกมเริ่มแล้ว แต่คุณยังไม่ได้รับไพ่ (myCards:{" "}
-            {JSON.stringify(myCards)})
+            [DEBUG Client] เกมเริ่มแล้ว แต่คุณยังไม่ได้รับไพ่. myCards:{" "}
+            {JSON.stringify(myCards)}
+          </p>
+        )}
+      {gameStarted &&
+        (!myCards || myCards.length === 0) &&
+        (!result || result.length === 0) &&
+        isDealer && (
+          <p className="debug-message info">
+            [DEBUG Client - Dealer] เกมเริ่มแล้ว, รอไพ่
+            (หรือไพ่ถูกส่งแล้วแต่ยังไม่แสดง). myCards: {JSON.stringify(myCards)}
           </p>
         )}
 
-      {/* --- Turn Indicator --- */}
       {!isDealer &&
         currentTurnId &&
         currentTurnId !== myPlayerId &&
@@ -733,7 +740,6 @@ function App() {
           <p className="turn-indicator">รอผู้เล่นทุกคนตัดสินใจ...</p>
         )}
 
-      {/* --- Results Display --- */}
       {result && result.length > 0 && (
         <div className="results-display">
           <h3>
@@ -771,7 +777,8 @@ function App() {
                   <td
                     className={`outcome-${r.outcome
                       ?.toLowerCase()
-                      .replace(/\s+/g, "-")}`}
+                      .replace(/\s+/g, "-")
+                      .replace(/[()]/g, "")}`}
                   >
                     {r.outcome}
                   </td>
@@ -796,10 +803,9 @@ function App() {
         </div>
       )}
 
-      {/* --- Post-Round/Game Controls for Dealer --- */}
       {isDealer &&
-        (!gameStarted || result.length > 0) &&
-        !showSummary && ( // Show if game not started OR results are shown
+        (!gameStarted || (result && result.length > 0)) &&
+        !showSummary && (
           <div className="post-round-controls">
             <button onClick={handleResetGameHandler}>
               เริ่มรอบใหม่ / รีเซ็ต
@@ -821,13 +827,13 @@ function App() {
         ออกจากห้อง/เกม (โหลดใหม่)
       </button>
 
-      {/* Message Log (Optional but Recommended) */}
       <div className="messages-log">
         <h4>ประวัติข้อความ/เหตุการณ์:</h4>
         <div className="messages-box" ref={messagesEndRef}>
           {messages.map((msg, index) => (
             <p key={index} className={`message-type-${msg.type}`}>
-              <i>[{msg.time}]</i> {msg.text}
+              {" "}
+              {msg.text}
             </p>
           ))}
         </div>
