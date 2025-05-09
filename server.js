@@ -552,7 +552,28 @@ io.on("connection", (socket) => {
         if (activePlayer) activePlayer.cards = [...participant.cards]; // Sync to active player
 
         const playerSocket = io.sockets.sockets.get(participant.id);
-        if (playerSocket) playerSocket.emit("yourCards", participant.cards);
+        if (playerSocket) {
+          // --- เพิ่ม Console Log เพื่อตรวจสอบ ---
+          console.log(
+            `[Server] Emitting 'yourCards' to ${participant.name} (ID: ${
+              participant.id
+            }). Cards: ${JSON.stringify(participant.cards)}`
+          );
+          if (participant.cards && Array.isArray(participant.cards)) {
+            // ตรวจสอบว่า cards เป็น array
+            playerSocket.emit("yourCards", participant.cards); // Server ส่ง participant.cards (array ของไพ่) โดยตรง
+          } else {
+            console.error(
+              `[Server] ERROR: participant.cards is not a valid array for ${participant.name}. Cards:`,
+              participant.cards
+            );
+            playerSocket.emit("yourCards", []); // ส่ง array ว่างไปแทนถ้ามีปัญหา
+          }
+        } else {
+          console.warn(
+            `[Server] Socket not found for participant ${participant.name} (ID: ${participant.id}) when trying to emit 'yourCards'. Player might have disconnected already.`
+          );
+        }
       });
 
       io.to(roomId).emit("gameStarted", { betAmount: room.betAmount });

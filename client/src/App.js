@@ -103,10 +103,34 @@ function App() {
       }
     });
 
-    socket.on("yourCards", (data) => {
-      setMyCards(data.cards || data); // Server might send {cards: ...} or just cards array
-      setHasStayed(false); // Reset hasStayed when new cards are dealt
-      setCountdown(15); // Reset countdown for the new hand if it's my turn
+    socket.on("yourCards", (dataFromServer) => {
+      // เปลี่ยนชื่อ parameter เพื่อความชัดเจน
+      // --- เพิ่ม Console Log เพื่อตรวจสอบ ---
+      console.log(
+        "[Client] Received 'yourCards' event. Data from server:",
+        JSON.stringify(dataFromServer)
+      );
+
+      if (Array.isArray(dataFromServer)) {
+        // Server ควรจะส่ง array ของไพ่มาโดยตรง
+        console.log("[Client] Setting myCards with array:", dataFromServer);
+        setMyCards(dataFromServer);
+      } else if (dataFromServer && Array.isArray(dataFromServer.cards)) {
+        // กรณี Server ส่ง object {cards: [...]} (สำรองไว้)
+        console.log(
+          "[Client] Setting myCards from dataFromServer.cards:",
+          dataFromServer.cards
+        );
+        setMyCards(dataFromServer.cards);
+      } else {
+        console.warn(
+          "[Client] 'yourCards' received invalid data format or empty. Data:",
+          dataFromServer
+        );
+        setMyCards([]); // ตั้งเป็น array ว่างถ้าข้อมูลไม่ถูกต้อง
+      }
+
+      setHasStayed(false);
     });
 
     socket.on("resetGame", () => {
@@ -359,7 +383,19 @@ function App() {
   const exitGame = () => window.location.reload();
 
   // --- Helper Functions ---
-  const getCardDisplay = (card) => `${card.value}${card.suit}`;
+  const getCardDisplay = (card) => {
+    // --- เพิ่มการตรวจสอบ card object และ properties ---
+    if (
+      card &&
+      typeof card.value !== "undefined" &&
+      typeof card.suit !== "undefined"
+    ) {
+      return `${card.value}${card.suit}`;
+    }
+    // --- แสดงข้อความผิดพลาดหรือค่า default ถ้า card object ไม่ถูกต้อง ---
+    console.warn("[Client] getCardDisplay received invalid card object:", card);
+    return "ไพ่? "; // หรือ return null; หรือ return ''; เพื่อไม่แสดงอะไรเลย
+  };
 
   const getCardPoint = (v) =>
     ["J", "Q", "K"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
