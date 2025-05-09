@@ -341,11 +341,18 @@ function App() {
 
   const handleSetBet = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
-      const amount = parseInt(inputBetAmount);
-      if (amount > 0 && amount % 10 === 0) {
+      const amount = parseInt(inputBetAmount, 10);
+      if (
+        !isNaN(amount) &&
+        amount >= 5 &&
+        (amount % 10 === 5 || amount % 10 === 0)
+      ) {
         socketClient.emit("setBetAmount", { roomId, amount });
       } else {
-        addMessage("จำนวนเงินเดิมพันต้องมากกว่า 0 และลงท้ายด้วย 0", "error");
+        addMessage(
+          "จำนวนเงินเดิมพันต้องไม่น้อยกว่า 5 และลงท้ายด้วย 5 หรือ 0",
+          "error"
+        );
       }
     }
   };

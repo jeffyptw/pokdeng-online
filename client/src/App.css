@@ -50,7 +50,7 @@ body {
 .dealer-controls button[onClick*="StartGame"],
 .post-round-controls button[onClick*="StartGame"],
 .post-round-controls button[onClick*="ResetGame"] {
-  background-color: #5cb85c;
+  background-color: #3edb3e;
   border-color: #4cae4c;
 }
 .App-lobby button:hover,
@@ -100,7 +100,7 @@ body {
 }
 
 button:disabled {
-  background-color: #90e790;
+  background-color: #5cb85c;
   color: #ffffff;
   cursor: not-allowed;
 }
@@ -258,7 +258,7 @@ th {
 }
 /* ---------- in room ---------- */
 .btn-inroom-setting {
-  background-color: #f0ad4e;
-  border-color: #eea236;
+  background-color: #ff7b00;
+  border-color: #000000;
   color: #fff;
 }
