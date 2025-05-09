@@ -276,3 +276,30 @@ th {
 .App-lobby .status-connecting {
   color: black;
 }
+/* ปุ่มคัดลอกแบบเล็กๆ */
+.btn-copy-room {
+  font-size: 0.75rem; /* ขนาดตัวอักษรเล็กลง */
+  padding: 4px 8px; /* ระยะขอบเล็กลง */
+  border-radius: 4px; /* มุมโค้งนิดหน่อย */
+  background-color: #337ab7; /* สีน้ำเงินตามธีม header */
+  color: #fff; /* ตัวอักษรเป็นสีขาว */
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.btn-copy-room:hover {
+  background-color: #285e8e; /* สีเข้มขึ้นเมื่อโฮเวอร์ */
+}
+/* App.css */
+.text-button {
+  background: none; /* ยกเลิกพื้นหลัง */
+  border: none; /* ยกเลิกเส้นขอบ */
+  padding: 0; /* ไม่มี padding */
+  font: inherit; /* ให้ใช้ฟอนต์เหมือนข้อความรอบๆ */
+  color: #333; /* สีข้อความตามธีม (ปรับได้) */
+  cursor: pointer; /* ชี้แล้วเป็น pointer */
+}
+.text-button:hover {
+  text-decoration: underline; /* เน้นเมื่อ hover */
+}

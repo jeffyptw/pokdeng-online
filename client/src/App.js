@@ -616,16 +616,14 @@ function App() {
           )
         </h2>
         <p>
-          <button className="btn-inroom-setting" onClick={handleCopyRoomId}>
-            คัดลอกเลขห้อง
-          </button>
-        </p>
-        <p>
           คุณ: {name}{" "}
           {isDealer
             ? "(เจ้ามือ)"
             : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}{" "}
-          | ID: {myPlayerId?.substring(0, 5)} | เงิน:{" "}
+          | ID: {myPlayerId?.substring(0, 5)} | เงิน: | ห้อง:&nbsp;
+          <button className="text-button" onClick={handleCopyRoomId}>
+            {roomId}
+          </button>
           {myCurrentPlayerData?.balance?.toLocaleString() || money}
         </p>
         <p style={{ color: roomLocked ? "red" : "green" }}>
