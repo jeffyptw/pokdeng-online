@@ -131,7 +131,7 @@ function App() {
         JSON.stringify(cardsFromServer)
       );
       if (Array.isArray(cardsFromServer)) {
-        setMyCards(cardsFromServer);
+        setMyCards(cardsFromServer); // <--- myCards จะถูกตั้งค่าที่นี่หลังจาก gameStarted
       } else {
         console.warn(
           "[Client] 'yourCards' received non-array or invalid data:",
@@ -139,7 +139,7 @@ function App() {
         );
         setMyCards([]);
       }
-      setHasStayed(false);
+      setHasStayed(false); // Reset for new hand
     });
 
     socketClient.on("gameStarted", (data) => {
@@ -148,7 +148,6 @@ function App() {
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
       setGameStarted(true);
       setResult([]);
-      setMyCards([]);
       setHasStayed(false);
       setShowResultBtn(false);
       setShowSummary(false);
