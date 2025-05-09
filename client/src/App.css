@@ -1,10 +1,11 @@
-/* App.css - เพิ่มเติมจากตัวอย่างก่อนหน้า */
+/* App.css - ปรับปรุง CSS สำหรับแยกคลาสปุ่มและสีเฉพาะ */
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   background-color: #eef2f3;
   color: #333;
 }
+
 .App-lobby,
 .App-summary,
 .App {
@@ -15,6 +16,7 @@ body {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
+
 .App-lobby h2,
 .App-summary h2,
 .App h2 {
@@ -22,82 +24,105 @@ body {
   text-align: center;
   margin-bottom: 20px;
 }
+
+/* ยังคงให้ input ใน lobby และ controls มีสไตล์เดียวกัน */
 .App-lobby input,
-.App-lobby button,
-.dealer-controls input,
-.dealer-controls button,
-.player-actions button,
-.show-result-btn,
-.post-round-controls button,
-.exit-button {
+.dealer-controls input {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
   border: 1px solid #ccc;
   font-size: 1em;
 }
-.App-lobby button,
-.dealer-controls button,
-.player-actions button,
-.show-result-btn,
-.post-round-controls button,
-.exit-button {
+
+/* คลาสฐานสำหรับปุ่มทุกปุ่ม */
+.btn {
+  padding: 10px 15px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1em;
   cursor: pointer;
-  color: rgb(0, 0, 0);
-}
-.App-lobby button,
-.dealer-controls button[onClick*="StartGame"],
-.post-round-controls button[onClick*="StartGame"],
-.post-round-controls button[onClick*="ResetGame"] {
-  background-color: #5cb85c;
-  border-color: #4cae4c;
-}
-.App-lobby button:hover,
-.dealer-controls button[onClick*="StartGame"]:hover,
-.post-round-controls button[onClick*="StartGame"]:hover {
-  background-color: #4cae4c;
+  color: #000;
+  background-color: #fff;
 }
 
-.dealer-controls button[onClick*="SetBet"],
-.dealer-controls button[onClick*="ToggleLockRoom"],
-.player-actions button[onClick*="Stay"] {
+/* สีเฉพาะของแต่ละปุ่ม */
+.btn-set-bet {
   background-color: #f0ad4e;
   border-color: #eea236;
+  color: #fff;
 }
-.dealer-controls button[onClick*="SetBet"]:hover,
-.dealer-controls button[onClick*="ToggleLockRoom"]:hover,
-.player-actions button[onClick*="Stay"]:hover {
+.btn-set-bet:hover {
   background-color: #ec971f;
 }
 
-.player-actions button[onClick*="DrawCard"] {
+.btn-toggle-lock {
+  background-color: #ffc107;
+  border-color: #e0a800;
+  color: #212529;
+}
+.btn-toggle-lock:hover {
+  background-color: #e0a800;
+}
+
+.btn-start-game {
+  background-color: #5cb85c;
+  border-color: #4cae4c;
+  color: #fff;
+}
+.btn-start-game:hover {
+  background-color: #4cae4c;
+}
+
+.btn-show-result {
+  background-color: #17a2b8;
+  border-color: #117a8b;
+  color: #fff;
+}
+.btn-show-result:hover {
+  background-color: #117a8b;
+}
+
+.btn-draw {
   background-color: #5bc0de;
   border-color: #46b8da;
+  color: #fff;
 }
-.player-actions button[onClick*="DrawCard"]:hover {
+.btn-draw:hover {
   background-color: #31b0d5;
 }
 
-.show-result-btn,
-.post-round-controls button[onClick*="EndGame"] {
+.btn-stay {
+  background-color: #f0ad4e;
+  border-color: #eea236;
+  color: #fff;
+}
+.btn-stay:hover {
+  background-color: #ec971f;
+}
+
+.btn-end-game {
   background-color: #d9534f;
   border-color: #d43f3a;
+  color: #fff;
 }
-.show-result-btn:hover,
-.post-round-controls button[onClick*="EndGame"]:hover {
+.btn-end-game:hover {
   background-color: #c9302c;
 }
 
-.exit-button {
+.btn-exit {
   background-color: #777;
   border-color: #666;
+  color: #fff;
   display: block;
   margin: 30px auto 10px auto;
 }
-.exit-button:hover {
+.btn-exit:hover {
   background-color: #5e5e5e;
 }
 
+/* ปุ่ม disabled */
 button:disabled {
   background-color: #90e790;
   color: #ffffff;
@@ -112,6 +137,7 @@ button:disabled {
   margin: 10px 0;
   text-align: center;
 }
+
 .message-type-info {
   color: #31708f;
   background-color: #d9edf7;
@@ -119,6 +145,7 @@ button:disabled {
   margin: 2px 0;
   border-radius: 3px;
 }
+
 .message-type-success {
   color: #3c763d;
   background-color: #dff0d8;
@@ -126,6 +153,7 @@ button:disabled {
   margin: 2px 0;
   border-radius: 3px;
 }
+
 .message-type-error {
   color: #a94442;
   background-color: #f2dede;
@@ -139,6 +167,7 @@ button:disabled {
   margin-bottom: 20px;
   padding-bottom: 10px;
 }
+
 .App header p {
   margin: 5px 0;
 }
@@ -155,24 +184,30 @@ button:disabled {
   border: 1px solid #eee;
   border-radius: 5px;
 }
+
 .dealer-controls {
   background-color: #f9f9f9;
 }
+
 .my-cards-area {
   background-color: #e6ffed;
   border-color: #5cb85c;
 }
+
 .players-list ul {
   list-style-type: none;
   padding: 0;
 }
+
 .players-list li {
   padding: 6px 0;
   border-bottom: 1px dotted #f0f0f0;
 }
+
 .players-list li:last-child {
   border-bottom: none;
 }
+
 .current-turn-player {
   font-weight: bold;
   color: #d9534f;
@@ -197,36 +232,44 @@ table {
   margin-top: 15px;
   font-size: 0.9em;
 }
+
 th,
 td {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
 }
+
 th {
   background-color: #f5f5f5;
   color: #337ab7;
 }
+
 .my-result-row td {
   background-color: #dff0d8 !important;
-} /* Highlight player's own result */
+}
+
 .disconnected-result-row td {
   background-color: #fff8e1 !important;
   color: #8a6d3b;
 }
+
 .outcome-win,
 .profit {
   color: green !important;
   font-weight: bold;
 }
+
 .outcome-lose,
 .loss {
   color: red !important;
   font-weight: bold;
 }
+
 .outcome-draw {
   color: orange !important;
 }
+
 .outcome-เจ้ามือ {
   font-style: italic;
 }
@@ -234,6 +277,7 @@ th {
 .messages-log h4 {
   margin-top: 0;
 }
+
 .messages-box {
   max-height: 150px;
   overflow-y: auto;
@@ -242,13 +286,16 @@ th {
   background-color: #fdfdfd;
   font-size: 0.85em;
 }
+
 .messages-box p {
   margin: 3px 0;
 }
+
 .messages-box p i {
   color: #999;
   margin-right: 5px;
 }
+
 .debug-message.error {
   color: red;
   border: 1px dashed red;
