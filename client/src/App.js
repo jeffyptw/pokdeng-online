@@ -532,15 +532,17 @@ function App() {
     myCards.length > 0 &&
     (gameStarted || (result && result.length > 0 && !showSummary))
   ) {
-    const rankData = calculateRankForDisplay(myCards);
+    const rankData = calculateRankForDisplay(myCards); // calculateRankForDisplay ควรมีอยู่
     myHandScore = rankData.score;
     myHandType = rankData.type;
   }
+  // isMyTurn จะ true สำหรับทั้งผู้เล่นและเจ้ามือเมื่อถึงตาของพวกเขา และยังไม่ได้ตัดสินใจ
   const isMyTurn =
     currentTurnId === myPlayerId &&
     gameStarted &&
     !hasStayed &&
     myCards.length < 3;
+  const canDealerDrawOrStay = isDealer && isMyTurn && myCards.length === 2; // เงื่อนไขเฉพาะสำหรับปุ่มเจ้ามือ
   // --- JSX Rendering ---
 
   if (showSummary) {
@@ -763,25 +765,41 @@ function App() {
         myCards.length > 0 &&
         (!result || result.length === 0) && (
           <div className="my-cards-area">
-            {" "}
             <h3>
-              ไพ่ของคุณ:{" "}
+              ไพ่ของคุณ {isDealer ? "(เจ้ามือ)" : ""}:{" "}
               {myCards.map((card, idx) => (
                 <span key={idx}>{getCardDisplay(card)} </span>
-              ))}{" "}
-            </h3>{" "}
+              ))}
+            </h3>
             <p>
-              แต้ม: {myHandScore}, ประเภท: {myHandType}{" "}
-            </p>{" "}
+              แต้ม: {myHandScore}, ประเภท: {myHandType}
+            </p>
+
+            {/* ปุ่ม Action สำหรับผู้เล่น */}
             {!isDealer && isMyTurn && myCards.length === 2 && !hasStayed && (
               <div className="player-actions">
-                <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
+                <p style={{ color: "blue", fontWeight: "bold" }}>
+                  ตาของคุณ! เวลาตัดสินใจ: {countdown} วินาที
+                </p>
                 <button onClick={handleDrawCard} disabled={myCards.length >= 3}>
-                  จั่ว
+                  จั่วไพ่
                 </button>
-                <button onClick={handleStay}>อยู่</button>
+                <button onClick={handleStay}>อยู่ (ไม่จั่ว)</button>
               </div>
-            )}{" "}
+            )}
+
+            {/* ปุ่ม Action สำหรับเจ้ามือ (ถ้าต้องการให้เจ้ามือเลือกจั่ว/อยู่เอง) */}
+            {isDealer && isMyTurn && myCards.length === 2 && !hasStayed && (
+              <div className="player-actions dealer-turn-actions">
+                <p style={{ color: "darkred", fontWeight: "bold" }}>
+                  ตาเจ้ามือ! เวลาตัดสินใจ: {countdown} วินาที
+                </p>
+                <button onClick={handleDrawCard} disabled={myCards.length >= 3}>
+                  เจ้ามือจั่วไพ่
+                </button>
+                <button onClick={handleStay}>เจ้ามืออยู่</button>
+              </div>
+            )}
           </div>
         )}{" "}
       {gameStarted &&
@@ -818,7 +836,7 @@ function App() {
         showResultBtn &&
         (!result || result.length === 0) && (
           <button className="show-result-btn" onClick={handleShowResult}>
-            เปิดไพ่ทั้งหมด (เจ้ามือ){" "}
+            เปิดไพ่
           </button>
         )}{" "}
       {isDealer &&
