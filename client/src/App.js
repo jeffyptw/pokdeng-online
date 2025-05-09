@@ -623,6 +623,7 @@ function App() {
           <button className="text-button2" onClick={handleCopyRoomId}>
             {roomId}
           </button>
+          <br></br>
           (เดิมพันรอบละ:{" "}
           {betAmount > 0
             ? `${betAmount.toLocaleString()} บาท`
