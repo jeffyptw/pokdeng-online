@@ -303,3 +303,14 @@ th {
 .text-button:hover {
   text-decoration: underline; /* เน้นเมื่อ hover */
 }
+.text-button2 {
+  background: none; /* ยกเลิกพื้นหลัง */
+  border: none; /* ยกเลิกเส้นขอบ */
+  padding: 0; /* ไม่มี padding */
+  font: inherit; /* ให้ใช้ฟอนต์เหมือนข้อความรอบๆ */
+  color: #337ab7; /* สีข้อความตามธีม (ปรับได้) */
+  cursor: pointer; /* ชี้แล้วเป็น pointer */
+}
+.text-button2:hover {
+  text-decoration: underline; /* เน้นเมื่อ hover */
+}

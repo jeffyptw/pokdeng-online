@@ -609,7 +609,7 @@ function App() {
       <header>
         <h2>
           ห้อง:&nbsp;
-          <button className="text-button" onClick={handleCopyRoomId}>
+          <button className="text-button2" onClick={handleCopyRoomId}>
             {roomId}
           </button>
           <br></br>(ราคาเดิมพันต่อรอบ:{" "}
