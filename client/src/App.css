@@ -50,7 +50,7 @@ body {
 .dealer-controls button[onClick*="StartGame"],
 .post-round-controls button[onClick*="StartGame"],
 .post-round-controls button[onClick*="ResetGame"] {
-  background-color: #3edb3e;
+  background-color: #5cb85c;
   border-color: #4cae4c;
 }
 .App-lobby button:hover,
@@ -100,8 +100,8 @@ body {
 }
 
 button:disabled {
-  background-color: #5cb85c;
-  color: #ffffff;
+  background-color: #ccc;
+  color: #000000;
   cursor: not-allowed;
 }
 
