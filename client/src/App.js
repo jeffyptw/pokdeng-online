@@ -623,11 +623,12 @@ function App() {
           {isDealer
             ? "(เจ้ามือ)"
             : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}{" "}
-          | ID: {myPlayerId?.substring(0, 5)} | เงิน: | ห้อง:&nbsp;
+          | ID: {myPlayerId?.substring(0, 5)} | เงิน:{" "}
+          {myCurrentPlayerData?.balance?.toLocaleString() || money} |
+          ห้อง:&nbsp;
           <button className="text-button" onClick={handleCopyRoomId}>
             {roomId}
           </button>
-          {myCurrentPlayerData?.balance?.toLocaleString() || money}
         </p>
         <p style={{ color: roomLocked ? "red" : "green" }}>
           สถานะห้อง: {roomLocked ? "ล็อค" : "เปิด"}
