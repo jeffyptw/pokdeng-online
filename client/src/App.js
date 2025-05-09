@@ -713,44 +713,36 @@ function App() {
   if (showSummary) {
     return (
       <div className="App-summary">
-                <h2>สรุปยอดเงินหลังจบเกม (ห้อง: {roomId})</h2>       {" "}
+        <h2>สรุปยอดเงินหลังจบเกม (ห้อง: {roomId})</h2>{" "}
         <table border="1" cellPadding="5">
-                   {" "}
+          {" "}
           <thead>
-                       {" "}
+            {" "}
             <tr>
-                            <th>ID</th>              <th>ชื่อผู้เล่น</th>       
-                    <th>บทบาท</th>              <th>ยอดเงินเริ่มต้น</th>       
-                    <th>ยอดเงินสุดท้าย</th>             {" "}
-              <th>กำไร/ขาดทุนสุทธิ</th>           {" "}
-            </tr>
-                     {" "}
-          </thead>
-                   {" "}
+              <th>ID</th> <th>ชื่อผู้เล่น</th>
+              <th>บทบาท</th> <th>ยอดเงินเริ่มต้น</th>
+              <th>ยอดเงินสุดท้าย</th> <th>กำไร/ขาดทุนสุทธิ</th>{" "}
+            </tr>{" "}
+          </thead>{" "}
           <tbody>
-                       {" "}
+            {" "}
             {summaryData.map((p, i) => (
               <tr key={p.id || i}>
-                                <td>{p.id?.substring(0, 5)}</td>               {" "}
-                <td>{p.name}</td>                <td>{p.role}</td>             
-                  <td>{p.initialBalance?.toLocaleString()}</td>               {" "}
-                <td>{p.finalBalance?.toLocaleString()}</td>               {" "}
+                <td>{p.id?.substring(0, 5)}</td> <td>{p.name}</td>{" "}
+                <td>{p.role}</td>
+                <td>{p.initialBalance?.toLocaleString()}</td>{" "}
+                <td>{p.finalBalance?.toLocaleString()}</td>{" "}
                 <td className={p.netChange >= 0 ? "profit" : "loss"}>
-                                   {" "}
+                  {" "}
                   {p.netChange >= 0
                     ? `+${p.netChange?.toLocaleString()}`
-                    : p.netChange?.toLocaleString()}
-                                 {" "}
-                </td>
-                             {" "}
+                    : p.netChange?.toLocaleString()}{" "}
+                </td>{" "}
               </tr>
-            ))}
-                     {" "}
-          </tbody>
-                 {" "}
+            ))}{" "}
+          </tbody>{" "}
         </table>
-                <button onClick={handleExitGame}>ออกจากเกม (เริ่มใหม่)</button> 
-           {" "}
+        <button onClick={handleExitGame}>ออกจากเกม (เริ่มใหม่)</button>{" "}
       </div>
     );
   }
@@ -758,29 +750,25 @@ function App() {
   if (!inRoom) {
     return (
       <div className="App-lobby">
-                <h2>ป๊อกเด้ง ออนไลน์</h2>       {" "}
-        {errorMsg && <p className="error-message">{errorMsg}</p>}       {" "}
+        <h2>ป๊อกเด้ง ออนไลน์</h2>{" "}
+        {errorMsg && <p className="error-message">{errorMsg}</p>}{" "}
         <p>
-                    สถานะ:&nbsp;          {" "}
+          สถานะ:&nbsp;{" "}
           <span
             className={isConnected ? "status-connected" : "status-connecting"}
           >
-                       {" "}
+            {" "}
             {isConnected
               ? "เชื่อมต่อกับเซิฟเวอร์แล้ว"
-              : "กำลังเชื่อมต่อกับเซิฟเวอร์..."}
-                     {" "}
-          </span>
-                 {" "}
-        </p>
-               {" "}
+              : "กำลังเชื่อมต่อกับเซิฟเวอร์..."}{" "}
+          </span>{" "}
+        </p>{" "}
         <input
           type="text"
           placeholder="ชื่อคุณ"
           value={name}
           onChange={(e) => setName(e.target.value)}
-        />
-               {" "}
+        />{" "}
         <input
           type="number"
           placeholder="เงินเริ่มต้น (ขั้นต่ำ 50)"
@@ -788,74 +776,65 @@ function App() {
           onChange={(e) => setMoney(e.target.value)}
           min="50"
           step="10"
-        />
-               {" "}
+        />{" "}
         <div style={{ marginTop: 20 }}>
-                             {" "}
+          {" "}
           <button
             onClick={handleCreateRoom}
             disabled={!isConnected || !name || !money}
           >
-                        สร้างห้อง          {" "}
+            สร้างห้อง{" "}
           </button>{" "}
-                 {" "}
         </div>
-                <hr />       {" "}
+        <hr />{" "}
         <input
           type="text"
           placeholder="รหัสห้อง (ถ้ามี)"
           value={inputRoomId}
           onChange={(e) => setInputRoomId(e.target.value)}
-        />
-               {" "}
+        />{" "}
         <button
           onClick={handleJoinRoom}
           disabled={!inputRoomId.trim() || !isConnected || !name || !money}
         >
-                    เข้าร่วมห้อง        {" "}
-        </button>
-             {" "}
+          เข้าร่วมห้อง{" "}
+        </button>{" "}
       </div>
     );
   }
 
   return (
     <div className="App">
-           {" "}
+      {" "}
       <header>
-               {" "}
+        {" "}
         <h2>
-                    ห้อง:&nbsp;          {" "}
+          ห้อง:&nbsp;{" "}
           <button className="text-button2" onClick={handleCopyRoomId}>
-                        {roomId}         {" "}
+            {roomId}{" "}
           </button>
-                    <br></br>(ราคาเดิมพันต่อรอบ:          {" "}
+          <br></br>(ราคาเดิมพันต่อรอบ:{" "}
           {betAmount > 0
             ? `${betAmount.toLocaleString()} บาท`
             : "รอเจ้ามือกำหนด"}
-                    )        {" "}
-        </h2>
-               {" "}
+          ){" "}
+        </h2>{" "}
         <p>
-                    คุณ: {name}          {" "}
+          คุณ: {name}{" "}
           {isDealer
             ? "(เจ้ามือ)"
             : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}{" "}
-                    | ID: {myPlayerId?.substring(0, 5)} | เงิน:          {" "}
-          {myCurrentPlayerData?.balance?.toLocaleString() || money} |          
-          ห้อง:&nbsp;          {" "}
+          | ID: {myPlayerId?.substring(0, 5)} | เงิน:{" "}
+          {myCurrentPlayerData?.balance?.toLocaleString() || money} |
+          ห้อง:&nbsp;{" "}
           <button className="text-button" onClick={handleCopyRoomId}>
-                        {roomId}         {" "}
-          </button>
-                 {" "}
-        </p>
-               {" "}
+            {roomId}{" "}
+          </button>{" "}
+        </p>{" "}
         <p style={{ color: roomLocked ? "red" : "green" }}>
-                    สถานะห้อง: {roomLocked ? "ล็อค" : "เปิด"}       {" "}
-        </p>
-             {" "}
-      </header>
-           {" "}
+          สถานะห้อง: {roomLocked ? "ล็อค" : "เปิด"}{" "}
+        </p>{" "}
+      </header>{" "}
       {errorMsg && (
         <p
           className="error-message"
@@ -869,33 +848,28 @@ function App() {
             whiteSpace: "pre-wrap",
           }}
         >
-                    {errorMsg}       {" "}
+          {errorMsg}{" "}
         </p>
-      )}
-           {" "}
+      )}{" "}
       {!gameStarted && isDealer && (!result || result.length === 0) && (
         <div className="dealer-controls pre-game">
-                    <h4>ตั้งค่าเกม (เจ้ามือ):</h4>         {" "}
+          <h4>ตั้งค่าเกม (เจ้ามือ):</h4>{" "}
           <div>
-                        <label>เงินเดิมพัน: </label>           {" "}
+            <label>เงินเดิมพัน: </label>{" "}
             <input
               type="number"
               value={inputBetAmount}
               onChange={(e) => setInputBetAmount(e.target.value)}
               step="5"
               min="5"
-            />
-                       {" "}
+            />{" "}
             <button className="btn-inroom-setting" onClick={handleSetBet}>
-                            ตั้งค่า            {" "}
-            </button>
-                     {" "}
-          </div>
-                   {" "}
+              ตั้งค่า{" "}
+            </button>{" "}
+          </div>{" "}
           <button onClick={handleToggleLockRoom}>
-                        {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}         {" "}
-          </button>
-                   {" "}
+            {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}{" "}
+          </button>{" "}
           <button
             onClick={handleStartGame}
             disabled={
@@ -903,40 +877,33 @@ function App() {
               (roomLocked && playerData.length < 1 && !isDealer)
             }
           >
-                                   {" "}
-            {/* Allow start if locked unless no other players*/}           {" "}
+            {" "}
+            {/* Allow start if locked unless no other players*/}{" "}
             {gameRound > 0 || (result && result.length > 0)
               ? "เริ่มเกมรอบใหม่"
-              : "เริ่มเกม"}
-                     {" "}
-          </button>
-                 {" "}
+              : "เริ่มเกม"}{" "}
+          </button>{" "}
         </div>
-      )}
-           {" "}
+      )}{" "}
       <div className="players-list">
-                <h4>ผู้เล่นในห้อง ({playerData.length} คน):</h4>       {" "}
+        <h4>ผู้เล่นในห้อง ({playerData.length} คน):</h4>{" "}
         <ul>
-                   {" "}
+          {" "}
           {playerData.map((user) => (
             <li
               key={user.id}
               className={user.id === currentTurnId ? "current-turn-player" : ""}
             >
-                            {user.name} ({user.role}) - เงิน:{" "}
-              {user.balance?.toLocaleString()}               บาท              {" "}
+              {user.name} ({user.role}) - เงิน: {user.balance?.toLocaleString()}{" "}
+              บาท{" "}
               {user.id === currentTurnId &&
                 currentTurnInfo.timeLeft > 0 &&
                 gameStarted &&
-                ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}
-                         {" "}
+                ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}{" "}
             </li>
-          ))}
-                 {" "}
-        </ul>
-             {" "}
-      </div>
-           {" "}
+          ))}{" "}
+        </ul>{" "}
+      </div>{" "}
       {console.log(
         "[Render Check] gameStarted:",
 
@@ -957,121 +924,101 @@ function App() {
         "isMyTurn:",
 
         isMyTurn
-      )}
-           {" "}
+      )}{" "}
       {gameStarted &&
         myCards &&
         myCards.length > 0 &&
         (!result || result.length === 0) && (
           <div className="my-cards-area">
-                       {" "}
+            {" "}
             <h3>
-                            ไพ่ของคุณ:              {" "}
+              ไพ่ของคุณ:{" "}
               {myCards.map((card, idx) => (
                 <span key={idx}>{getCardDisplay(card)} </span>
-              ))}
-                         {" "}
-            </h3>
-                       {" "}
+              ))}{" "}
+            </h3>{" "}
             <p>
-                            แต้ม: {myHandScore}, ประเภท: {myHandType}           {" "}
-            </p>
-                       {" "}
+              แต้ม: {myHandScore}, ประเภท: {myHandType}{" "}
+            </p>{" "}
             {!isDealer &&
               isMyTurn &&
               myCards.length === 2 &&
               !hasStayed && ( // เงื่อนไขปุ่มจั่ว/อยู่
                 <div className="player-actions">
-                                    <p>ตาของคุณ! เวลา: {countdown} วินาที</p>   
-                               {" "}
+                  <p>ตาของคุณ! เวลา: {countdown} วินาที</p>{" "}
                   <button
                     onClick={handleDrawCard}
                     disabled={myCards.length >= 3}
                   >
-                                        จั่ว                  {" "}
+                    จั่ว{" "}
                   </button>
-                                    <button onClick={handleStay}>อยู่</button> 
-                               {" "}
+                  <button onClick={handleStay}>อยู่</button>{" "}
                 </div>
-              )}
-                     {" "}
+              )}{" "}
           </div>
-        )}
-           {" "}
+        )}{" "}
       {gameStarted &&
         (!myCards || myCards.length === 0) &&
         (!result || result.length === 0) && (
           <p className="debug-message error">
-                        [DEBUG Client] {isDealer ? "เจ้ามือ:" : "ผู้เล่น:"}{" "}
-            เกมเริ่มแล้ว             แต่ยังไม่ได้รับไพ่/ไพ่ไม่แสดง. myCards:{" "}
-            {JSON.stringify(myCards)}         {" "}
+            [DEBUG Client] {isDealer ? "เจ้ามือ:" : "ผู้เล่น:"} เกมเริ่มแล้ว
+            แต่ยังไม่ได้รับไพ่/ไพ่ไม่แสดง. myCards: {JSON.stringify(myCards)}{" "}
           </p>
-        )}
-           {" "}
+        )}{" "}
       {!isDealer &&
         currentTurnId &&
         currentTurnId !== myPlayerId &&
         gameStarted &&
         (!result || result.length === 0) && (
           <p className="turn-indicator">
-                        รอ... ({currentTurnInfo.role}) {currentTurnInfo.name} (
-                        {currentTurnInfo.timeLeft} วิ) ⌛          {" "}
+            รอ... ({currentTurnInfo.role}) {currentTurnInfo.name} (
+            {currentTurnInfo.timeLeft} วิ) ⌛{" "}
           </p>
-        )}
-           {" "}
+        )}{" "}
       {isDealer &&
         currentTurnId &&
         currentTurnId !== myPlayerId &&
         gameStarted &&
         (!result || result.length === 0) && (
           <p className="turn-indicator">
-                        ผู้เล่น ({currentTurnInfo.role}) {currentTurnInfo.name}{" "}
-                        กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...        
-             {" "}
+            ผู้เล่น ({currentTurnInfo.role}) {currentTurnInfo.name}{" "}
+            กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...{" "}
           </p>
-        )}
-           {" "}
+        )}{" "}
       {isDealer &&
         !currentTurnId &&
         gameStarted &&
         showResultBtn &&
         (!result || result.length === 0) && (
           <button className="show-result-btn" onClick={handleShowResult}>
-                        เปิดไพ่ทั้งหมด (เจ้ามือ)          {" "}
+            เปิดไพ่ทั้งหมด (เจ้ามือ){" "}
           </button>
-        )}
-           {" "}
+        )}{" "}
       {isDealer &&
         !currentTurnId &&
         gameStarted &&
         !showResultBtn &&
         (!result || result.length === 0) && (
           <p className="turn-indicator">รอผู้เล่นทุกคนตัดสินใจ...</p>
-        )}
-           {" "}
+        )}{" "}
       {result && result.length > 0 && (
         <div className="results-display">
-                   {" "}
+          {" "}
           <h3>
-                        ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน:{" "}
-            {betAmount?.toLocaleString()}             บาท)          {" "}
-          </h3>
-                   {" "}
+            ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
+            บาท){" "}
+          </h3>{" "}
           <table>
-                       {" "}
+            {" "}
             <thead>
-                           {" "}
+              {" "}
               <tr>
-                                <th>ผู้เล่น (บทบาท)</th>               {" "}
-                <th>ไพ่</th>                <th>แต้ม</th>               {" "}
-                <th>ประเภท</th>                <th>ผล</th>               {" "}
-                <th>ได้/เสีย</th>                <th>เงินใหม่</th>             {" "}
-              </tr>
-                         {" "}
-            </thead>
-                       {" "}
+                <th>ผู้เล่น (บทบาท)</th> <th>ไพ่</th> <th>แต้ม</th>{" "}
+                <th>ประเภท</th> <th>ผล</th> <th>ได้/เสีย</th> <th>เงินใหม่</th>{" "}
+              </tr>{" "}
+            </thead>{" "}
             <tbody>
-                           {" "}
+              {" "}
               {result.map((r, i) => (
                 <tr
                   key={r.id || i}
@@ -1083,10 +1030,8 @@ function App() {
                       : ""
                   }
                 >
-                                    <td>{r.name}</td>                 {" "}
-                  <td>{r.cardsDisplay || "N/A"}</td>                 {" "}
-                  <td>{r.score}</td>                  <td>{r.specialType}</td> 
-                                 {" "}
+                  <td>{r.name}</td> <td>{r.cardsDisplay || "N/A"}</td>{" "}
+                  <td>{r.score}</td> <td>{r.specialType}</td>{" "}
                   <td
                     className={`outcome-${r.outcome
 
@@ -1096,9 +1041,8 @@ function App() {
 
                       .replace(/[()]/g, "")}`}
                   >
-                                        {r.outcome}                 {" "}
-                  </td>
-                                   {" "}
+                    {r.outcome}{" "}
+                  </td>{" "}
                   <td
                     className={
                       r.moneyChange > 0
@@ -1108,66 +1052,52 @@ function App() {
                         : ""
                     }
                   >
-                                       {" "}
+                    {" "}
                     {r.moneyChange !== 0
                       ? r.moneyChange?.toLocaleString()
-                      : "-"}
-                                     {" "}
+                      : "-"}{" "}
                   </td>
-                                    <td>{r.balance?.toLocaleString()}</td>     
-                           {" "}
+                  <td>{r.balance?.toLocaleString()}</td>{" "}
                 </tr>
-              ))}
-                         {" "}
-            </tbody>
-                     {" "}
-          </table>
-                 {" "}
+              ))}{" "}
+            </tbody>{" "}
+          </table>{" "}
         </div>
-      )}
-           {" "}
+      )}{" "}
       {isDealer &&
         (!gameStarted || (result && result.length > 0)) &&
         !showSummary && (
           <div className="post-round-controls">
-                       {" "}
+            {" "}
             <button onClick={handleResetGameHandler}>
-                            เริ่มรอบใหม่ / รีเซ็ต            {" "}
-            </button>
-                       {" "}
-            <button onClick={handleEndGame}>จบเกมทั้งหมด (ดูสรุป)</button>     
-               {" "}
+              เริ่มรอบใหม่ / รีเซ็ต{" "}
+            </button>{" "}
+            <button onClick={handleEndGame}>จบเกมทั้งหมด (ดูสรุป)</button>{" "}
           </div>
-        )}
-           {" "}
+        )}{" "}
       {!isDealer &&
         result &&
         result.length > 0 &&
         !gameStarted &&
         !showSummary && (
           <p className="turn-indicator">
-                        --- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---          {" "}
+            --- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---{" "}
           </p>
-        )}
-           {" "}
+        )}{" "}
       <button onClick={handleExitGame} className="exit-button">
-                ออกจากห้อง/เกม (โหลดใหม่)      {" "}
-      </button>
-           {" "}
+        ออกจากห้อง/เกม (โหลดใหม่){" "}
+      </button>{" "}
       <div className="messages-log">
-                <h4>ประวัติข้อความ/เหตุการณ์:</h4>       {" "}
+        <h4>ประวัติข้อความ/เหตุการณ์:</h4>{" "}
         <div className="messages-box" ref={messagesEndRef}>
-                   {" "}
+          {" "}
           {messages.map((msg, index) => (
             <p key={index} className={`message-type-${msg.type}`}>
-                                          {msg.text}           {" "}
+              {msg.text}{" "}
             </p>
-          ))}
-                 {" "}
-        </div>
-             {" "}
-      </div>
-         {" "}
+          ))}{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
