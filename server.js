@@ -544,20 +544,25 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ใน server.js -> io.on("connection", (socket) => { ... })
+
   socket.on("setBetAmount", ({ roomId, amount }) => {
     const room = rooms[roomId];
     if (room && room.dealerId === socket.id && !room.gameStarted) {
       const bet = parseInt(amount);
-      if (bet > 0 && bet % 10 === 0) {
-        // Added divisible by 10 check as per client
+      if (bet > 0 && (bet % 10 === 0 || bet % 5 === 0)) {
+        // ปรับเงื่อนไขตามที่คุณต้องการ (เช่น ลงท้ายด้วย 0 หรือ 5)
         room.betAmount = bet;
-        io.to(roomId).emit("roomSettings", { betAmount: room.betAmount });
+        console.log(
+          `[Server] Room ${roomId} bet amount set to ${bet} by dealer ${socket.id}`
+        );
+        io.to(roomId).emit("roomSettings", { betAmount: room.betAmount }); // <--- ส่งค่าที่อัปเดตแล้วให้ทุกคน
         io.to(roomId).emit("message", {
           text: `เจ้ามือตั้งค่าเดิมพันเป็น ${bet} บาท`,
         });
       } else {
         socket.emit("errorMessage", {
-          text: "จำนวนเงินเดิมพันต้องมากกว่า 0 และลงท้ายด้วย 0",
+          text: "จำนวนเงินเดิมพันไม่ถูกต้อง (ต้องมากกว่า 0 และลงท้ายด้วย 0 หรือ 5)",
         });
       }
     } else if (room && room.gameStarted) {

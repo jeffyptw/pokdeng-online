@@ -228,6 +228,31 @@ function App() {
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`)
     );
 
+    // ใน App.js -> useEffect(() => { ... }, [myPlayerId, ...]);
+
+    socketClient.on("roomSettings", (settings) => {
+      console.log("[Client] Received 'roomSettings'. Data:", settings);
+      if (settings && typeof settings.betAmount === "number") {
+        addMessage(
+          `[EVENT] ราคาเดิมพันอัปเดตเป็น: ${settings.betAmount} (จาก roomSettings)`,
+          "info"
+        );
+        setBetAmount(settings.betAmount); // อัปเดต state ที่ใช้แสดงผลหลัก
+        if (
+          myPlayerId &&
+          playerData.find((p) => p.id === myPlayerId && p.isDealer)
+        ) {
+          // ตรวจสอบว่าเป็น Dealer จริงๆ
+          setInputBetAmount(settings.betAmount.toString()); // อัปเดต input field ของ Dealer
+        }
+      } else {
+        console.warn(
+          "[Client] 'roomSettings' received invalid data:",
+          settings
+        );
+      }
+    });
+
     return () => {
       console.log(
         "[Client] useEffect cleanup: Removing listeners for socket ID:",
@@ -341,19 +366,23 @@ function App() {
 
   const handleSetBet = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
-      const amount = parseInt(inputBetAmount, 10);
+      const amount = parseInt(inputBetAmount);
       if (
-        !isNaN(amount) &&
-        amount >= 5 &&
-        (amount % 10 === 5 || amount % 10 === 0)
+        amount > 0 &&
+        (amount % 10 === 0 || amount % 5 === 0) &&
+        amount >= 5
       ) {
+        // ปรับเงื่อนไขตาม server
+        console.log("[Client] Emitting 'setBetAmount' with amount:", amount);
         socketClient.emit("setBetAmount", { roomId, amount });
       } else {
         addMessage(
-          "จำนวนเงินเดิมพันต้องไม่น้อยกว่า 5 และลงท้ายด้วย 5 หรือ 0",
+          "จำนวนเงินเดิมพันต้องไม่น้อยกว่า 5 และลงท้ายด้วย 0 หรือ 5",
           "error"
         );
       }
+    } else {
+      addMessage("ไม่สามารถตั้งค่าเดิมพันได้ในขณะนี้", "error");
     }
   };
 
