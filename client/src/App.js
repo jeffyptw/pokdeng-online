@@ -632,9 +632,7 @@ function App() {
               step="5"
               min="5"
             />
-            <button className="btn btn-set-bet" onClick={handleSetBet}>
-              ตั้งค่า
-            </button>
+            <button onClick={handleSetBet}>ตั้งค่า</button>
           </div>
           <button onClick={handleToggleLockRoom}>
             {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}

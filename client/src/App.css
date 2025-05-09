@@ -1,4 +1,6 @@
-/* App.css - ปรับปรุง CSS สำหรับแยกคลาสปุ่มและสีเฉพาะ */
+/* App.css - ปรับปรุง CSS ทั้งหมด รวมการแยกคลาสปุ่มและกำหนดสีปุ่มในหน้า Lobby */
+
+/* ---------- เบื้องต้น ---------- */
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
@@ -25,7 +27,7 @@ body {
   margin-bottom: 20px;
 }
 
-/* ยังคงให้ input ใน lobby และ controls มีสไตล์เดียวกัน */
+/* ปรับ input ใน Lobby และ Controls */
 .App-lobby input,
 .dealer-controls input {
   padding: 10px 15px;
@@ -35,7 +37,7 @@ body {
   font-size: 1em;
 }
 
-/* คลาสฐานสำหรับปุ่มทุกปุ่ม */
+/* ---------- คลาสฐานปุ่มทั้งหมด ---------- */
 .btn {
   padding: 10px 15px;
   margin: 5px;
@@ -47,7 +49,7 @@ body {
   background-color: #fff;
 }
 
-/* สีเฉพาะของแต่ละปุ่ม */
+/* ---------- สีเฉพาะปุ่มต่างๆ ---------- */
 .btn-set-bet {
   background-color: #f0ad4e;
   border-color: #eea236;
@@ -122,13 +124,14 @@ body {
   background-color: #5e5e5e;
 }
 
-/* ปุ่ม disabled */
+/* ปุ่ม disabled ทั่วไป */
 button:disabled {
   background-color: #90e790;
   color: #ffffff;
   cursor: not-allowed;
 }
 
+/* ---------- ข้อความแสดงข้อผิดพลาด / log ---------- */
 .error-message {
   color: red;
   background-color: #fdd;
@@ -162,16 +165,17 @@ button:disabled {
   border-radius: 3px;
 }
 
+/* ---------- ส่วนหัว App ---------- */
 .App header {
   border-bottom: 2px solid #337ab7;
   margin-bottom: 20px;
   padding-bottom: 10px;
 }
-
 .App header p {
   margin: 5px 0;
 }
 
+/* ---------- กล่องต่างๆ ---------- */
 .dealer-controls,
 .players-list,
 .my-cards-area,
@@ -194,16 +198,15 @@ button:disabled {
   border-color: #5cb85c;
 }
 
+/* ---------- รายชื่อผู้เล่น ---------- */
 .players-list ul {
   list-style-type: none;
   padding: 0;
 }
-
 .players-list li {
   padding: 6px 0;
   border-bottom: 1px dotted #f0f0f0;
 }
-
 .players-list li:last-child {
   border-bottom: none;
 }
@@ -216,6 +219,7 @@ button:disabled {
   border-radius: 3px;
 }
 
+/* ---------- บ่งชี้ตา ---------- */
 .turn-indicator {
   font-style: italic;
   color: #555;
@@ -226,20 +230,19 @@ button:disabled {
   text-align: center;
 }
 
+/* ---------- ตารางผลลัพธ์ ---------- */
 table {
   width: 100%;
   border-collapse: collapse;
   margin-top: 15px;
   font-size: 0.9em;
 }
-
 th,
 td {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
 }
-
 th {
   background-color: #f5f5f5;
   color: #337ab7;
@@ -248,7 +251,6 @@ th {
 .my-result-row td {
   background-color: #dff0d8 !important;
 }
-
 .disconnected-result-row td {
   background-color: #fff8e1 !important;
   color: #8a6d3b;
@@ -259,25 +261,22 @@ th {
   color: green !important;
   font-weight: bold;
 }
-
 .outcome-lose,
 .loss {
   color: red !important;
   font-weight: bold;
 }
-
 .outcome-draw {
   color: orange !important;
 }
-
 .outcome-เจ้ามือ {
   font-style: italic;
 }
 
+/* ---------- กล่อง log ข้อความ ---------- */
 .messages-log h4 {
   margin-top: 0;
 }
-
 .messages-box {
   max-height: 150px;
   overflow-y: auto;
@@ -286,19 +285,30 @@ th {
   background-color: #fdfdfd;
   font-size: 0.85em;
 }
-
 .messages-box p {
   margin: 3px 0;
 }
-
 .messages-box p i {
   color: #999;
   margin-right: 5px;
 }
-
 .debug-message.error {
   color: red;
   border: 1px dashed red;
   padding: 5px;
   margin-top: 10px;
+}
+
+/* ---------- ปรับสีปุ่มในหน้า Lobby (ท้ายไฟล์) ---------- */
+/* ยังไม่กรอกข้อมูล (disabled) */
+.App-lobby button:disabled {
+  background-color: #71df71;
+  border-color: #1d361d;
+  color: #ffffff;
+}
+/* กรอกข้อมูลครบแล้ว (enabled) */
+.App-lobby button:not(:disabled) {
+  background-color: #2eaf2e;
+  border-color: #1d361d;
+  color: #000000;
 }
