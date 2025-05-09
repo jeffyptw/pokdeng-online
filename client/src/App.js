@@ -22,7 +22,7 @@ function App() {
   const [isDealer, setIsDealer] = useState(false);
   const [playerData, setPlayerData] = useState([]);
   const [betAmount, setBetAmount] = useState(0);
-  const [inputBetAmount, setInputBetAmount] = useState("10"); // ผูกกับ input
+  const [inputBetAmount, setInputBetAmount] = useState("5"); // ผูกกับ input
   const [roomLocked, setRoomLocked] = useState(false); // ผูกกับ UI และ event
 
   const [gameStarted, setGameStarted] = useState(false);
