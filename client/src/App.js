@@ -88,6 +88,29 @@ function App() {
     socketClient.on("connect", onConnect);
     socketClient.on("disconnect", onDisconnect);
 
+    socketClient.on("roomSettings", (settings) => {
+      console.log("[Client] Received 'roomSettings'. Data:", settings);
+      if (settings && typeof settings.betAmount === "number") {
+        addMessage(
+          `[EVENT] ราคาเดิมพันอัปเดตเป็น: ${settings.betAmount} (จาก roomSettings)`,
+          "info"
+        );
+        setBetAmount(settings.betAmount); // อัปเดต state ที่ใช้แสดงผลหลัก
+        if (
+          myPlayerId &&
+          playerData.find((p) => p.id === myPlayerId && p.isDealer)
+        ) {
+          // ตรวจสอบว่าเป็น Dealer จริงๆ
+          setInputBetAmount(settings.betAmount.toString()); // อัปเดต input field ของ Dealer
+        }
+      } else {
+        console.warn(
+          "[Client] 'roomSettings' received invalid data:",
+          settings
+        );
+      }
+    });
+
     socketClient.on("roomCreated", (data) => {
       console.log("[Client] Room Created:", data);
       setRoomId(data.roomId);
@@ -346,8 +369,12 @@ function App() {
 
   const handleSetBet = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
-      const amount = parseInt(inputBetAmount); // ใช้ inputBetAmount จาก state
-      if (amount >= 5 && (amount % 10 === 0 || amount % 5 === 0)) {
+      const amount = parseInt(inputBetAmount);
+      if (
+        amount > 0 &&
+        (amount % 10 === 0 || amount % 5 === 0) &&
+        amount >= 5
+      ) {
         // ปรับเงื่อนไขตาม server
         console.log("[Client] Emitting 'setBetAmount' with amount:", amount);
         socketClient.emit("setBetAmount", { roomId, amount });
@@ -636,7 +663,8 @@ function App() {
             ? "(เจ้ามือ)"
             : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}
           | ID: {myPlayerId?.substring(0, 5)} | เงิน:{" "}
-          {myCurrentPlayerData?.balance?.toLocaleString() || money}| ห้อง:&nbsp;
+          {myCurrentPlayerData?.balance?.toLocaleString() || money} |
+          ห้อง:&nbsp;
           <button className="text-button" onClick={handleCopyRoomId}>
             {roomId}
           </button>
