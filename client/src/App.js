@@ -198,52 +198,94 @@ function App() {
     };
   }, [name]); // name ใช้ใน playersList listener
 
-  const getCardPoint = (v) =>
-    ["J", "Q", "K"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
+  // ใน App.js
+
+  const getCardPoint = (
+    v // ฟังก์ชันนี้ควรมีอยู่แล้ว
+  ) => (["J", "Q", "K"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v));
+
   const calculateRank = (cards) => {
-    if (!cards || cards.length === 0) return ""; // ป้องกัน error ถ้า cards เป็น undefined หรือ array ว่าง
+    if (!cards || cards.length === 0) return { score: 0, type: "ไม่มีไพ่" };
+
     const values = cards.map((c) => c.value);
     const suits = cards.map((c) => c.suit);
     const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
-    const count = {};
-    values.forEach((v) => (count[v] = (count[v] || 0) + 1));
-    const allJQK = values.every((v) => ["J", "Q", "K"].includes(v));
-    const sameSuit = suits.every((s) => s === suits[0]);
-    const sorted = cards
-      .map((c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value)))
-      .sort((a, b) => a - b);
-    const isQKA =
-      cards.length === 3 &&
-      sorted.includes(1) &&
-      sorted.includes(12) &&
-      sorted.includes(13);
-    const isStraight =
-      cards.length === 3 &&
-      ((sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1) || isQKA);
+
+    // เพิ่มตรรกะการตรวจสอบประเภทไพ่ที่ซับซ้อนขึ้น (คล้ายกับ getHandRank ใน server)
+    // ตัวอย่างเบื้องต้น:
+    let type = "แต้มธรรมดา";
+    const sameSuit = suits.length > 0 && suits.every((s) => s === suits[0]);
 
     if (cards.length === 2) {
+      const isPok = score === 8 || score === 9;
       const isDouble =
-        cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
-      if (score === 9) return `=${isDouble ? " ป๊อก 9 สองเด้ง" : "ป๊อก 9"}`;
-      if (score === 8) return `=${isDouble ? " ป๊อก 8 สองเด้ง" : "ป๊อก 8"}`;
+        cards[0].value === cards[1].value || cards[0].suit === cards[1].suit;
+      if (isPok) {
+        type = `ป๊อก ${score}`;
+        if (isDouble) type += " สองเด้ง";
+      } else if (isDouble) {
+        type = `${score} แต้ม สองเด้ง`;
+      } else {
+        type = `${score} แต้ม`;
+      }
+    } else if (cards.length === 3) {
+      const count = {};
+      values.forEach((v) => (count[v] = (count[v] || 0) + 1));
+      const allJQK = values.every((v) => ["J", "Q", "K"].includes(v));
+      const sortedNumericalValues = cards
+        .map(
+          (c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value))
+        )
+        .sort((a, b) => a - b);
+      const isQKA =
+        sortedNumericalValues[0] === 1 &&
+        sortedNumericalValues[1] === 12 &&
+        sortedNumericalValues[2] === 13;
+      const isStraight =
+        (sortedNumericalValues[1] === sortedNumericalValues[0] + 1 &&
+          sortedNumericalValues[2] === sortedNumericalValues[1] + 1) ||
+        isQKA;
+
+      if (Object.values(count).includes(3)) type = "ตอง";
+      else if (isStraight && sameSuit) type = "สเตรทฟลัช";
+      else if (allJQK) type = "เซียน";
+      else if (isStraight) type = "เรียง";
+      else if (sameSuit) type = `${score} แต้ม สามเด้ง`; // หรือ "สี"
+      else type = `${score} แต้ม`;
+    } else {
+      type = `${score} แต้ม`; // กรณีอื่นๆ หรือไพ่ 1 ใบ
+    }
+    // สรุป type และ score
+    // ควรจะคืน object เพื่อให้สอดคล้องกับ getHandRank ของ server
+    // แต่ในโค้ดตัวอย่างข้างบน type มันรวม score ไปแล้ว
+    // เราอาจจะปรับให้ calculateRank คืนค่าเป็น { score: calculatedScore, type: calculatedTypeString }
+    // เพื่อให้การแสดงผลใน JSX ชัดเจนขึ้น
+
+    // ตัวอย่างการคืนค่าแบบ Object (แนะนำ):
+    let finalType = "แต้มธรรมดา";
+    // ... (ตรรกะการหาประเภทไพ่ที่ละเอียดเหมือน getHandRank ของ server ควรอยู่ที่นี่) ...
+    // สมมติว่าเรามีตรรกะที่สมบูรณ์แล้ว:
+    if (cards.length === 2) {
+      const isPok = score === 8 || score === 9;
+      const isDoubleCard =
+        cards[0].value === cards[1].value || cards[0].suit === cards[1].suit;
+      if (isPok) {
+        finalType = isDoubleCard ? `ป๊อก ${score} สองเด้ง` : `ป๊อก ${score}`;
+      } else if (isDoubleCard) {
+        finalType = `สองเด้ง`; // หรือจะรวมแต้มเข้าไปด้วยก็ได้ เช่น `${score} แต้ม สองเด้ง`
+      }
+    } else if (cards.length === 3) {
+      // ตรวจสอบตอง, สเตรทฟลัช, เซียน, เรียง, สี
+      const valueCounts = values.reduce((acc, value) => {
+        acc[value] = (acc[value] || 0) + 1;
+        return acc;
+      }, {});
+      if (Object.values(valueCounts).includes(3)) finalType = "ตอง";
+      // ... (เพิ่มเงื่อนไขอื่นๆ สำหรับไพ่ 3 ใบ) ...
+      else if (sameSuit) finalType = "สามเด้ง"; // หรือ สี
     }
 
-    if (cards.length === 3) {
-      if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
-      if (isStraight && sameSuit) return `= สเตรทฟลัช`;
-      if (isStraight) return `= เรียง`;
-      if (allJQK) return `= เซียน`; // ควรเป็น J, Q, K ทั้ง 3 ใบ
-      if (sameSuit) return `= ${score} แต้มสามเด้ง`;
-    }
-
-    if (
-      cards.length === 2 &&
-      (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)
-    ) {
-      return `= ${score} แต้มสองเด้ง`;
-    }
-
-    return `= ${score} แต้ม`;
+    return { score: score, type: finalType }; // คืนเป็น Object
   };
 
   if (showSummary) {
@@ -381,27 +423,33 @@ function App() {
               </li>
             ))}
           </ul>
-          {myCards.length > 0 && result.length === 0 && (
-            <div>
-              <h3>ไพ่ของคุณ:</h3>
-              <p>
-                {myCards.map((c) => "${c.value}${c.suit}").join(", ")}{" "}
-                {calculateRank(myCards)}
-              </p>
-              {!hasStayed && myCards.length === 2 && isMyTurn && (
-                <>
-                  <p style={{ color: "blue" }}>เวลาคิด: {countdown} วินาที</p>
-                  <button onClick={drawCard}>จั่ว</button>
-                  <button onClick={stay}>ไม่จั่ว</button>
-                </>
-              )}
-              {!isMyTurn && currentPlayer && (
-                <p style={{ color: "gray" }}>
-                  รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
+          {myCards.length > 0 &&
+            result.length === 0 && ( // ตรวจสอบว่ามีไพ่ และยังไม่มีผลลัพธ์
+              <div>
+                <h3>ไพ่ของคุณ:</h3>
+                <p>
+                  {myCards
+                    .map((card) => `${card.value}${card.suit}`)
+                    .join(", ")}
+                  {myCards.length > 0 &&
+                    ` = ${calculateRank(myCards).score} แต้ม (${
+                      calculateRank(myCards).type
+                    })`}
                 </p>
-              )}
-            </div>
-          )}
+                {!hasStayed && myCards.length === 2 && isMyTurn && (
+                  <>
+                    <p style={{ color: "blue" }}>เวลาคิด: {countdown} วินาที</p>
+                    <button onClick={drawCard}>จั่ว</button>
+                    <button onClick={stay}>ไม่จั่ว</button>
+                  </>
+                )}
+                {!isMyTurn && currentPlayer && (
+                  <p style={{ color: "gray" }}>
+                    รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
+                  </p>
+                )}
+              </div>
+            )}
           {result.length > 0 && (
             <div>
               <h3>ผลลัพธ์:</h3>
