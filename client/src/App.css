@@ -262,3 +262,15 @@ th {
   border-color: #000000;
   color: #fff;
 }
+/* App.css */
+/* … โค้ดข้างบน … */
+
+/* สถานะเชื่อมต่อ */
+.App-lobby .status-connected {
+  color: green;
+}
+
+/* สถานะกำลังเชื่อมต่อ */
+.App-lobby .status-connecting {
+  color: black;
+}

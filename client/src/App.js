@@ -544,12 +544,10 @@ function App() {
     return (
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
-        <p>
-          สถานะ:{" "}
-          {isConnected
-            ? `เชื่อมต่อแล้ว (ID: ${myPlayerId?.substring(0, 5)})`
-            : "กำลังรอการเชื่อมต่อ..."}
+        <p className={isConnected ? "status-connected" : "status-connecting"}>
+          {isConnected ? "เชื่อมต่อแล้ว" : "กำลังเชื่อมต่อกับเซิฟเวอร์..."}
         </p>
+
         {errorMsg && <p className="error-message">{errorMsg}</p>}
         <input
           type="text"
