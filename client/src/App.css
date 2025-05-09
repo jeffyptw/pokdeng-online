@@ -101,6 +101,7 @@ body {
 
 button:disabled {
   background-color: #ccc;
+  border-color: #ccc;
   color: #000000;
   cursor: not-allowed;
 }
