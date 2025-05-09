@@ -595,7 +595,8 @@ function App() {
     <div className="App">
       <header>
         <h2>
-          ห้อง: {roomId} (เดิมพัน:{" "}
+          ห้อง: {roomId}
+          <br></br>(ราคาเดิมพันต่อรอบ:{" "}
           {betAmount > 0
             ? `${betAmount.toLocaleString()} บาท`
             : "รอเจ้ามือกำหนด"}
