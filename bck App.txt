@@ -1,431 +1,316 @@
-import React, { useEffect, useState } from "react";
-import io from "socket.io-client";
+/* App.css - ปรับปรุง CSS ทั้งหมด รวมการแยกคลาสปุ่มและกำหนดสีปุ่มในหน้า Lobby */
 
-const socket = io("https://pokdeng-online-th.onrender.com", {
-  transports: ["websocket"],
-});
-
-function App() {
-  const [name, setName] = useState("");
-  const [roomId, setRoomId] = useState("");
-  const [money, setMoney] = useState("");
-  const [inRoom, setInRoom] = useState(false);
-  const [players, setPlayers] = useState([]);
-  const [myCards, setMyCards] = useState([]);
-  const [hasStayed, setHasStayed] = useState(false);
-  const [isDealer, setIsDealer] = useState(false);
-  const [result, setResult] = useState([]);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [roomLocked, setRoomLocked] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
-  const [summaryData, setSummaryData] = useState([]);
-  const [showResultBtn, setShowResultBtn] = useState(false);
-  const [showStartAgain, setShowStartAgain] = useState(false);
-  const [gameRound, setGameRound] = useState(0);
-  const [currentTurnId, setCurrentTurnId] = useState(null);
-  const [countdown, setCountdown] = useState(15);
-  const [startClicked, setStartClicked] = useState(false);
-  const [playerData, setPlayerData] = useState([]);
-  const [usersInRoom, setUsersInRoom] = useState([]);
-  const [isGameEnded, setIsGameEnded] = useState(false);
-
-  useEffect(() => {
-    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
-      const timer = setTimeout(() => {
-        setCountdown((c) => c - 1);
-      }, 1000);
-      return () => clearTimeout(timer);
-    }
-    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
-      socket.emit("stay", { roomId });
-      setHasStayed(true);
-    }
-  }, [countdown, currentTurnId, hasStayed]);
-
-  const createRoom = () => {
-    const bal = parseInt(money);
-    if (bal < 100 || bal % 10 !== 0) {
-      alert("จำนวนเงินขั้นต่ำ 100 และต้องลงท้ายด้วย 0 เท่านั้น");
-      return;
-    }
-    socket.emit("createRoom", { name, balance: bal }, ({ roomId }) => {
-      setRoomId(roomId);
-      setInRoom(true);
-    });
-  };
-
-  const joinRoom = () => {
-    const bal = parseInt(money);
-    if (bal < 100 || bal % 10 !== 0) {
-      alert("จำนวนเงินขั้นต่ำ 100 และต้องลงท้ายด้วย 0 เท่านั้น");
-      return;
-    }
-    socket.emit("joinRoom", { roomId, name, balance: bal }, (res) => {
-      if (res.success) setInRoom(true);
-      else alert(res.message || "ไม่สามารถเข้าห้องได้");
-    });
-  };
-
-  const startGame = () => {
-    socket.emit("startGame", { roomId });
-    setShowResultBtn(false);
-    setShowStartAgain(false);
-    setStartClicked(true); // ซ่อนปุ่มเมื่อกด
-  };
-
-  const drawCard = () => {
-    socket.emit("drawCard", { roomId });
-    setHasStayed(true);
-  };
-
-  const stay = () => {
-    socket.emit("stay", { roomId });
-    setHasStayed(true);
-  };
-
-  const showResult = () => {
-    socket.emit("showResult", { roomId });
-    setGameRound((prev) => prev + 1);
-    setShowStartAgain(true);
-    setShowResultBtn(false);
-  };
-
-  const endGame = () => {
-    socket.emit("endGame", { roomId });
-    socket.emit("requestSummary", { roomId });
-  };
-
-  const exitGame = () => window.location.reload();
-
-  const isMyTurn = currentTurnId === socket.id;
-  const currentPlayer = playerData.find((p) => p.id === currentTurnId);
-  const turnPlayerName = currentPlayer?.name;
-  const turnPlayerRole = currentPlayer?.role;
-
-  const summarizeTransactions = (me) => {
-    const incomeMap = {};
-    const expenseMap = {};
-
-    me.income.forEach((entry) => {
-      incomeMap[entry.from] = (incomeMap[entry.from] || 0) + entry.amount;
-    });
-
-    me.expense.forEach((entry) => {
-      expenseMap[entry.to] = (expenseMap[entry.to] || 0) + entry.amount;
-    });
-
-    const allNames = new Set([
-      ...Object.keys(incomeMap),
-      ...Object.keys(expenseMap),
-    ]);
-    const finalIncome = [];
-    const finalExpense = [];
-
-    allNames.forEach((person) => {
-      const get = incomeMap[person] || 0;
-      const give = expenseMap[person] || 0;
-
-      if (get > give) finalIncome.push({ name: person, amount: get - give });
-      else if (give > get)
-        finalExpense.push({ name: person, amount: give - get });
-    });
-
-    return { finalIncome, finalExpense };
-  };
-
-  useEffect(() => {
-    socket.on("yourCards", (data) => setMyCards(data.cards));
-    socket.on("resetGame", () => {
-      setHasStayed(false);
-      setResult([]);
-      setErrorMsg("");
-    });
-    socket.on("playersList", (names) => {
-      setPlayers(names);
-      const me = names.find((p) => p.includes(name));
-      setIsDealer(me && me.includes("เจ้ามือ"));
-    });
-    socket.on("usersInRoom", (users) => {
-      setUsersInRoom(users);
-    });
-    socket.on("playersData", (data) => {
-      setPlayerData(data);
-    });
-    socket.on("result", (data) => {
-      setResult(data);
-      setShowSummary(false);
-    });
-    socket.on("errorMessage", (msg) => setErrorMsg(msg));
-    socket.on("lockRoom", () => setRoomLocked(true));
-    socket.on("gameEnded", () => {
-      setMyCards([]);
-      setHasStayed(false);
-      setRoomLocked(false);
-      setIsGameEnded(true);
-    });
-    socket.on("summaryData", (data) => {
-      setSummaryData(data);
-      setShowSummary(true);
-    });
-    socket.on("currentTurn", ({ id }) => {
-      setCurrentTurnId(id);
-      if (id === socket.id) setCountdown(15);
-    });
-    socket.on("enableShowResult", () => setShowResultBtn(true));
-
-    return () => {
-      socket.off("yourCards");
-      socket.off("resetGame");
-      socket.off("playersList");
-      socket.off("playersData");
-      socket.off("usersInRoom"); // <- ตรงนี้
-      socket.off("result");
-      socket.off("errorMessage");
-      socket.off("lockRoom");
-      socket.off("gameEnded");
-      socket.off("summaryData");
-      socket.off("currentTurn");
-      socket.off("enableShowResult");
-    };
-  }, [name]);
-
-  const getCardPoint = (v) =>
-    ["J", "Q", "K"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
-  const calculateRank = (cards) => {
-    const values = cards.map((c) => c.value);
-    const suits = cards.map((c) => c.suit);
-    const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
-    const count = {};
-    values.forEach((v) => (count[v] = (count[v] || 0) + 1));
-    const allJQK = values.every((v) => ["J", "Q", "K"].includes(v));
-    const sameSuit = suits.every((s) => s === suits[0]);
-    const sorted = cards
-      .map((c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value)))
-      .sort((a, b) => a - b);
-    const isQKA =
-      cards.length === 3 &&
-      sorted.includes(1) &&
-      sorted.includes(12) &&
-      sorted.includes(13);
-    const isStraight =
-      cards.length === 3 &&
-      ((sorted[1] === sorted[0] + 1 && sorted[2] === sorted[1] + 1) || isQKA);
-
-    if (cards.length === 2) {
-      const isDouble =
-        cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
-      if (score === 9) return `=${isDouble ? " ป๊อก 9สองเด้ง" : "ป๊อก 9"}`;
-      if (score === 8) return `=${isDouble ? " ป๊อก 8สองเด้ง" : "ป๊อก 8"}`;
-    }
-
-    if (cards.length === 3) {
-      if (Object.values(count).includes(3)) return `= ${score} แต้ม (ตอง)`;
-      if (isStraight && sameSuit) return `= สเตรทฟลัช`;
-      if (isStraight) return `= เรียง`;
-      if (allJQK) return `= เซียน`;
-      if (sameSuit) return `= ${score} แต้มสามเด้ง`;
-    }
-
-    if (
-      cards.length === 2 &&
-      (cards[0].suit === cards[1].suit || cards[0].value === cards[1].value)
-    ) {
-      return `= ${score} แต้มสองเด้ง`;
-    }
-
-    return `= ${score} แต้ม`;
-  };
-
-  if (showSummary) {
-    const me = summaryData.find((p) => p.name.startsWith(name));
-    const { finalIncome, finalExpense } = me
-      ? summarizeTransactions(me)
-      : { finalIncome: [], finalExpense: [] };
-
-    return (
-      <div style={{ padding: 20 }}>
-        <h2>สรุปยอดเงินหลังจบเกม</h2>
-        <table border="1" cellPadding="10">
-          <thead>
-            <tr>
-              <th>ลำดับ</th>
-              <th>ชื่อ</th>
-              <th>ยอดเงินคงเหลือ</th>
-              <th>กำไร/ขาดทุน</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summaryData.map((p, i) => (
-              <tr key={i}>
-                <td>{i + 1}</td>
-                <td>{p.name}</td>
-                <td>{p.balance} บาท</td>
-                <td style={{ color: p.net >= 0 ? "green" : "red" }}>
-                  {p.net >= 0 ? `+${p.net}` : p.net} บาท
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
-        <h3>ชื่อ : {me?.name}</h3>
-        <h3>
-          <span style={{ color: "green" }}>
-            ได้จาก :{" "}
-            {finalIncome.map((e) => `${e.name} (${e.amount} บาท)`).join(", ") ||
-              "-"}
-          </span>
-        </h3>
-        <h3>
-          <span style={{ color: "red" }}>
-            โอนให้ :{" "}
-            {finalExpense
-              .map((e) => `${e.name} (${e.amount} บาท)`)
-              .join(", ") || "-"}
-          </span>
-        </h3>
-        <button onClick={exitGame}>ออกจากเกม</button>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ padding: 20 }}>
-      {!inRoom ? (
-        <div>
-          {" "}
-          <h2>ป๊อกเด้งออนไลน์</h2>
-          <input
-            placeholder="ชื่อคุณ"
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            placeholder="จำนวนเงิน (ขั้นต่ำ 100)"
-            onChange={(e) => setMoney(e.target.value)}
-          />
-          <input
-            placeholder="Room ID"
-            onChange={(e) => setRoomId(e.target.value)}
-          />{" "}
-          <br /> <button onClick={createRoom}>สร้างห้องใหม่</button>{" "}
-          <button onClick={joinRoom} disabled={roomLocked}>
-            เข้าร่วมห้อง{" "}
-          </button>
-          {roomLocked && (
-            <p style={{ color: "orange" }}>
-              เกมกำลังเล่นอยู่ ไม่สามารถเข้าร่วมห้องได้{" "}
-            </p>
-          )}{" "}
-        </div>
-      ) : (
-        <div>
-          {" "}
-          <h2>ห้อง: {roomId}</h2> <p>ชื่อ : {name}</p>{" "}
-          <p>
-            บท:{" "}
-            {isDealer
-              ? "เจ้ามือ"
-              : players
-                  .find((p) => p.includes(name))
-                  ?.split("(")[1]
-                  ?.replace(")", "")}{" "}
-          </p>
-          {isDealer && (
-            <>
-              {!startClicked && gameRound === 0 && (
-                <button onClick={startGame}>เริ่มเกม</button>
-              )}
-              {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
-              {result.length > 0 && (
-                <>
-                  {" "}
-                  <button onClick={startGame}>เริ่มเกมอีกครั้ง</button>
-                </>
-              )}
-            </>
-          )}
-          {errorMsg && <p style={{ color: "red" }}>{errorMsg}</p>}
-          <h4>ผู้เล่นภายในห้องนี้:</h4>
-          <ul>
-            {playerData.map((user) => (
-              <li key={user.id}>
-                {user.name} ({user.role}) = {user.balance} บาท{" "}
-                {user.leftEarly && "💨 ออกจากห้องแล้ว"}
-              </li>
-            ))}
-          </ul>
-          {myCards.length > 0 && result.length === 0 && (
-            <div>
-              <h3>ไพ่ของคุณ:</h3>
-              <p>
-                {myCards.map((c) => `${c.value}${c.suit}`).join(", ")}{" "}
-                {calculateRank(myCards)}
-              </p>
-              {!hasStayed && myCards.length === 2 && isMyTurn && (
-                <>
-                  <p style={{ color: "blue" }}>เวลาคิด: {countdown} วินาที</p>
-                  <button onClick={drawCard}>จั่ว</button>
-                  <button onClick={stay}>ไม่จั่ว</button>
-                </>
-              )}
-              {!isMyTurn && currentPlayer && (
-                <p style={{ color: "gray" }}>
-                  รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
-                </p>
-              )}
-            </div>
-          )}
-          {result.length > 0 && (
-            <div>
-              <h3>ผลลัพธ์:</h3>
-              <ul>
-                {result.map((r, i) => {
-                  const isDealer = r.outcome === "dealer";
-                  const dealerIncome = result
-                    .filter((x) => x.outcome === "lose")
-                    .reduce((sum, x) => sum + -x.moneyChange, 0);
-                  const dealerLoss = result
-                    .filter((x) => x.outcome === "win")
-                    .reduce((sum, x) => sum + x.moneyChange, 0);
-                  const dealerNet = dealerIncome - dealerLoss;
-                  if (isDealer) {
-                    return (
-                      <li key={i}>
-                        {r.name}: {r.cards} = {r.sum} แต้ม ({r.specialType})
-                        {dealerNet > 0 && ` ✅ เจ้ามือ ได้ ${dealerNet} บาท`}
-                        {dealerNet < 0 && ` ❌ เจ้ามือ เสีย ${-dealerNet} บาท`}
-                        {dealerNet === 0 && ` ✅ ได้ 0 บาท`}
-                      </li>
-                    );
-                  }
-                  return (
-                    <li key={i}>
-                      {r.name}: {r.cards} = {r.sum} แต้ม ({r.specialType})
-                      {r.outcome === "win" &&
-                        ` ✅ ชนะ : ได้ ${r.moneyChange} บาท`}
-                      {r.outcome === "lose" &&
-                        ` ❌ แพ้ : เสีย ${-r.moneyChange} บาท`}
-                      {r.outcome === "draw" && ` 🤝 เสมอ`}
-                    </li>
-                  );
-                })}
-              </ul>
-              {isDealer && (
-                <>
-                  {result.length > 0 && (
-                    <>
-                      <button onClick={endGame}>จบเกม</button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
+/* ---------- เบื้องต้น ---------- */
+body {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  background-color: #eef2f3;
+  color: #333;
 }
 
-export default App;
+.App-lobby,
+.App-lobby button:disabled,
+.App-lobby button:not(:disabled),
+.App-summary,
+.App {
+  max-width: 900px;
+  margin: 20px auto;
+  padding: 20px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.App-lobby h2,
+.App-summary h2,
+.App h2 {
+  color: #337ab7;
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+/* ปรับ input ใน Lobby และ Controls */
+.App-lobby input,
+.dealer-controls input {
+  padding: 10px 15px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1em;
+}
+
+/* ---------- คลาสฐานปุ่มทั้งหมด ---------- */
+.btn {
+  padding: 10px 15px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 1em;
+  cursor: pointer;
+  color: #000;
+  background-color: #fff;
+}
+
+/* ---------- สีเฉพาะปุ่มต่างๆ ---------- */
+.btn-set-bet {
+  background-color: #f0ad4e;
+  border-color: #eea236;
+  color: #fff;
+}
+.btn-set-bet:hover {
+  background-color: #ec971f;
+}
+
+.btn-toggle-lock {
+  background-color: #ffc107;
+  border-color: #e0a800;
+  color: #212529;
+}
+.btn-toggle-lock:hover {
+  background-color: #e0a800;
+}
+
+.btn-start-game {
+  background-color: #5cb85c;
+  border-color: #4cae4c;
+  color: #fff;
+}
+.btn-start-game:hover {
+  background-color: #4cae4c;
+}
+
+.btn-show-result {
+  background-color: #17a2b8;
+  border-color: #117a8b;
+  color: #fff;
+}
+.btn-show-result:hover {
+  background-color: #117a8b;
+}
+
+.btn-draw {
+  background-color: #5bc0de;
+  border-color: #46b8da;
+  color: #fff;
+}
+.btn-draw:hover {
+  background-color: #31b0d5;
+}
+
+.btn-stay {
+  background-color: #f0ad4e;
+  border-color: #eea236;
+  color: #fff;
+}
+.btn-stay:hover {
+  background-color: #ec971f;
+}
+
+.btn-end-game {
+  background-color: #d9534f;
+  border-color: #d43f3a;
+  color: #fff;
+}
+.btn-end-game:hover {
+  background-color: #c9302c;
+}
+
+.btn-exit {
+  background-color: #777;
+  border-color: #666;
+  color: #fff;
+  display: block;
+  margin: 30px auto 10px auto;
+}
+.btn-exit:hover {
+  background-color: #5e5e5e;
+}
+
+/* ปุ่ม disabled ทั่วไป */
+button:disabled {
+  background-color: #90e790;
+  color: #ffffff;
+  cursor: not-allowed;
+}
+
+/* ---------- ข้อความแสดงข้อผิดพลาด / log ---------- */
+.error-message {
+  color: red;
+  background-color: #fdd;
+  padding: 10px;
+  border-radius: 4px;
+  margin: 10px 0;
+  text-align: center;
+}
+
+.message-type-info {
+  color: #31708f;
+  background-color: #d9edf7;
+  padding: 3px 6px;
+  margin: 2px 0;
+  border-radius: 3px;
+}
+
+.message-type-success {
+  color: #3c763d;
+  background-color: #dff0d8;
+  padding: 3px 6px;
+  margin: 2px 0;
+  border-radius: 3px;
+}
+
+.message-type-error {
+  color: #a94442;
+  background-color: #f2dede;
+  padding: 3px 6px;
+  margin: 2px 0;
+  border-radius: 3px;
+}
+
+/* ---------- ส่วนหัว App ---------- */
+.App header {
+  border-bottom: 2px solid #337ab7;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+}
+.App header p {
+  margin: 5px 0;
+}
+
+/* ---------- กล่องต่างๆ ---------- */
+.dealer-controls,
+.players-list,
+.my-cards-area,
+.results-display,
+.summary-display,
+.messages-log,
+.post-round-controls {
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #eee;
+  border-radius: 5px;
+}
+
+.dealer-controls {
+  background-color: #f9f9f9;
+}
+
+.my-cards-area {
+  background-color: #e6ffed;
+  border-color: #5cb85c;
+}
+
+/* ---------- รายชื่อผู้เล่น ---------- */
+.players-list ul {
+  list-style-type: none;
+  padding: 0;
+}
+.players-list li {
+  padding: 6px 0;
+  border-bottom: 1px dotted #f0f0f0;
+}
+.players-list li:last-child {
+  border-bottom: none;
+}
+
+.current-turn-player {
+  font-weight: bold;
+  color: #d9534f;
+  background-color: #fcf8e3;
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+/* ---------- บ่งชี้ตา ---------- */
+.turn-indicator {
+  font-style: italic;
+  color: #555;
+  margin-top: 15px;
+  padding: 10px;
+  background-color: #f0f8ff;
+  border-radius: 4px;
+  text-align: center;
+}
+
+/* ---------- ตารางผลลัพธ์ ---------- */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 15px;
+  font-size: 0.9em;
+}
+th,
+td {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: left;
+}
+th {
+  background-color: #f5f5f5;
+  color: #337ab7;
+}
+
+.my-result-row td {
+  background-color: #dff0d8 !important;
+}
+.disconnected-result-row td {
+  background-color: #fff8e1 !important;
+  color: #8a6d3b;
+}
+
+.outcome-win,
+.profit {
+  color: green !important;
+  font-weight: bold;
+}
+.outcome-lose,
+.loss {
+  color: red !important;
+  font-weight: bold;
+}
+.outcome-draw {
+  color: orange !important;
+}
+.outcome-เจ้ามือ {
+  font-style: italic;
+}
+
+/* ---------- กล่อง log ข้อความ ---------- */
+.messages-log h4 {
+  margin-top: 0;
+}
+.messages-box {
+  max-height: 150px;
+  overflow-y: auto;
+  border: 1px solid #ddd;
+  padding: 10px;
+  background-color: #fdfdfd;
+  font-size: 0.85em;
+}
+.messages-box p {
+  margin: 3px 0;
+}
+.messages-box p i {
+  color: #999;
+  margin-right: 5px;
+}
+.debug-message.error {
+  color: red;
+  border: 1px dashed red;
+  padding: 5px;
+  margin-top: 10px;
+}
+
+/* ---------- ปรับสีปุ่มในหน้า Lobby (ท้ายไฟล์) ---------- */
+/* ยังไม่กรอกข้อมูล (disabled) */
+.App-lobby button:disabled {
+  background-color: #71df71;
+  border-color: #1d361d;
+  color: #ffffff;
+}
+/* กรอกข้อมูลครบแล้ว (enabled) */
+.App-lobby button:not(:disabled) {
+  background-color: #2eaf2e;
+  border-color: #1d361d;
+  color: #000000;
+}

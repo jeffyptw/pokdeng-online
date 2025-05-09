@@ -1,10 +1,10 @@
-/* App.css - เพิ่มเติมจากตัวอย่างก่อนหน้า */
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   background-color: #eef2f3;
   color: #333;
 }
+/* Lobby */
 .App-lobby,
 .App-summary,
 .App {
@@ -29,7 +29,8 @@ body {
 .player-actions button,
 .show-result-btn,
 .post-round-controls button,
-.exit-button {
+.exit-button,
+.btn-inroom-setting {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
@@ -254,4 +255,10 @@ th {
   border: 1px dashed red;
   padding: 5px;
   margin-top: 10px;
+}
+/* ---------- in room ---------- */
+.btn-inroom-setting {
+  background-color: #f0ad4e;
+  border-color: #eea236;
+  color: #fff;
 }
