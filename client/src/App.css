@@ -1,94 +1,113 @@
-/* App.css */
+/* App.css - เพิ่มเติมจากตัวอย่างก่อนหน้า */
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
-  background-color: #f0f4f8;
+  background-color: #eef2f3;
   color: #333;
-  font-size: 14px;
 }
 .App-lobby,
 .App-summary,
 .App {
-  max-width: 950px;
+  max-width: 900px;
   margin: 20px auto;
   padding: 20px;
   background-color: #fff;
   border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
-
-/* --- Lobby & Initial Input --- */
-.App-lobby h2 {
-  color: #2c3e50;
+.App-lobby h2,
+.App-summary h2,
+.App h2 {
+  color: #337ab7;
   text-align: center;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
 }
-.App-lobby input[type="text"],
-.App-lobby input[type="number"] {
-  display: block;
-  width: calc(100% - 22px);
-  padding: 12px;
-  margin: 12px auto;
+.App-lobby input,
+.App-lobby button,
+.dealer-controls input,
+.dealer-controls button,
+.player-actions button,
+.show-result-btn,
+.post-round-controls button,
+.exit-button {
+  padding: 10px 15px;
+  margin: 5px;
   border-radius: 5px;
-  border: 1px solid #ced4da;
+  border: 1px solid #ccc;
   font-size: 1em;
 }
-.App-lobby button {
-  padding: 12px 25px;
-  margin: 8px 5px;
-  border-radius: 5px;
-  border: none;
-  font-size: 1em;
+.App-lobby button,
+.dealer-controls button,
+.player-actions button,
+.show-result-btn,
+.post-round-controls button,
+.exit-button {
   cursor: pointer;
   color: white;
-  transition: background-color 0.2s ease;
 }
-.App-lobby button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
+.App-lobby button,
+.dealer-controls button[onClick*="StartGame"],
+.post-round-controls button[onClick*="StartGame"],
+.post-round-controls button[onClick*="ResetGame"] {
+  background-color: #5cb85c;
+  border-color: #4cae4c;
 }
-.App-lobby div > button:first-of-type {
-  background-color: #28a745;
-} /* Create Room */
-.App-lobby div > button:first-of-type:hover {
-  background-color: #218838;
-}
-.App-lobby button:nth-of-type(2),
-.App-lobby button[disabled="false"] {
-  background-color: #007bff;
-} /* Join Room */
-.App-lobby button:nth-of-type(2):hover,
-.App-lobby button[disabled="false"]:hover {
-  background-color: #0056b3;
-}
-.App-lobby hr {
-  margin: 25px 0;
-  border: 0;
-  border-top: 1px solid #eee;
+.App-lobby button:hover,
+.dealer-controls button[onClick*="StartGame"]:hover,
+.post-round-controls button[onClick*="StartGame"]:hover {
+  background-color: #4cae4c;
 }
 
-/* --- General In-Room --- */
-.App header {
-  border-bottom: 2px solid #337ab7;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-  text-align: center;
+.dealer-controls button[onClick*="SetBet"],
+.dealer-controls button[onClick*="ToggleLockRoom"],
+.player-actions button[onClick*="Stay"] {
+  background-color: #f0ad4e;
+  border-color: #eea236;
 }
-.App header h2 {
-  color: #337ab7;
-  margin-top: 0;
+.dealer-controls button[onClick*="SetBet"]:hover,
+.dealer-controls button[onClick*="ToggleLockRoom"]:hover,
+.player-actions button[onClick*="Stay"]:hover {
+  background-color: #ec971f;
 }
-.App header p {
-  margin: 5px 0;
-  font-size: 0.95em;
-  color: #555;
+
+.player-actions button[onClick*="DrawCard"] {
+  background-color: #5bc0de;
+  border-color: #46b8da;
+}
+.player-actions button[onClick*="DrawCard"]:hover {
+  background-color: #31b0d5;
+}
+
+.show-result-btn,
+.post-round-controls button[onClick*="EndGame"] {
+  background-color: #d9534f;
+  border-color: #d43f3a;
+}
+.show-result-btn:hover,
+.post-round-controls button[onClick*="EndGame"]:hover {
+  background-color: #c9302c;
+}
+
+.exit-button {
+  background-color: #777;
+  border-color: #666;
+  display: block;
+  margin: 30px auto 10px auto;
+}
+.exit-button:hover {
+  background-color: #5e5e5e;
+}
+
+button:disabled {
+  background-color: #ddd;
+  color: #888;
+  cursor: not-allowed;
 }
 
 .error-message {
-  color: #d9534f;
-  background-color: #f2dede;
+  color: red;
+  background-color: #fdd;
   padding: 10px;
-  border: 1px solid #ebccd1;
   border-radius: 4px;
   margin: 10px 0;
   text-align: center;
@@ -99,7 +118,6 @@ body {
   padding: 3px 6px;
   margin: 2px 0;
   border-radius: 3px;
-  font-size: 0.9em;
 }
 .message-type-success {
   color: #3c763d;
@@ -107,12 +125,25 @@ body {
   padding: 3px 6px;
   margin: 2px 0;
   border-radius: 3px;
-  font-size: 0.9em;
 }
-/* .message-type-error handled by .error-message for prominent display */
+.message-type-error {
+  color: #a94442;
+  background-color: #f2dede;
+  padding: 3px 6px;
+  margin: 2px 0;
+  border-radius: 3px;
+}
 
-/* --- Sections --- */
-.dealer-controls.pre-game,
+.App header {
+  border-bottom: 2px solid #337ab7;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+}
+.App header p {
+  margin: 5px 0;
+}
+
+.dealer-controls,
 .players-list,
 .my-cards-area,
 .results-display,
@@ -121,28 +152,23 @@ body {
 .post-round-controls {
   margin-bottom: 20px;
   padding: 15px;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1px solid #eee;
+  border-radius: 5px;
 }
-.dealer-controls.pre-game {
+.dealer-controls {
   background-color: #f9f9f9;
 }
 .my-cards-area {
-  background-color: #e6fffa;
-  border-color: #009688;
+  background-color: #e6ffed;
+  border-color: #5cb85c;
 }
-.my-cards-area h3 {
-  margin-top: 0;
-  color: #00796b;
-}
-
 .players-list ul {
   list-style-type: none;
   padding: 0;
 }
 .players-list li {
-  padding: 8px 0;
-  border-bottom: 1px dashed #f0f0f0;
+  padding: 6px 0;
+  border-bottom: 1px dotted #f0f0f0;
 }
 .players-list li:last-child {
   border-bottom: none;
@@ -151,119 +177,20 @@ body {
   font-weight: bold;
   color: #d9534f;
   background-color: #fcf8e3;
-  padding: 3px 6px;
+  padding: 2px 5px;
   border-radius: 3px;
 }
 
 .turn-indicator {
   font-style: italic;
-  color: #666;
-  margin: 15px 0;
+  color: #555;
+  margin-top: 15px;
   padding: 10px;
-  background-color: #fafafa;
-  border-left: 3px solid #007bff;
-  text-align: center;
-}
-
-/* --- Buttons --- */
-button {
-  padding: 10px 15px;
-  margin: 5px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-  font-size: 1em;
-  cursor: pointer;
-  color: white;
-  transition: background-color 0.2s ease;
-}
-button:disabled {
-  background-color: #e9ecef !important;
-  color: #6c757d !important;
-  cursor: not-allowed !important;
-  border-color: #ced4da !important;
-}
-
-.dealer-controls button,
-.post-round-controls button {
-  /* General dealer section buttons */
-}
-.dealer-controls input[type="number"] {
-  padding: 8px;
-  margin-right: 8px;
+  background-color: #f0f8ff;
   border-radius: 4px;
-  border: 1px solid #ccc;
-  width: 60px;
-}
-.dealer-controls div {
-  margin-bottom: 10px;
-}
-
-button[onClick*="StartGame"],
-button[onClick*="ResetGame"] {
-  background-color: #28a745;
-  border-color: #1e7e34;
-}
-button[onClick*="StartGame"]:hover,
-button[onClick*="ResetGame"]:hover {
-  background-color: #218838;
-}
-
-button[onClick*="SetBet"],
-button[onClick*="ToggleLockRoom"] {
-  background-color: #ffc107;
-  border-color: #e0a800;
-  color: #212529;
-}
-button[onClick*="SetBet"]:hover,
-button[onClick*="ToggleLockRoom"]:hover {
-  background-color: #e0a800;
-}
-
-.player-actions button[onClick*="DrawCard"] {
-  background-color: #17a2b8;
-  border-color: #117a8b;
-}
-.player-actions button[onClick*="DrawCard"]:hover {
-  background-color: #138496;
-}
-.player-actions button[onClick*="Stay"] {
-  background-color: #6c757d;
-  border-color: #5a6268;
-}
-.player-actions button[onClick*="Stay"]:hover {
-  background-color: #5a6268;
-}
-
-.show-result-btn,
-button[onClick*="EndGame"] {
-  background-color: #dc3545;
-  border-color: #c82333;
-}
-.show-result-btn:hover,
-button[onClick*="EndGame"]:hover {
-  background-color: #c82333;
-}
-
-.exit-button {
-  background-color: #343a40;
-  border-color: #1d2124;
-  display: block;
-  margin: 30px auto 10px auto;
-}
-.exit-button:hover {
-  background-color: #23272b;
-}
-
-/* --- Tables (Results & Summary) --- */
-.results-display,
-.App-summary {
-  border-top: 2px solid #007bff;
-}
-.results-display h3,
-.App-summary h2 {
   text-align: center;
-  color: #0056b3;
 }
+
 table {
   width: 100%;
   border-collapse: collapse;
@@ -272,91 +199,59 @@ table {
 }
 th,
 td {
-  border: 1px solid #dee2e6;
-  padding: 10px;
+  border: 1px solid #ddd;
+  padding: 8px;
   text-align: left;
-  vertical-align: middle;
 }
 th {
-  background-color: #e9ecef;
-  color: #495057;
-  font-weight: 600;
+  background-color: #f5f5f5;
+  color: #337ab7;
 }
 .my-result-row td {
-  background-color: #d1e7dd !important;
-}
+  background-color: #dff0d8 !important;
+} /* Highlight player's own result */
 .disconnected-result-row td {
-  background-color: #fff3cd !important;
-  color: #856404;
-  font-style: italic;
+  background-color: #fff8e1 !important;
+  color: #8a6d3b;
 }
 .outcome-win,
 .profit {
-  color: #155724 !important;
+  color: green !important;
   font-weight: bold;
 }
 .outcome-lose,
 .loss {
-  color: #721c24 !important;
+  color: red !important;
   font-weight: bold;
 }
 .outcome-draw {
-  color: #ffc107 !important;
+  color: orange !important;
 }
-.outcome-เจ้ามือ,
-.outcome-dealer {
-  font-style: italic;
-  color: #004085;
-}
-.outcome-แพ้-หลุด,
-.outcome-แพ้-หลุดระหว่างเกม {
-  color: #721c24;
+.outcome-เจ้ามือ {
   font-style: italic;
 }
 
-/* Message Log */
-.messages-log {
-  background-color: #f8f9fa;
-  border-color: #dee2e6;
-}
 .messages-log h4 {
   margin-top: 0;
-  color: #495057;
 }
 .messages-box {
-  max-height: 180px;
+  max-height: 150px;
   overflow-y: auto;
-  border: 1px solid #ced4da;
+  border: 1px solid #ddd;
   padding: 10px;
-  background-color: #fff;
-  font-size: 0.875em;
+  background-color: #fdfdfd;
+  font-size: 0.85em;
 }
 .messages-box p {
-  margin: 4px 0;
-  padding: 2px;
-  border-bottom: 1px dotted #eee;
-}
-.messages-box p:last-child {
-  border-bottom: none;
+  margin: 3px 0;
 }
 .messages-box p i {
-  color: #6c757d;
-  margin-right: 6px;
+  color: #999;
+  margin-right: 5px;
 }
-
 .debug-message.error {
-  color: #721c24;
-  background-color: #f8d7da;
-  border-color: #f5c6cb;
-  padding: 8px;
+  color: red;
+  border: 1px dashed red;
+  padding: 5px;
   margin-top: 10px;
-  border-radius: 4px;
-}
-.debug-message.info {
-  color: #0c5460;
-  background-color: #d1ecf1;
-  border-color: #bee5eb;
-  padding: 8px;
-  margin-top: 10px;
-  border-radius: 4px;
 }
