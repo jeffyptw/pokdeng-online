@@ -129,13 +129,14 @@ function sendPlayers(roomId) {
 }
 
 function sendPlayersData(roomId) {
+  // ทบทวนฟังก์ชันนี้ (มีอยู่แล้ว)
   const room = rooms[roomId];
   if (!room) return;
   const data = room.players.map((p) => ({
     id: p.id,
     name: p.name,
     role: p.role,
-    balance: p.balance,
+    balance: p.balance, // ยอดเงินล่าสุดจะถูกส่งไปที่นี่
   }));
   io.to(roomId).emit("playersData", data);
 }
@@ -172,10 +173,10 @@ function handleResultOnly(roomId) {
     );
     return;
   }
-  const dealer = room.players.find((p) => p.id === room.dealerId); // ใช้ room.dealerId
+  const dealer = room.players.find((p) => p.id === room.dealerId);
   if (!dealer) {
     console.error(`Dealer not found for result handling in room ${roomId}`);
-    return; // ถ้าไม่มีเจ้ามือ ก็ไม่ควรคำนวณผล
+    return;
   }
 
   const dealerRank = getHandRank(dealer.cards);
@@ -204,61 +205,50 @@ function handleResultOnly(roomId) {
     const result = {
       name: `${p.name} (${p.role})`,
       cards: p.cards.map((c) => `${c.value}${c.suit}`).join(", "),
-      sum: rank.score, // ใช้ score จาก rank โดยตรง (getHandRank ปรับให้ score ของตอง เรียง สเตรทฟลัช ถูกต้อง)
+      sum: rank.score,
       specialType: rank.type,
       outcome: "",
       moneyChange: 0,
     };
 
     if (p.id === dealer.id) {
-      // เปรียบเทียบด้วย p.id กับ dealer.id
       result.outcome = "dealer";
     } else {
       const playerPayoutMultiplier = payoutRate[rank.type] || 1;
       const dealerPayoutMultiplier = payoutRate[dealerRank.type] || 1;
 
-      // Player wins
       if (
         rank.rank < dealerRank.rank ||
         (rank.rank === dealerRank.rank && rank.score > dealerRank.score)
       ) {
         result.outcome = "win";
         result.moneyChange = playerPayoutMultiplier * bet;
-        p.balance += result.moneyChange;
-        dealer.balance -= result.moneyChange;
+        p.balance += result.moneyChange; // อัปเดตยอดเงินผู้เล่น
+        dealer.balance -= result.moneyChange; // อัปเดตยอดเงินเจ้ามือ
         p.income.push({ from: dealer.name, amount: result.moneyChange });
         dealer.expense.push({ to: p.name, amount: result.moneyChange });
-      }
-      // Player loses
-      else if (
+      } else if (
         rank.rank > dealerRank.rank ||
         (rank.rank === dealerRank.rank && rank.score < dealerRank.score)
       ) {
         result.outcome = "lose";
-        // ผู้เล่นเสียตามอัตราจ่ายของ "มือผู้เล่น" หรือ "มือเจ้ามือ" ขึ้นอยู่กับกติกา
-        // โดยทั่วไป ถ้าเจ้ามือชนะด้วยมือพิเศษ (เช่น ป๊อกเด้ง) ผู้เล่นเสียตามเด้งของเจ้ามือ
-        // ถ้าผู้เล่นแพ้มือธรรมดาของเจ้ามือ ผู้เล่นเสียตามเด้งของตนเอง
-        let lossMultiplier = playerPayoutMultiplier; // เริ่มต้นให้เสียตามเด้งตัวเอง
+        let lossMultiplier = playerPayoutMultiplier;
         if (dealerRank.rank === 1) {
-          // ถ้าเจ้ามือป๊อก
-          lossMultiplier = dealerPayoutMultiplier; // ผู้เล่นเสียตามเด้งของเจ้ามือ
+          lossMultiplier = dealerPayoutMultiplier;
         }
         result.moneyChange = -lossMultiplier * bet;
-
-        p.balance += result.moneyChange;
-        dealer.balance -= result.moneyChange;
-
+        p.balance += result.moneyChange; // อัปเดตยอดเงินผู้เล่น
+        dealer.balance -= result.moneyChange; // อัปเดตยอดเงินเจ้ามือ
         p.expense.push({ to: dealer.name, amount: -result.moneyChange });
         dealer.income.push({ from: p.name, amount: -result.moneyChange });
-      }
-      // Draw
-      else {
+      } else {
         result.outcome = "draw";
       }
     }
     results.push(result);
   }
   io.to(roomId).emit("result", results);
+  sendPlayersData(roomId); // <--- เพิ่มบรรทัดนี้เพื่อส่งข้อมูลผู้เล่นที่อัปเดตแล้ว (รวมถึง balance ใหม่)
 }
 
 function startNextTurn(roomId, turnIndex = 0) {
