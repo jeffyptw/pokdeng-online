@@ -1,127 +1,422 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 
-const socket = io("https://pokdeng-online-th.onrender.com", {
+// --- ใช้ URL ของ Server ของคุณ ---
+// const SERVER_URL = 'http://localhost:3001';
+const SERVER_URL = "https://pokdeng-online-th.onrender.com"; // ตามที่คุณให้มา
+
+const socket = io(SERVER_URL, {
   transports: ["websocket"],
 });
 
 function App() {
-  const [name, setName] = useState("");
-  const [roomId, setRoomId] = useState("");
-  const [money, setMoney] = useState("");
-  const [inRoom, setInRoom] = useState(false);
-  const [players, setPlayers] = useState([]); // ยังคงไว้เนื่องจากใช้ในการแสดงบทบาทของผู้เล่น
+  // States from your provided code
+  const [name, setName] = useState(""); // User's own name input
+  const [roomId, setRoomId] = useState(""); // Current Room ID input/display
+  const [money, setMoney] = useState(""); // Initial money input
+  const [inRoom, setInRoom] = useState(false); // Is the player in a room?
+  // const [players, setPlayers] = useState([]); // Your old playersList (string array), replaced by playerData for richer info
   const [myCards, setMyCards] = useState([]);
   const [hasStayed, setHasStayed] = useState(false);
   const [isDealer, setIsDealer] = useState(false);
-  const [result, setResult] = useState([]);
+  const [result, setResult] = useState([]); // Round results from server
   const [errorMsg, setErrorMsg] = useState("");
-  const [roomLocked, setRoomLocked] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
-  const [summaryData, setSummaryData] = useState([]);
-  const [showResultBtn, setShowResultBtn] = useState(false);
-  // const [showStartAgain, setShowStartAgain] = useState(false); // <--- นำออก
-  const [gameRound, setGameRound] = useState(0);
-  const [currentTurnId, setCurrentTurnId] = useState(null);
-  const [countdown, setCountdown] = useState(15);
-  const [startClicked, setStartClicked] = useState(false);
-  const [playerData, setPlayerData] = useState([]);
-  // const [usersInRoom, setUsersInRoom] = useState([]); // <--- นำออก
-  // const [isGameEnded, setIsGameEnded] = useState(false); // <--- นำออก
+  const [roomLocked, setRoomLocked] = useState(false); // From server
+  const [showSummary, setShowSummary] = useState(false); // To show end-game summary view
+  const [summaryData, setSummaryData] = useState([]); // End-game summary data from server
+  const [showResultBtn, setShowResultBtn] = useState(false); // For dealer to click 'show result'
+  const [gameRound, setGameRound] = useState(0); // To track game rounds, affects "Start Game" button text
+  const [currentTurnId, setCurrentTurnId] = useState(null); // ID of player whose turn it is
+  const [countdown, setCountdown] = useState(15); // Timer for current turn
+  const [startClicked, setStartClicked] = useState(false); // If dealer clicked start
 
+  // States adapted from my previous more detailed App.js or needed for functionality
+  const [myPlayerId, setMyPlayerId] = useState(null); // Player's own socket ID
+  const [playerData, setPlayerData] = useState([]); // Array of player objects {id, name, balance, role, isDealer} from server
+  const [currentTurnInfo, setCurrentTurnInfo] = useState({
+    name: "",
+    role: "",
+    timeLeft: 0,
+  }); // More detailed turn info
+  const [betAmount, setBetAmount] = useState(0); // Current bet amount for the room, from server
+  const [inputBetAmount, setInputBetAmount] = useState("10"); // For dealer to set bet amount
+
+  const messagesEndRef = useRef(null); // For auto-scrolling messages if you add a log
+
+  // Countdown timer effect from your code
   useEffect(() => {
-    if (currentTurnId === socket.id && countdown > 0 && !hasStayed) {
+    if (
+      currentTurnId === myPlayerId &&
+      countdown > 0 &&
+      !hasStayed &&
+      myCards.length === 2
+    ) {
       const timer = setTimeout(() => {
         setCountdown((c) => c - 1);
       }, 1000);
       return () => clearTimeout(timer);
     }
-    if (countdown === 0 && !hasStayed && currentTurnId === socket.id) {
+    if (
+      countdown === 0 &&
+      !hasStayed &&
+      currentTurnId === myPlayerId &&
+      myCards.length === 2
+    ) {
       socket.emit("stay", { roomId });
-      setHasStayed(true);
+      setHasStayed(true); // Player auto-stays
+      setCountdown(15); // Reset for clarity, though turn will change
     }
-  }, [countdown, currentTurnId, hasStayed, roomId]); // เพิ่ม roomId ใน dependencies array เพราะใช้ใน emit
+  }, [countdown, currentTurnId, hasStayed, roomId, myPlayerId, myCards.length]);
 
+  // Socket event listeners
+  useEffect(() => {
+    socket.on("connect", () => {
+      setMyPlayerId(socket.id);
+      console.log("Connected to server with ID:", socket.id);
+    });
+
+    socket.on("roomCreated", (data) => {
+      setRoomId(data.roomId);
+      setInRoom(true);
+      setIsDealer(true); // Creator is dealer
+      // name state is already set from input by user
+      setErrorMsg(`ห้อง ${data.roomId} ถูกสร้างโดย ${name || data.dealerName}`); // Use input name or server name
+      if (data.betAmount) setBetAmount(data.betAmount);
+    });
+
+    socket.on("joinedRoom", (data) => {
+      setRoomId(data.roomId);
+      setInRoom(true);
+      // isDealer will be set via playersData
+      setErrorMsg(`เข้าร่วมห้อง ${data.roomId} สำเร็จ`);
+      if (data.betAmount) setBetAmount(data.betAmount);
+      const dealer = data.players.find((p) => p.isDealer);
+      if (dealer) setErrorMsg((prev) => prev + ` เจ้ามือ: ${dealer.name}`);
+    });
+
+    socket.on("playersData", (activePlayers) => {
+      setPlayerData(activePlayers);
+      const me = activePlayers.find((p) => p.id === myPlayerId);
+      if (me) {
+        setIsDealer(me.isDealer);
+        // Update own balance display if needed, though summaryData is better for final
+      }
+    });
+
+    socket.on("yourCards", (data) => {
+      setMyCards(data.cards || data); // Server might send {cards: ...} or just cards array
+      setHasStayed(false); // Reset hasStayed when new cards are dealt
+      setCountdown(15); // Reset countdown for the new hand if it's my turn
+    });
+
+    socket.on("resetGame", () => {
+      setHasStayed(false);
+      setResult([]);
+      setErrorMsg("เกมถูกรีเซ็ต เตรียมเริ่มรอบใหม่");
+      setMyCards([]);
+      setCurrentTurnId(null);
+      setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
+      setShowResultBtn(false);
+      setStartClicked(false); // Allow dealer to click start again
+      // gameRound might be incremented by showResult, or reset here if desired
+    });
+
+    // This replaces your 'playersList' and 'usersInRoom'
+    // socket.on("playersData", (currentPlayersData) => { // Combined into one above
+    //   setPlayerData(currentPlayersData);
+    //   const me = currentPlayersData.find((p) => p.id === myPlayerId);
+    //   if (me) {
+    //     setIsDealer(me.isDealer);
+    //   }
+    // });
+
+    socket.on("result", (roundResults) => {
+      // Server sends the full result array
+      setResult(roundResults);
+      setShowSummary(false); // Hide summary if it was shown
+      // setShowStartAgain(true) // Your old logic, handled by startClicked and gameRound now
+      setCurrentTurnId(null); // Clear current turn
+      setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
+      setShowResultBtn(false); // Result is shown, hide button
+      setStartClicked(false); // Game round ended, dealer can start new one
+    });
+
+    socket.on("errorMessage", (msg) => {
+      // msg can be string or {text: "..."}
+      if (typeof msg === "string") setErrorMsg(msg);
+      else if (msg && msg.text) setErrorMsg(msg.text);
+      else setErrorMsg("เกิดข้อผิดพลาดไม่ทราบสาเหตุ");
+      setTimeout(() => setErrorMsg(""), 7000); // Clear error after 7 seconds
+    });
+
+    socket.on("message", (msg) => {
+      // For general messages
+      setErrorMsg(msg.text); // Display in errorMsg for now, or create a separate message log
+      setTimeout(() => setErrorMsg(""), 5000);
+    });
+
+    socket.on("lockRoom", (isLocked) => setRoomLocked(isLocked)); // Server sends boolean
+
+    socket.on("gameStarted", (data) => {
+      setErrorMsg(`เกมเริ่มแล้ว! เดิมพัน: ${data.betAmount} บาท`);
+      setBetAmount(data.betAmount);
+      setResult([]); // Clear previous results
+      setMyCards([]); // Clear cards, server will send new ones
+      setHasStayed(false);
+      setShowResultBtn(false);
+      setStartClicked(true); // Mark that game has been started by dealer
+      // setGameRound might be handled elsewhere or not needed if startClicked is used
+    });
+
+    socket.on("roomSettings", (settings) => {
+      // For bet amount updates etc.
+      if (settings.betAmount) setBetAmount(settings.betAmount);
+    });
+
+    socket.on("gameEnded", (gameSummary) => {
+      // Server sends final summary data
+      setSummaryData(gameSummary); // This is the array of {name, initialBalance, finalBalance, netChange}
+      setShowSummary(true);
+      setMyCards([]);
+      setHasStayed(false);
+      setRoomLocked(false); // Room might unlock on game end
+      setResult([]); // Clear round results
+      setCurrentTurnId(null);
+      setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
+      // setIsGameEnded(true) // Your old state, showSummary handles this view
+    });
+
+    // socket.on("summaryData", (data) => { // Integrated into 'gameEnded' from my server
+    //   setSummaryData(data);
+    //   setShowSummary(true);
+    // });
+
+    socket.on("currentTurn", (turnData) => {
+      // turnData = { id, name, role, timeLeft }
+      setCurrentTurnId(turnData.id);
+      setCurrentTurnInfo({
+        name: turnData.name,
+        role: turnData.role,
+        timeLeft: turnData.timeLeft,
+      });
+      if (turnData.id === myPlayerId) {
+        setCountdown(turnData.timeLeft || 15); // Use server's timeLeft or default
+        // setHasStayed(false); // Moved to yourCards to reset only when cards are dealt
+      }
+    });
+
+    socket.on("turnTimerUpdate", (timerData) => {
+      // timerData = { playerId, timeLeft }
+      if (currentTurnId === timerData.playerId) {
+        setCurrentTurnInfo((prev) => ({
+          ...prev,
+          timeLeft: timerData.timeLeft,
+        }));
+        if (timerData.playerId === myPlayerId) {
+          setCountdown(timerData.timeLeft);
+        }
+      }
+    });
+
+    socket.on("enableShowResult", () => setShowResultBtn(true));
+
+    socket.on("playerLeft", (data) => {
+      setErrorMsg(`${data.name} ${data.message || "ออกจากห้อง"}`);
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("roomCreated");
+      socket.off("joinedRoom");
+      socket.off("playersData");
+      socket.off("yourCards");
+      socket.off("resetGame");
+      socket.off("result");
+      socket.off("errorMessage");
+      socket.off("message");
+      socket.off("lockRoom");
+      socket.off("gameStarted");
+      socket.off("roomSettings");
+      socket.off("gameEnded");
+      // socket.off("summaryData"); // Was part of gameEnded
+      socket.off("currentTurn");
+      socket.off("turnTimerUpdate");
+      socket.off("enableShowResult");
+      socket.off("playerLeft");
+    };
+  }, [myPlayerId, name, roomId]); // Added dependencies
+
+  // --- Action Functions ---
   const createRoom = () => {
     const bal = parseInt(money);
+    if (!name.trim()) {
+      alert("กรุณากรอกชื่อของคุณ");
+      return;
+    }
+    if (bal < 100 || bal % 10 !== 0) {
+      alert("จำนวนเงินขั้นต่ำ 100 และต้องลงท้ายด้วย 0 เท่านั้น");
+      return;
+    }
+    // Server side will generate roomId and send it back in 'roomCreated'
+    socket.emit("createRoom", { playerName: name, initialBalance: bal });
+  };
+
+  const joinRoom = () => {
+    const bal = parseInt(money);
+    if (!name.trim()) {
+      alert("กรุณากรอกชื่อของคุณ");
+      return;
+    }
+    if (!roomId.trim()) {
+      alert("กรุณากรอกรหัสห้อง");
+      return;
+    }
     if (bal < 100 || bal % 10 !== 0) {
       alert("จำนวนเงินขั้นต่ำ 100 และต้องลงท้ายด้วย 0 เท่านั้น");
       return;
     }
     socket.emit(
-      "createRoom",
-      { name, balance: bal },
-      ({ roomId: newRoomId }) => {
-        // เปลี่ยนชื่อ roomId เพื่อไม่ให้ชน
-        setRoomId(newRoomId);
-        setInRoom(true);
+      "joinRoom",
+      { roomId, playerName: name, initialBalance: bal },
+      (res) => {
+        if (res && res.success === false) {
+          // Check for explicit false if server sends success property
+          alert(
+            res.message ||
+              "ไม่สามารถเข้าห้องได้ (อาจเต็ม, ล็อค, หรือไม่มีห้องนี้)"
+          );
+        } else if (!res) {
+          // Assume success if no response object or no success property (older servers)
+          // Client will transition based on 'joinedRoom' event
+        }
       }
     );
   };
 
-  const joinRoom = () => {
-    const bal = parseInt(money);
-    if (bal < 100 || bal % 10 !== 0) {
-      alert("จำนวนเงินขั้นต่ำ 100 และต้องลงท้ายด้วย 0 เท่านั้น");
-      return;
+  const handleSetBet = () => {
+    if (isDealer && !startClicked) {
+      // Can set bet before game starts
+      const amount = parseInt(inputBetAmount);
+      if (amount > 0 && amount % 10 === 0) {
+        socket.emit("setBetAmount", { roomId, amount });
+      } else {
+        alert("จำนวนเงินเดิมพันต้องมากกว่า 0 และลงท้ายด้วย 0");
+      }
     }
-    socket.emit("joinRoom", { roomId, name, balance: bal }, (res) => {
-      if (res.success) setInRoom(true);
-      else alert(res.message || "ไม่สามารถเข้าห้องได้");
-    });
+  };
+
+  const handleToggleLockRoom = () => {
+    if (isDealer && !startClicked) {
+      // Can lock/unlock before game starts
+      socket.emit("lockRoom", { roomId, lock: !roomLocked });
+    }
   };
 
   const startGame = () => {
-    socket.emit("startGame", { roomId });
-    setShowResultBtn(false);
-    // setShowStartAgain(false); // <--- นำออก (state ถูกลบแล้ว)
-    setStartClicked(true);
+    socket.emit("startGame", { roomId }); // Server uses betAmount set for the room
+    // Client state changes will occur on 'gameStarted' event from server
+    // setStartClicked(true); // Handled by gameStarted event
+    // setShowResultBtn(false); // Handled by gameStarted event
   };
 
   const drawCard = () => {
     socket.emit("drawCard", { roomId });
-    setHasStayed(true);
+    setHasStayed(true); // Assume action taken, server confirms with new cards or turn change
   };
 
   const stay = () => {
     socket.emit("stay", { roomId });
-    setHasStayed(true);
+    setHasStayed(true); // Assume action taken
   };
 
   const showResult = () => {
+    // Dealer action
     socket.emit("showResult", { roomId });
-    setGameRound((prev) => prev + 1);
-    // setShowStartAgain(true); // <--- นำออก (state ถูกลบแล้ว)
-    setShowResultBtn(false);
+    setGameRound((prev) => prev + 1); // Your logic for gameRound
+    // setShowResultBtn(false); // Handled by 'result' event
   };
 
   const endGame = () => {
-    socket.emit("endGame", { roomId });
-    socket.emit("requestSummary", { roomId });
+    // Dealer action to end the entire game session
+    socket.emit("endGame", { roomId }); // Server will emit 'gameEnded' with summary
+  };
+
+  const resetGameHandler = () => {
+    // Dealer action to reset for a new round
+    if (isDealer) {
+      socket.emit("resetGame", roomId);
+    }
   };
 
   const exitGame = () => window.location.reload();
 
-  const isMyTurn = currentTurnId === socket.id;
-  const currentPlayer = playerData.find((p) => p.id === currentTurnId);
-  const turnPlayerName = currentPlayer?.name;
-  const turnPlayerRole = currentPlayer?.role;
+  // --- Helper Functions ---
+  const getCardDisplay = (card) => `${card.value}${card.suit}`;
 
-  const summarizeTransactions = (me) => {
-    if (!me || !me.income || !me.expense) {
-      // เพิ่มการตรวจสอบ me และ property
+  const getCardPoint = (v) =>
+    ["J", "Q", "K"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
+
+  const calculateRank = (cards) => {
+    if (!cards || cards.length === 0) return { score: 0, type: "ไม่มีไพ่" };
+    const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
+    let type = `${score} แต้ม`; // Default type
+
+    // Basic Pok Deng logic (can be expanded as in your original)
+    if (cards.length === 2) {
+      const isPok = score === 8 || score === 9;
+      // Simple check for "Deng" (same suit or same value)
+      const isDeng =
+        cards[0].suit === cards[1].suit || cards[0].value === cards[1].value;
+      if (isPok) {
+        type = `ป๊อก ${score}`;
+        if (isDeng) type += " สองเด้ง";
+      } else if (isDeng) {
+        type = `สองเด้ง (${score} แต้ม)`;
+      }
+    } else if (cards.length === 3) {
+      const suits = cards.map((c) => c.suit);
+      const sameSuit = suits.every((s) => s === suits[0]);
+      // Add checks for Tong, Straight, Straight Flush, Three of a Kind (เซียน) etc.
+      // For simplicity, just showing 3-card deng here
+      if (sameSuit) {
+        type = `สามเด้ง (${score} แต้ม)`;
+      }
+    }
+    return { score, type };
+  };
+
+  const myCurrentData = playerData.find((p) => p.id === myPlayerId);
+
+  // Summarize transactions from your original code (can be used with summaryData from server)
+  const summarizeTransactions = (playerSummaryData) => {
+    // This function now expects 'playerSummaryData' to be an object like:
+    // { name: "PlayerX", balance: 1200, net: 200, incomeDetails: [{from: "PlayerY", amount: 50}], expenseDetails: [{to: "PlayerZ", amount: 30}] }
+    // The server would need to provide incomeDetails and expenseDetails if you want this level of "who pays whom" breakdown.
+    // For now, let's assume the server's `summaryData` contains {name, balance, net}.
+    // If your server's `summaryData` is just {name, initialBalance, finalBalance, netChange},
+    // then `incomeDetails` and `expenseDetails` would need to be calculated client-side based on all round results, which is complex.
+    // The `server.js` I provided sends `player.incomeTransactions` and `player.expenseTransactions` in the `gameEnded` summary, which can be used here.
+
+    if (!playerSummaryData || !playerSummaryData.name) {
       return { finalIncome: [], finalExpense: [] };
     }
+
     const incomeMap = {};
     const expenseMap = {};
 
-    me.income.forEach((entry) => {
-      incomeMap[entry.from] = (incomeMap[entry.from] || 0) + entry.amount;
-    });
+    if (playerSummaryData.incomeTransactions) {
+      playerSummaryData.incomeTransactions.forEach((entry) => {
+        incomeMap[entry.fromPlayerName] =
+          (incomeMap[entry.fromPlayerName] || 0) + entry.amount;
+      });
+    }
 
-    me.expense.forEach((entry) => {
-      expenseMap[entry.to] = (expenseMap[entry.to] || 0) + entry.amount;
-    });
+    if (playerSummaryData.expenseTransactions) {
+      playerSummaryData.expenseTransactions.forEach((entry) => {
+        expenseMap[entry.toPlayerName] =
+          (expenseMap[entry.toPlayerName] || 0) + entry.amount;
+      });
+    }
 
     const allNames = new Set([
       ...Object.keys(incomeMap),
@@ -133,368 +428,559 @@ function App() {
     allNames.forEach((person) => {
       const get = incomeMap[person] || 0;
       const give = expenseMap[person] || 0;
-
+      // This logic simplifies net amounts, not gross per transaction for "who pays whom exactly"
+      // For a true "who pays whom", you'd list each transaction or sum per person.
       if (get > give) finalIncome.push({ name: person, amount: get - give });
       else if (give > get)
         finalExpense.push({ name: person, amount: give - get });
     });
-
     return { finalIncome, finalExpense };
   };
 
-  useEffect(() => {
-    socket.on("yourCards", (data) => setMyCards(data.cards));
-    socket.on("resetGame", () => {
-      setHasStayed(false);
-      setResult([]);
-      setErrorMsg("");
-    });
-    socket.on("playersList", (names) => {
-      setPlayers(names);
-      const me = names.find((p) => p.includes(name)); // ใช้ name จาก state
-      setIsDealer(me && me.includes("เจ้ามือ"));
-    });
-    // socket.on("usersInRoom", (users) => { // <--- นำออก
-    //   setUsersInRoom(users);
-    // });
-    socket.on("playersData", (data) => {
-      setPlayerData(data);
-    });
-    socket.on("result", (data) => {
-      setResult(data);
-      setShowSummary(false);
-    });
-    socket.on("errorMessage", (msg) => setErrorMsg(msg)); // ควรเป็น msg.text หรือ msg ตามที่ server ส่งมา
-    socket.on("lockRoom", () => setRoomLocked(true));
-    socket.on("gameEnded", () => {
-      setMyCards([]);
-      setHasStayed(false);
-      setRoomLocked(false);
-      // setIsGameEnded(true); // <--- นำออก (state ถูกลบแล้ว)
-    });
-    socket.on("summaryData", (data) => {
-      setSummaryData(data);
-      setShowSummary(true);
-    });
-    socket.on("currentTurn", ({ id }) => {
-      setCurrentTurnId(id);
-      if (id === socket.id) setCountdown(15);
-    });
-    socket.on("enableShowResult", () => setShowResultBtn(true));
-
-    return () => {
-      socket.off("yourCards");
-      socket.off("resetGame");
-      socket.off("playersList");
-      socket.off("playersData");
-      // socket.off("usersInRoom"); // <--- นำออก
-      socket.off("result");
-      socket.off("errorMessage");
-      socket.off("lockRoom");
-      socket.off("gameEnded");
-      socket.off("summaryData");
-      socket.off("currentTurn");
-      socket.off("enableShowResult");
-    };
-  }, [name]); // name ใช้ใน playersList listener
-
-  // ใน App.js
-
-  const getCardPoint = (
-    v // ฟังก์ชันนี้ควรมีอยู่แล้ว
-  ) => (["J", "Q", "K"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v));
-
-  const calculateRank = (cards) => {
-    if (!cards || cards.length === 0) return { score: 0, type: "ไม่มีไพ่" };
-
-    const values = cards.map((c) => c.value);
-    const suits = cards.map((c) => c.suit);
-    const score = cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
-
-    // เพิ่มตรรกะการตรวจสอบประเภทไพ่ที่ซับซ้อนขึ้น (คล้ายกับ getHandRank ใน server)
-    // ตัวอย่างเบื้องต้น:
-    let type = "แต้มธรรมดา";
-    const sameSuit = suits.length > 0 && suits.every((s) => s === suits[0]);
-
-    if (cards.length === 2) {
-      const isPok = score === 8 || score === 9;
-      const isDouble =
-        cards[0].value === cards[1].value || cards[0].suit === cards[1].suit;
-      if (isPok) {
-        type = `ป๊อก ${score}`;
-        if (isDouble) type += " สองเด้ง";
-      } else if (isDouble) {
-        type = `${score} แต้ม สองเด้ง`;
-      } else {
-        type = `${score} แต้ม`;
-      }
-    } else if (cards.length === 3) {
-      const count = {};
-      values.forEach((v) => (count[v] = (count[v] || 0) + 1));
-      const allJQK = values.every((v) => ["J", "Q", "K"].includes(v));
-      const sortedNumericalValues = cards
-        .map(
-          (c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value))
-        )
-        .sort((a, b) => a - b);
-      const isQKA =
-        sortedNumericalValues[0] === 1 &&
-        sortedNumericalValues[1] === 12 &&
-        sortedNumericalValues[2] === 13;
-      const isStraight =
-        (sortedNumericalValues[1] === sortedNumericalValues[0] + 1 &&
-          sortedNumericalValues[2] === sortedNumericalValues[1] + 1) ||
-        isQKA;
-
-      if (Object.values(count).includes(3)) type = "ตอง";
-      else if (isStraight && sameSuit) type = "สเตรทฟลัช";
-      else if (allJQK) type = "เซียน";
-      else if (isStraight) type = "เรียง";
-      else if (sameSuit) type = `${score} แต้ม สามเด้ง`; // หรือ "สี"
-      else type = `${score} แต้ม`;
-    } else {
-      type = `${score} แต้ม`; // กรณีอื่นๆ หรือไพ่ 1 ใบ
-    }
-    // สรุป type และ score
-    // ควรจะคืน object เพื่อให้สอดคล้องกับ getHandRank ของ server
-    // แต่ในโค้ดตัวอย่างข้างบน type มันรวม score ไปแล้ว
-    // เราอาจจะปรับให้ calculateRank คืนค่าเป็น { score: calculatedScore, type: calculatedTypeString }
-    // เพื่อให้การแสดงผลใน JSX ชัดเจนขึ้น
-
-    // ตัวอย่างการคืนค่าแบบ Object (แนะนำ):
-    let finalType = "แต้มธรรมดา";
-    // ... (ตรรกะการหาประเภทไพ่ที่ละเอียดเหมือน getHandRank ของ server ควรอยู่ที่นี่) ...
-    // สมมติว่าเรามีตรรกะที่สมบูรณ์แล้ว:
-    if (cards.length === 2) {
-      const isPok = score === 8 || score === 9;
-      const isDoubleCard =
-        cards[0].value === cards[1].value || cards[0].suit === cards[1].suit;
-      if (isPok) {
-        finalType = isDoubleCard ? `ป๊อก ${score} สองเด้ง` : `ป๊อก ${score}`;
-      } else if (isDoubleCard) {
-        finalType = `สองเด้ง`; // หรือจะรวมแต้มเข้าไปด้วยก็ได้ เช่น `${score} แต้ม สองเด้ง`
-      }
-    } else if (cards.length === 3) {
-      // ตรวจสอบตอง, สเตรทฟลัช, เซียน, เรียง, สี
-      const valueCounts = values.reduce((acc, value) => {
-        acc[value] = (acc[value] || 0) + 1;
-        return acc;
-      }, {});
-      if (Object.values(valueCounts).includes(3)) finalType = "ตอง";
-      // ... (เพิ่มเงื่อนไขอื่นๆ สำหรับไพ่ 3 ใบ) ...
-      else if (sameSuit) finalType = "สามเด้ง"; // หรือ สี
-    }
-
-    return { score: score, type: finalType }; // คืนเป็น Object
-  };
-
+  // --- JSX Rendering ---
   if (showSummary) {
-    const me = summaryData.find((p) => p.name && p.name.startsWith(name)); // ตรวจสอบ p.name ก่อน startsWith
-    const { finalIncome, finalExpense } = me
-      ? summarizeTransactions(me)
+    // Find 'me' in summaryData (which comes from server's 'gameEnded' event)
+    const meInSummary = summaryData.find(
+      (p) => p.id === myPlayerId || p.name.startsWith(name)
+    );
+    const { finalIncome, finalExpense } = meInSummary
+      ? summarizeTransactions(meInSummary) // Pass the specific player's summary object
       : { finalIncome: [], finalExpense: [] };
 
     return (
-      <div style={{ padding: 20 }}>
-        <h2>สรุปยอดเงินหลังจบเกม</h2>
+      <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+        <h2>สรุปยอดเงินหลังจบเกม (ห้อง: {roomId})</h2>
         <table
           border="1"
-          cellPadding="10"
-          style={{ borderCollapse: "collapse", width: "auto" }}
+          cellPadding="5"
+          style={{
+            borderCollapse: "collapse",
+            width: "auto",
+            marginBottom: 20,
+          }}
         >
           <thead>
             <tr>
               <th>ลำดับ</th>
-              <th>ชื่อ</th>
-              <th>ยอดเงินคงเหลือ</th>
-              <th>กำไร/ขาดทุน</th>
+              <th>ชื่อผู้เล่น</th>
+              <th>บทบาท</th>
+              <th>ยอดเงินเริ่มต้น</th>
+              <th>ยอดเงินสุดท้าย</th>
+              <th>กำไร/ขาดทุนสุทธิ</th>
             </tr>
           </thead>
           <tbody>
             {summaryData.map((p, i) => (
-              <tr key={i}>
+              <tr key={p.id || i}>
                 <td>{i + 1}</td>
-                <td>{p.name}</td>
-                <td>{p.balance} บาท</td>
-                <td style={{ color: p.net >= 0 ? "green" : "red" }}>
-                  {p.net >= 0 ? `+${p.net}` : p.net} บาท
+                <td>
+                  {p.name} {p.disconnectedMidGame ? "(หลุดระหว่างเกม)" : ""}
+                </td>
+                <td>{p.role}</td>
+                <td>{p.initialBalance?.toLocaleString()} บาท</td>
+                <td>{p.finalBalance?.toLocaleString()} บาท</td>
+                <td style={{ color: p.netChange >= 0 ? "green" : "red" }}>
+                  {p.netChange >= 0
+                    ? `+${p.netChange?.toLocaleString()}`
+                    : p.netChange?.toLocaleString()}{" "}
+                  บาท
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
-        <h3>ชื่อ : {me?.name}</h3>
-        <h3>
-          <span style={{ color: "green" }}>
-            ได้จาก :{" "}
-            {finalIncome.map((e) => `${e.name} (${e.amount} บาท)`).join(", ") ||
-              "-"}
-          </span>
-        </h3>
-        <h3>
-          <span style={{ color: "red" }}>
-            โอนให้ :{" "}
-            {finalExpense
-              .map((e) => `${e.name} (${e.amount} บาท)`)
-              .join(", ") || "-"}
-          </span>
-        </h3>
-        <button onClick={exitGame}>ออกจากเกม</button>
+        {meInSummary && (
+          <>
+            <h2>สรุปยอดต้องโอนให้และต้องได้สำหรับ: {meInSummary.name}</h2>
+            <h3>
+              <span style={{ color: "green" }}>
+                ยอดที่ได้รับจากคนอื่นรวม:{" "}
+                {finalIncome
+                  .map((e) => `${e.name} (${e.amount.toLocaleString()} บาท)`)
+                  .join(", ") || "-"}
+              </span>
+            </h3>
+            <h3>
+              <span style={{ color: "red" }}>
+                ยอดที่ต้องจ่ายให้คนอื่นรวม:{" "}
+                {finalExpense
+                  .map((e) => `${e.name} (${e.amount.toLocaleString()} บาท)`)
+                  .join(", ") || "-"}
+              </span>
+            </h3>
+          </>
+        )}
+        <button
+          onClick={exitGame}
+          style={{ padding: "10px 15px", marginTop: "20px" }}
+        >
+          ออกจากเกม (เริ่มใหม่)
+        </button>
       </div>
     );
   }
 
-  return (
-    <div style={{ padding: 20 }}>
-      {!inRoom ? (
-        <div>
-          {" "}
-          <h2>ป๊อกเด้งออนไลน์</h2>
-          <input
-            type="text" // เพิ่ม type attribute
-            placeholder="ชื่อคุณ"
-            value={name} // ควบคุม component
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            type="number" // เพิ่ม type attribute
-            placeholder="จำนวนเงิน (ขั้นต่ำ 100)"
-            value={money} // ควบคุม component
-            onChange={(e) => setMoney(e.target.value)}
-          />
-          <input
-            type="text" // เพิ่ม type attribute
-            placeholder="Room ID (หากต้องการเข้าร่วม)"
-            value={roomId} // ควบคุม component
-            onChange={(e) => setRoomId(e.target.value)}
-          />{" "}
-          <br /> <button onClick={createRoom}>สร้างห้องใหม่</button>{" "}
-          <button onClick={joinRoom} disabled={!roomId || roomLocked}>
-            {" "}
-            {/* ปรับปรุงเงื่อนไข disabled */}
-            เข้าร่วมห้อง{" "}
-          </button>
-          {roomLocked &&
-            !inRoom && ( // แสดงเมื่อ roomLocked และยังไม่ได้เข้าห้อง
-              <p style={{ color: "orange" }}>
-                เกมในห้องนี้กำลังเล่นอยู่ ไม่สามารถเข้าร่วมได้{" "}
-              </p>
-            )}
-        </div>
-      ) : (
-        <div>
-          {" "}
-          <h2>ห้อง: {roomId}</h2> <p>ชื่อ : {name}</p>{" "}
-          <p>
-            บท:{" "}
-            {isDealer
-              ? "เจ้ามือ"
-              : players
-                  .find((p) => p.includes(name)) // players คือ string array จาก playersList
-                  ?.split("(")[1]
-                  ?.replace(")", "")}{" "}
+  if (!inRoom) {
+    return (
+      <div
+        style={{
+          padding: 20,
+          fontFamily: "sans-serif",
+          textAlign: "center",
+          maxWidth: "400px",
+          margin: "50px auto",
+        }}
+      >
+        <h2>ป๊อกเด้งออนไลน์</h2>
+        {errorMsg && (
+          <p
+            style={{
+              color: "red",
+              backgroundColor: "#ffe0e0",
+              padding: "10px",
+              borderRadius: "5px",
+            }}
+          >
+            {errorMsg}
           </p>
-          {isDealer && (
-            <>
-              {/* ปุ่มเริ่มเกม จะแสดงเมื่อเป็นเจ้ามือ, ยังไม่ได้กดเริ่ม(startClicked=false), และเป็นรอบแรก (gameRound=0) หรือ ผลลัพธ์มีแล้ว (พร้อมเริ่มรอบใหม่) */}
-              {(!startClicked || result.length > 0) && (
-                <button onClick={startGame}>
-                  {result.length > 0 || gameRound > 0
-                    ? "เริ่มเกมอีกครั้ง"
-                    : "เริ่มเกม"}
-                </button>
-              )}
-              {showResultBtn && <button onClick={showResult}>เปิดไพ่</button>}
-            </>
-          )}
-          {errorMsg && (
-            <p style={{ color: "red" }}>
-              {typeof errorMsg === "object" ? errorMsg.text : errorMsg}
-            </p>
-          )}
-          <h4>ผู้เล่นภายในห้องนี้:</h4>
-          <ul>
-            {playerData.map((user) => (
-              <li key={user.id}>
-                {user.name} ({user.role}) = {user.balance} บาท{" "}
-                {/* ไม่มีการใช้ user.leftEarly จากโค้ด server ที่ให้มา */}
-              </li>
-            ))}
-          </ul>
-          {myCards.length > 0 &&
-            result.length === 0 && ( // ตรวจสอบว่ามีไพ่ และยังไม่มีผลลัพธ์
-              <div>
-                <h3>ไพ่ของคุณ:</h3>
-                <p>
-                  {myCards
-                    .map((card) => `${card.value}${card.suit}`)
-                    .join(", ")}
-                  {myCards.length > 0 &&
-                    ` = ${calculateRank(myCards).score} แต้ม (${
-                      calculateRank(myCards).type
-                    })`}
-                </p>
-                {!hasStayed && myCards.length === 2 && isMyTurn && (
-                  <>
-                    <p style={{ color: "blue" }}>เวลาคิด: {countdown} วินาที</p>
-                    <button onClick={drawCard}>จั่ว</button>
-                    <button onClick={stay}>ไม่จั่ว</button>
-                  </>
-                )}
-                {!isMyTurn && currentPlayer && (
-                  <p style={{ color: "gray" }}>
-                    รอ...({turnPlayerRole}) {turnPlayerName} จั่ว ⌛
-                  </p>
-                )}
-              </div>
-            )}
-          {result.length > 0 && (
-            <div>
-              <h3>ผลลัพธ์:</h3>
-              <ul>
-                {result.map((r, i) => {
-                  const isCurrentPlayerDealer = r.outcome === "dealer";
-                  let dealerNet = 0;
-                  if (isCurrentPlayerDealer) {
-                    const dealerIncome = result
-                      .filter((x) => x.outcome === "lose")
-                      .reduce((sum, x) => sum + -x.moneyChange, 0);
-                    const dealerLoss = result
-                      .filter((x) => x.outcome === "win")
-                      .reduce((sum, x) => sum + x.moneyChange, 0);
-                    dealerNet = dealerIncome - dealerLoss;
-                  }
+        )}
+        <input
+          type="text"
+          placeholder="ชื่อคุณ"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{
+            display: "block",
+            width: "90%",
+            padding: 10,
+            margin: "10px auto",
+            borderRadius: 5,
+            border: "1px solid #ccc",
+          }}
+        />
+        <input
+          type="number"
+          placeholder="จำนวนเงิน (ขั้นต่ำ 100, ลงท้ายด้วย 0)"
+          value={money}
+          onChange={(e) => setMoney(e.target.value)}
+          style={{
+            display: "block",
+            width: "90%",
+            padding: 10,
+            margin: "10px auto",
+            borderRadius: 5,
+            border: "1px solid #ccc",
+          }}
+        />
 
-                  return (
-                    <li key={i}>
-                      {r.name}: {r.cards} = {r.sum} แต้ม ({r.specialType})
-                      {isCurrentPlayerDealer && (
-                        <>
-                          {dealerNet > 0 && ` ✅ เจ้ามือ ได้ ${dealerNet} บาท`}
-                          {dealerNet < 0 &&
-                            ` ❌ เจ้ามือ เสีย ${-dealerNet} บาท`}
-                          {dealerNet === 0 && ` 🤝 เจ้ามือ เสมอ`}
-                        </>
-                      )}
-                      {r.outcome === "win" &&
-                        ` ✅ ชนะ : ได้ ${r.moneyChange} บาท`}
-                      {r.outcome === "lose" &&
-                        ` ❌ แพ้ : เสีย ${-r.moneyChange} บาท`}
-                      {r.outcome === "draw" && ` 🤝 เสมอ (กับเจ้ามือ)`}
-                    </li>
-                  );
-                })}
-              </ul>
-              {isDealer &&
-                result.length > 0 && ( // ให้เจ้ามือเห็นปุ่มจบเกมเมื่อมีผลลัพธ์แล้ว
-                  <button onClick={endGame}>จบเกม (ดูสรุปยอด)</button>
-                )}
-            </div>
+        <div style={{ marginTop: 20 }}>
+          <button
+            onClick={createRoom}
+            style={{
+              padding: "10px 20px",
+              marginRight: 10,
+              backgroundColor: "#28a745",
+              color: "white",
+              border: "none",
+              borderRadius: 5,
+            }}
+          >
+            สร้างห้องใหม่
+          </button>
+        </div>
+        <hr style={{ margin: "20px 0" }} />
+        <input
+          type="text"
+          placeholder="Room ID (หากต้องการเข้าร่วม)"
+          value={roomId}
+          onChange={(e) => setRoomId(e.target.value)}
+          style={{
+            display: "block",
+            width: "90%",
+            padding: 10,
+            margin: "10px auto",
+            borderRadius: 5,
+            border: "1px solid #ccc",
+          }}
+        />
+        <button
+          onClick={joinRoom}
+          disabled={!roomId}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#007bff",
+            color: "white",
+            border: "none",
+            borderRadius: 5,
+          }}
+        >
+          เข้าร่วมห้อง
+        </button>
+        {roomLocked && (
+          <p style={{ color: "orange", marginTop: 10 }}>
+            ห้องนี้อาจกำลังเล่นอยู่ หรือถูกล็อค
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  // --- In Room View ---
+  const { score: myHandScore, type: myHandType } = calculateRank(myCards);
+  const isMyTurn = currentTurnId === myPlayerId;
+
+  return (
+    <div style={{ padding: 20, fontFamily: "sans-serif" }}>
+      <h2>
+        ห้อง: {roomId} (เดิมพันรอบละ:{" "}
+        {betAmount > 0 ? `${betAmount.toLocaleString()} บาท` : "รอเจ้ามือกำหนด"}
+        )
+      </h2>
+      <p>
+        ชื่อของคุณ: {name} {isDealer ? "(เจ้ามือ)" : `(ผู้เล่น)`} | ID:{" "}
+        {myPlayerId?.substring(0, 5)} | ยอดเงินปัจจุบัน:{" "}
+        {myCurrentData?.balance?.toLocaleString() || money}
+      </p>
+      <p style={{ color: roomLocked ? "red" : "green" }}>
+        สถานะห้อง:{" "}
+        {roomLocked
+          ? "ล็อค (ผู้เล่นใหม่เข้าไม่ได้)"
+          : "เปิด (ผู้เล่นใหม่เข้าได้)"}
+      </p>
+
+      {errorMsg && (
+        <p
+          style={{
+            color: "saddlebrown",
+            backgroundColor: "#fff3cd",
+            padding: "10px",
+            borderRadius: "5px",
+            border: "1px solid #ffeeba",
+          }}
+        >
+          {errorMsg}
+        </p>
+      )}
+
+      {/* Dealer Controls */}
+      {isDealer && !startClicked && result.length === 0 && (
+        <div
+          style={{
+            border: "1px solid #007bff",
+            padding: 15,
+            margin: "15px 0",
+            borderRadius: 5,
+            backgroundColor: "#e7f3ff",
+          }}
+        >
+          <h4>ตั้งค่าเกม (เจ้ามือ):</h4>
+          <div>
+            <label>เงินเดิมพันต่อรอบ: </label>
+            <input
+              type="number"
+              value={inputBetAmount}
+              onChange={(e) => setInputBetAmount(e.target.value)}
+              step="10"
+              min="10"
+              style={{ padding: 5, marginRight: 5 }}
+            />
+            <button onClick={handleSetBet} style={{ padding: "5px 10px" }}>
+              ตั้งค่าเดิมพัน
+            </button>
+          </div>
+          <button
+            onClick={handleToggleLockRoom}
+            style={{ padding: "5px 10px", margin: "10px 5px 0 0" }}
+          >
+            {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
+          </button>
+          <button
+            onClick={startGame}
+            disabled={betAmount <= 0}
+            style={{
+              padding: "10px 15px",
+              margin: "10px 0 0 0",
+              backgroundColor: "#28a745",
+              color: "white",
+            }}
+          >
+            {gameRound > 0 || result.length > 0
+              ? "เริ่มเกมรอบใหม่"
+              : "เริ่มเกม"}
+          </button>
+        </div>
+      )}
+      {isDealer && startClicked && showResultBtn && result.length === 0 && (
+        <button
+          onClick={showResult}
+          style={{
+            padding: "10px 15px",
+            backgroundColor: "#dc3545",
+            color: "white",
+            margin: "10px 0",
+          }}
+        >
+          เปิดไพ่ทั้งหมด (เจ้ามือ)
+        </button>
+      )}
+
+      <h4>ผู้เล่นภายในห้องนี้ ({playerData.length} คน):</h4>
+      <ul style={{ listStyleType: "none", paddingLeft: 0 }}>
+        {playerData.map((user) => (
+          <li
+            key={user.id}
+            style={{
+              padding: "5px 0",
+              borderBottom: "1px dotted #eee",
+              color: user.id === currentTurnId ? "blue" : "inherit",
+              fontWeight: user.id === currentTurnId ? "bold" : "normal",
+            }}
+          >
+            {user.name} ({user.role}) - ยอดเงิน:{" "}
+            {user.balance?.toLocaleString()} บาท
+            {user.id === currentTurnId &&
+              ` (กำลังเล่น... ${currentTurnInfo.timeLeft} วิ)`}
+            {user.isDealer && " (เจ้ามือ)"}
+          </li>
+        ))}
+      </ul>
+
+      {myCards.length > 0 && result.length === 0 && (
+        <div
+          style={{
+            border: "1px solid green",
+            padding: 15,
+            margin: "15px 0",
+            borderRadius: 5,
+            backgroundColor: "#e6ffed",
+          }}
+        >
+          <h3>ไพ่ของคุณ: {myCards.map(getCardDisplay).join(", ")}</h3>
+          <p>
+            แต้ม: {myHandScore}, ประเภท: {myHandType}
+          </p>
+          {!isDealer && isMyTurn && myCards.length === 2 && !hasStayed && (
+            <>
+              <p style={{ color: "blue", fontWeight: "bold" }}>
+                ตาของคุณ! เวลาตัดสินใจ: {countdown} วินาที
+              </p>
+              <button
+                onClick={drawCard}
+                style={{
+                  padding: "8px 12px",
+                  marginRight: 10,
+                  backgroundColor: "#17a2b8",
+                  color: "white",
+                }}
+              >
+                จั่วไพ่
+              </button>
+              <button
+                onClick={stay}
+                style={{
+                  padding: "8px 12px",
+                  backgroundColor: "#6c757d",
+                  color: "white",
+                }}
+              >
+                อยู่ (ไม่จั่ว)
+              </button>
+            </>
           )}
         </div>
       )}
+
+      {!isMyTurn && currentTurnId && result.length === 0 && startClicked && (
+        <p style={{ color: "gray", fontStyle: "italic", marginTop: 15 }}>
+          รอ... ({currentTurnInfo.role}) {currentTurnInfo.name} กำลังตัดสินใจ (
+          {currentTurnInfo.timeLeft} วิ) ⌛
+        </p>
+      )}
+      {isDealer &&
+        !startClicked &&
+        result.length > 0 && ( // After results, dealer can start new round or end game
+          <div
+            style={{
+              marginTop: 20,
+              paddingTop: 15,
+              borderTop: "1px solid #ccc",
+            }}
+          >
+            <button
+              onClick={startGame}
+              style={{
+                padding: "10px 15px",
+                marginRight: 10,
+                backgroundColor: "#28a745",
+                color: "white",
+              }}
+            >
+              เริ่มเกมรอบใหม่
+            </button>
+            <button
+              onClick={endGame}
+              style={{
+                padding: "10px 15px",
+                backgroundColor: "#dc3545",
+                color: "white",
+              }}
+            >
+              จบเกมทั้งหมด (ดูสรุปยอด)
+            </button>
+          </div>
+        )}
+      {isDealer &&
+        startClicked &&
+        result.length === 0 &&
+        !showResultBtn &&
+        !currentTurnId && (
+          <p style={{ fontStyle: "italic", color: "purple" }}>
+            รอผู้เล่นทุกคนตัดสินใจ หรือรอเจ้ามือกด "เปิดไพ่ทั้งหมด"...
+          </p>
+        )}
+
+      {result.length > 0 && (
+        <div
+          style={{
+            marginTop: 30,
+            paddingTop: 20,
+            borderTop: "2px solid #007bff",
+          }}
+        >
+          <h3>
+            ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
+            บาท)
+          </h3>
+          <table
+            border="1"
+            cellPadding="5"
+            style={{ borderCollapse: "collapse", width: "100%" }}
+          >
+            <thead>
+              <tr>
+                <th>ชื่อผู้เล่น (บทบาท)</th>
+                <th>ไพ่ที่ได้</th>
+                <th>แต้มรวม</th>
+                <th>ประเภทไพ่</th>
+                <th>ผลลัพธ์</th>
+                <th>ได้/เสีย</th>
+                <th>ยอดเงินใหม่</th>
+              </tr>
+            </thead>
+            <tbody>
+              {result.map((r, i) => (
+                <tr
+                  key={r.id || i}
+                  style={{
+                    backgroundColor:
+                      r.id === myPlayerId
+                        ? "#d4edda"
+                        : r.disconnectedMidGame
+                        ? "#fff3cd"
+                        : "transparent",
+                  }}
+                >
+                  <td>{r.name}</td>
+                  <td>{r.cardsDisplay || "N/A"}</td>
+                  <td>{r.score}</td>
+                  <td>{r.specialType}</td>
+                  <td
+                    style={{
+                      fontWeight: "bold",
+                      color:
+                        r.outcome === "win"
+                          ? "green"
+                          : r.outcome === "lose"
+                          ? "red"
+                          : r.outcome === "draw"
+                          ? "orange"
+                          : "inherit",
+                    }}
+                  >
+                    {r.outcome === "win"
+                      ? "ชนะ"
+                      : r.outcome === "lose"
+                      ? "แพ้"
+                      : r.outcome === "draw"
+                      ? "เสมอ"
+                      : r.outcome}{" "}
+                    {/* Display special outcomes like 'แพ้ (หลุดระหว่างเกม)' directly */}
+                  </td>
+                  <td
+                    style={{
+                      color:
+                        r.moneyChange > 0
+                          ? "green"
+                          : r.moneyChange < 0
+                          ? "red"
+                          : "grey",
+                    }}
+                  >
+                    {r.moneyChange !== 0
+                      ? r.moneyChange?.toLocaleString()
+                      : "-"}
+                  </td>
+                  <td>{r.balance?.toLocaleString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {/* Moved dealer buttons for next round/end game to appear after results IF NOT ALREADY STARTED A NEW ROUND */}
+          {isDealer &&
+            !startClicked && ( // Only show if a new game hasn't been clicked yet
+              <div
+                style={{
+                  marginTop: 20,
+                  paddingTop: 15,
+                  borderTop: "1px solid #ccc",
+                }}
+              >
+                <button
+                  onClick={startGame}
+                  style={{
+                    padding: "10px 15px",
+                    marginRight: 10,
+                    backgroundColor: "#28a745",
+                    color: "white",
+                  }}
+                >
+                  เริ่มเกมรอบใหม่
+                </button>
+                <button
+                  onClick={endGame}
+                  style={{
+                    padding: "10px 15px",
+                    backgroundColor: "#dc3545",
+                    color: "white",
+                  }}
+                >
+                  จบเกมทั้งหมด (ดูสรุปยอด)
+                </button>
+              </div>
+            )}
+          {!isDealer && result.length > 0 && !startClicked && (
+            <p style={{ fontStyle: "italic", color: "purple", marginTop: 15 }}>
+              {" "}
+              --- รอเจ้ามือเริ่มเกมรอบใหม่ หรือ จบเกม ---
+            </p>
+          )}
+        </div>
+      )}
+      <button
+        onClick={exitGame}
+        style={{
+          padding: "10px 15px",
+          marginTop: "30px",
+          display: "block",
+          marginLeft: "auto",
+          marginRight: "auto",
+          backgroundColor: "#6c757d",
+          color: "white",
+        }}
+      >
+        ออกจากห้อง/เกม (โหลดใหม่)
+      </button>
     </div>
   );
 }
