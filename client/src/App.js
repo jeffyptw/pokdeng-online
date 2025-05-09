@@ -545,7 +545,10 @@ function App() {
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
         <p className={isConnected ? "status-connected" : "status-connecting"}>
-          {isConnected ? "เชื่อมต่อแล้ว" : "กำลังเชื่อมต่อกับเซิฟเวอร์..."}
+          สถานะ:{" "}
+          {isConnected
+            ? "เชื่อมต่อกับเซิฟเวอร์แล้ว"
+            : "กำลังเชื่อมต่อกับเซิฟเวอร์..."}
         </p>
 
         {errorMsg && <p className="error-message">{errorMsg}</p>}
