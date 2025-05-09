@@ -5,23 +5,25 @@ const socketIO = require("socket.io");
 const cors = require("cors");
 
 const app = express();
-app.use(cors()); // ใช้ cors middleware ทั่วไปก่อน
+app.use(cors());
 const server = http.createServer(app);
 const io = socketIO(server, {
   cors: {
     origin: [
-      "https://pokdeng-online1.onrender.com",
-      "http://localhost:3000",
-      "http://localhost:5173",
-    ], // URL ของ Client ที่อนุญาต
+      "https://pokdeng-online1.onrender.com", // Your deployed client
+      "http://localhost:3000", // Common React dev port
+      "http://localhost:3001", // If server and client on different local ports
+      "http://localhost:5173", // Common Vite dev port
+      "http://127.0.0.1:5173", // Another common Vite dev port
+    ],
     methods: ["GET", "POST"],
     credentials: true,
   },
 });
 
 const rooms = {};
-const DEFAULT_BET_AMOUNT = 5;
-const TURN_DURATION = 30; // seconds
+const DEFAULT_BET_AMOUNT = 5; // ตามที่คุณตั้งไว้
+const TURN_DURATION = 30;
 
 function generateRoomId() {
   return Math.random().toString(36).substring(2, 7).toLowerCase();
@@ -62,10 +64,10 @@ function shuffleDeck(deck) {
 }
 
 const getCardPoint = (value) => {
-  if (["K", "Q", "J"].includes(value)) return 0; // 10, J, Q, K มีค่า 0 แต้มในป๊อกเด้ง (10 ก็ 0)
-  if (value === "10") return 0;
+  if (["K", "Q", "J", "10"].includes(value)) return 0;
   if (value === "A") return 1;
-  return parseInt(value);
+  const parsedValue = parseInt(value);
+  return isNaN(parsedValue) ? 0 : parsedValue; // Handle non-numeric like A,K,Q,J if not caught before
 };
 
 const calculateScore = (cards) => {
@@ -102,16 +104,18 @@ function getHandRank(cards) {
   };
   const sortedNumericalValues = cards
     .map((c) => numericalValueMapping[c.value])
+    .filter((val) => typeof val === "number")
     .sort((a, b) => a - b);
 
   const isQKAStraight =
     cards.length === 3 &&
+    sortedNumericalValues.length === 3 &&
     sortedNumericalValues[0] === 1 &&
     sortedNumericalValues[1] === 12 &&
     sortedNumericalValues[2] === 13;
   const isNormalStraight =
     cards.length === 3 &&
-    sortedNumericalValues.length === 3 && // Ensure 3 cards for straight
+    sortedNumericalValues.length === 3 &&
     sortedNumericalValues[0] + 1 === sortedNumericalValues[1] &&
     sortedNumericalValues[1] + 1 === sortedNumericalValues[2];
   const isStraight = isNormalStraight || isQKAStraight;
@@ -147,18 +151,18 @@ function getHandRank(cards) {
 
   if (cards.length === 3) {
     if (Object.values(count).includes(3)) {
-      // Tong
-      const tongValue = numericalValueMapping[values[0]]; // Assuming all values are same for Tong
+      const tongValue = numericalValueMapping[values[0]];
       return {
         rank: 2,
         type: "ตอง",
         score: tongValue,
         tieBreakingValue: 20 + tongValue,
-      }; // Use actual card value for score/tieBreaking
+      };
     }
     if (isStraight && sameSuit) {
-      // Straight Flush
-      const highCardValue = isQKAStraight ? 14 : sortedNumericalValues[2]; // A in QKA is highest
+      const highCardValue = isQKAStraight
+        ? 13.5
+        : sortedNumericalValues[2] || 0;
       return {
         rank: 3,
         type: "สเตรทฟลัช",
@@ -169,8 +173,9 @@ function getHandRank(cards) {
     if (allJQK)
       return { rank: 4, type: "เซียน", score: 0, tieBreakingValue: 18 };
     if (isStraight) {
-      // Straight
-      const highCardValue = isQKAStraight ? 14 : sortedNumericalValues[2];
+      const highCardValue = isQKAStraight
+        ? 13.5
+        : sortedNumericalValues[2] || 0;
       return {
         rank: 5,
         type: "เรียง",
@@ -187,12 +192,12 @@ function getHandRank(cards) {
       };
     return { rank: 6, type: "แต้มธรรมดา", score, tieBreakingValue: score };
   }
-  return { rank: 6, type: "แต้มธรรมดา", score, tieBreakingValue: score }; // Default for other cases
+  return { rank: 6, type: "แต้มธรรมดา", score, tieBreakingValue: score };
 }
 
 function sendPlayersData(roomId) {
   const room = rooms[roomId];
-  if (!room) return;
+  if (!room || !room.players) return;
   const activePlayerData = room.players.map((p) => ({
     id: p.id,
     name: p.name,
@@ -202,31 +207,41 @@ function sendPlayersData(roomId) {
   }));
   console.log(
     `[Server] Emitting 'playersData' for room ${roomId}:`,
-    JSON.stringify(activePlayerData)
+    JSON.stringify(
+      activePlayerData.map((p) => ({ name: p.name, role: p.role }))
+    )
   );
   io.to(roomId).emit("playersData", activePlayerData);
 }
 
 function getOrderedGamePlayersForTurns(participants, dealerId) {
-  if (!participants || participants.length === 0) return [];
+  if (!participants || participants.length === 0) {
+    console.log("[Server] getOrderedGamePlayersForTurns: No participants.");
+    return [];
+  }
   const actualPlayers = participants.filter(
     (p) => p.id !== dealerId && !p.disconnectedMidGame
   );
-
-  // Sort by role "ผู้เล่นที่ X"
   actualPlayers.sort((a, b) => {
-    const numA = parseInt(a.role.match(/\d+/)?.[0] || "99");
-    const numB = parseInt(b.role.match(/\d+/)?.[0] || "99");
+    const numA = parseInt(a.role.match(/\d+/)?.[0] || "999");
+    const numB = parseInt(b.role.match(/\d+/)?.[0] || "999");
     return numA - numB;
   });
+  console.log(
+    "[Server] Ordered players for turns (IDs):",
+    actualPlayers.map((p) => p.id)
+  );
   return actualPlayers.map((p) => ({ id: p.id, name: p.name, role: p.role }));
 }
 
 function clearTurnTimer(roomId) {
   const room = rooms[roomId];
   if (room) {
-    if (room.turnTimer) clearInterval(room.turnTimer);
-    room.turnTimer = null;
+    if (room.turnTimer) {
+      clearInterval(room.turnTimer);
+      room.turnTimer = null;
+    }
+    console.log(`[Server] Cleared turn timer for room ${roomId}`);
   }
 }
 
@@ -252,22 +267,20 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
   let foundNextPlayer = false;
 
   console.log(
-    `[Server] startNextTurn: Starting search for next player from index ${nextPlayerOrderIdx} in orderedGamePlayers of length ${room.orderedGamePlayers.length}`
+    `[Server] startNextTurn: Room ${roomId}. Previous index: ${previousPlayerOrderIndex}. Starting search for next player from order index ${nextPlayerOrderIdx}. Total ordered players: ${room.orderedGamePlayers.length}`
   );
 
   while (attempts < room.orderedGamePlayers.length) {
     if (nextPlayerOrderIdx >= room.orderedGamePlayers.length) {
       console.log(
-        "[Server] startNextTurn: Reached end of orderedGamePlayers. All players taken their turn or skipped."
+        `[Server] startNextTurn: Room ${roomId}. Reached end of orderedGamePlayers.`
       );
-      break; // Reached end of list
+      break;
     }
     const playerInfoFromOrder = room.orderedGamePlayers[nextPlayerOrderIdx];
     if (!playerInfoFromOrder) {
-      // Should not happen if logic is correct
       console.warn(
-        "[Server] startNextTurn: playerInfoFromOrder is undefined at index",
-        nextPlayerOrderIdx
+        `[Server] startNextTurn: Room ${roomId}. playerInfoFromOrder is undefined at index ${nextPlayerOrderIdx}`
       );
       attempts++;
       nextPlayerOrderIdx++;
@@ -279,7 +292,7 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
     );
 
     console.log(
-      `[Server] startNextTurn: Trying player ${
+      `[Server] startNextTurn: Room ${roomId}. Trying player ${
         participant ? participant.name : "N/A"
       } (ID: ${
         playerInfoFromOrder.id
@@ -299,7 +312,7 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
       room.currentTurnId = participant.id;
       let timeLeft = TURN_DURATION;
       console.log(
-        `[Server] Current turn for ${participant.name} (ID: ${participant.id}), timeLeft: ${timeLeft}`
+        `[Server] Current turn for ${participant.name} (ID: ${participant.id}) in room ${roomId}, timeLeft: ${timeLeft}`
       );
       io.to(roomId).emit("currentTurn", {
         id: participant.id,
@@ -316,6 +329,7 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
         });
         if (timeLeft <= 0) {
           clearInterval(room.turnTimer);
+          room.turnTimer = null;
           const playerTimedOut = room.participantsInRound.find(
             (p) => p.id === room.currentTurnId
           );
@@ -326,7 +340,7 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
           ) {
             playerTimedOut.hasStayed = true;
             console.log(
-              `[Server] Player ${playerTimedOut.name} timed out and auto-stayed.`
+              `[Server] Player ${playerTimedOut.name} in room ${roomId} timed out and auto-stayed.`
             );
             io.to(roomId).emit("playerAction", {
               name: playerTimedOut.name,
@@ -368,9 +382,14 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
 
 function checkIfAllPlayersDone(roomId) {
   const room = rooms[roomId];
-  if (!room || !room.gameStarted || !room.participantsInRound) {
-    console.log(
-      `[Server] checkIfAllPlayersDone: Room ${roomId} not started or no participants.`
+  if (!room || !room.participantsInRound) {
+    // Removed !room.gameStarted for flexibility
+    // console.log(`[Server] checkIfAllPlayersDone: Room ${roomId} no participants.`);
+    return;
+  }
+  if (!room.dealerId) {
+    console.warn(
+      `[Server] checkIfAllPlayersDone: Room ${roomId} has no dealerId.`
     );
     return;
   }
@@ -378,14 +397,11 @@ function checkIfAllPlayersDone(roomId) {
   const playersToCheck = room.participantsInRound.filter(
     (p) => p.id !== room.dealerId
   );
-  const allDone = playersToCheck.every(
-    (p) => p.hasStayed || p.cards.length >= 3 || p.disconnectedMidGame
-  );
-
-  console.log(
-    `[Server] checkIfAllPlayersDone for room ${roomId}: All players done? ${allDone}`
-  );
-  if (allDone && room.dealerId) {
+  if (playersToCheck.length === 0 && room.gameStarted) {
+    // Only dealer was in round
+    console.log(
+      `[Server] checkIfAllPlayersDone for room ${roomId}: Only dealer in round or no other players.`
+    );
     clearTurnTimer(roomId);
     io.to(roomId).emit("currentTurn", {
       id: null,
@@ -393,24 +409,151 @@ function checkIfAllPlayersDone(roomId) {
       role: "",
       timeLeft: 0,
     });
-    const dealerSocket = io.sockets.sockets.get(room.dealerId);
-    if (dealerSocket) {
-      console.log(
-        `[Server] Enabling ShowResult for dealer ${room.dealerId} in room ${roomId}`
-      );
-      dealerSocket.emit("enableShowResult", true);
-    } else {
-      console.warn(
-        `[Server] Dealer socket ${room.dealerId} not found to enableShowResult in room ${roomId}`
-      );
-    }
+    io.to(room.dealerId).emit("enableShowResult", true);
+    io.to(roomId).emit("message", {
+      text: "เจ้ามือสามารถเปิดไพ่ได้เลย (ไม่มีผู้เล่นอื่น)",
+    });
+    return;
+  }
+
+  const allDone = playersToCheck.every(
+    (p) => p.hasStayed || p.cards.length >= 3 || p.disconnectedMidGame
+  );
+
+  console.log(
+    `[Server] checkIfAllPlayersDone for room ${roomId}: All players done? ${allDone}. Players to check: ${playersToCheck.length}`
+  );
+  if (allDone && room.dealerId && room.gameStarted) {
+    clearTurnTimer(roomId);
+    io.to(roomId).emit("currentTurn", {
+      id: null,
+      name: "รอเจ้ามือเปิดไพ่",
+      role: "",
+      timeLeft: 0,
+    });
+    io.to(room.dealerId).emit("enableShowResult", true);
+    console.log(
+      `[Server] Enabling ShowResult for dealer ${room.dealerId} in room ${roomId}`
+    );
     io.to(roomId).emit("message", {
       text: "ผู้เล่นทุกคนทำการตัดสินใจแล้ว เจ้ามือสามารถเปิดไพ่ได้",
     });
   }
 }
 
-// Socket.IO connection
+function dealerDecisionAndDrawLogic(roomId) {
+  const room = rooms[roomId];
+  if (!room || !room.participantsInRound) {
+    console.warn(
+      `[Server] dealerDecisionAndDrawLogic: Room ${roomId} or participantsInRound not found.`
+    );
+    return;
+  }
+
+  const dealerParticipant = room.participantsInRound.find(
+    (p) => p.id === room.dealerId
+  );
+  if (!dealerParticipant || !dealerParticipant.cards) {
+    console.error(
+      `[Server] dealerDecisionAndDrawLogic: Dealer or dealer cards not found in room ${roomId}`
+    );
+    return;
+  }
+
+  if (dealerParticipant.cards.length === 2) {
+    const dealerHand = getHandRank(dealerParticipant.cards);
+    if (dealerHand.rank === 1) {
+      console.log(
+        `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has Pok (${dealerHand.type}). No draw.`
+      );
+      return;
+    }
+
+    const activeChallengers = room.participantsInRound.filter(
+      (p) =>
+        p.id !== room.dealerId &&
+        !p.disconnectedMidGame &&
+        p.cards &&
+        p.cards.length > 0
+      // Further logic could be added here to see if challenger already lost to dealer's non-pok hand if that's a rule
+    );
+
+    if (activeChallengers.length === 0) {
+      console.log(
+        `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}): No active challengers. No draw.`
+      );
+      return;
+    }
+
+    const dealerScore = calculateScore(dealerParticipant.cards); // Recalculate score for 2 cards specifically
+    let dealerShouldDraw = false;
+    if (dealerScore <= 3) {
+      dealerShouldDraw = true;
+      console.log(
+        `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Must draw.`
+      );
+    } else if (dealerScore === 4 || dealerScore === 5) {
+      // Example: Draw if there are active challengers who might beat this score
+      // This can be more complex based on specific house rules
+      if (
+        activeChallengers.some(
+          (p) =>
+            calculateScore(p.cards) > dealerScore &&
+            getHandRank(p.cards).rank !== 1
+        )
+      ) {
+        // Player not pok and has higher score
+        dealerShouldDraw = true;
+        console.log(
+          `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Challenger has higher score or potential. Drawing.`
+        );
+      } else {
+        console.log(
+          `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Staying.`
+        );
+      }
+    } else {
+      // 6, 7 points
+      console.log(
+        `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Must stay.`
+      );
+    }
+
+    if (dealerShouldDraw) {
+      if (room.deck.length > 0) {
+        const newCard = room.deck.pop();
+        dealerParticipant.cards.push(newCard);
+        console.log(
+          `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) drew: ${
+            newCard.value
+          }${newCard.suit}. New hand: ${JSON.stringify(
+            dealerParticipant.cards
+          )}`
+        );
+
+        const activeDealer = room.players.find((p) => p.id === room.dealerId);
+        if (activeDealer) activeDealer.cards = [...dealerParticipant.cards];
+
+        io.to(roomId).emit("message", {
+          text: `เจ้ามือ (${dealerParticipant.name}) จั่วไพ่เพิ่ม!`,
+        });
+        sendPlayersData(roomId); // Send updated data as dealer's cards changed
+      } else {
+        console.warn(
+          `[Server] Room ${roomId} deck is empty. Dealer ${dealerParticipant.name} cannot draw.`
+        );
+        io.to(roomId).emit("message", {
+          text: `ไพ่ในสำรับหมด เจ้ามือไม่สามารถจั่วเพิ่มได้`,
+        });
+      }
+    }
+  } else {
+    console.log(
+      `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) already has ${dealerParticipant.cards.length} cards. No draw decision needed.`
+    );
+  }
+}
+
 io.on("connection", (socket) => {
   console.log(`[Server] User connected: ${socket.id}`);
 
@@ -440,6 +583,7 @@ io.on("connection", (socket) => {
       turnTimer: null,
       currentTurnId: null,
       isLocked: false,
+      results: null,
       allPlayersEver: {
         [socket.id]: {
           name: playerName,
@@ -447,7 +591,7 @@ io.on("connection", (socket) => {
           currentBalance: balance,
           role: "เจ้ามือ",
         },
-      }, // Store role
+      },
     };
     socket.join(roomId);
     console.log(
@@ -455,28 +599,29 @@ io.on("connection", (socket) => {
     );
     socket.emit("roomCreated", {
       roomId,
-      // playersList is deprecated, playersData is better
       dealerName: player.name,
-      betAmount: rooms[roomId].betAmount, // Send initial betAmount
+      betAmount: rooms[roomId].betAmount,
     });
-    // socket.emit("roomSettings", { betAmount: rooms[roomId].betAmount }); // Redundant if sent in roomCreated
     sendPlayersData(roomId);
   });
 
   socket.on("joinRoom", ({ roomId, playerName, initialBalance }) => {
     const room = rooms[roomId];
-    console.log(`[Server] Attempt to join room ${roomId} by ${playerName}`);
+    console.log(
+      `[Server] Attempt to join room ${roomId} by ${playerName} (ID: ${socket.id})`
+    );
     if (room) {
       if (room.isLocked || room.gameStarted) {
         const reason = room.gameStarted ? "เกมเริ่มไปแล้ว" : "ห้องถูกล็อค";
-        console.log(`[Server] Join failed for ${playerName}: ${reason}`);
+        console.log(
+          `[Server] Join failed for ${playerName} in room ${roomId}: ${reason}`
+        );
         socket.emit("errorMessage", {
           text: `ไม่สามารถเข้าร่วมห้องได้: ${reason}`,
         });
         return;
       }
       if (room.players.length >= 8) {
-        // Max players
         console.log(
           `[Server] Join failed for ${playerName}: Room ${roomId} is full.`
         );
@@ -492,7 +637,7 @@ io.on("connection", (socket) => {
         role: "ผู้เล่น",
         cards: [],
         income: [],
-        expense: [], // Role will be assigned below
+        expense: [],
       };
       room.players.push(player);
 
@@ -505,22 +650,18 @@ io.on("connection", (socket) => {
         };
       } else {
         room.allPlayersEver[socket.id].currentBalance = balance;
-        room.allPlayersEver[socket.id].initialBalance = balance; // Reset if rejoining
+        room.allPlayersEver[socket.id].initialBalance = balance;
         room.allPlayersEver[socket.id].role = player.role;
       }
 
       let playerCounter = 1;
       room.players.forEach((p) => {
-        // Assign roles to all active players
         if (p.id !== room.dealerId) {
           p.role = `ผู้เล่นที่ ${playerCounter++}`;
-          if (room.allPlayersEver[p.id])
-            room.allPlayersEver[p.id].role = p.role; // Update role in allPlayersEver too
         } else {
           p.role = "เจ้ามือ";
-          if (room.allPlayersEver[p.id])
-            room.allPlayersEver[p.id].role = p.role;
         }
+        if (room.allPlayersEver[p.id]) room.allPlayersEver[p.id].role = p.role;
       });
 
       socket.join(roomId);
@@ -529,13 +670,11 @@ io.on("connection", (socket) => {
       );
       socket.emit("joinedRoom", {
         roomId,
-        // playersList deprecated
         dealerName: room.players.find((p) => p.id === room.dealerId)?.name,
-        betAmount: room.betAmount, // Send current betAmount
+        betAmount: room.betAmount,
       });
       io.to(roomId).emit("message", { text: `${playerName} ได้เข้าร่วมห้อง` });
-      sendPlayersData(roomId); // This will send updated roles
-      // socket.emit("roomSettings", { betAmount: room.betAmount }); // Redundant
+      sendPlayersData(roomId);
     } else {
       console.log(
         `[Server] Join failed for ${playerName}: Room ${roomId} not found.`
@@ -544,25 +683,20 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ใน server.js -> io.on("connection", (socket) => { ... })
-
   socket.on("setBetAmount", ({ roomId, amount }) => {
     const room = rooms[roomId];
     if (room && room.dealerId === socket.id && !room.gameStarted) {
       const bet = parseInt(amount);
-      if (bet > 0 && (bet % 10 === 0 || bet % 5 === 0)) {
-        // ปรับเงื่อนไขตามที่คุณต้องการ (เช่น ลงท้ายด้วย 0 หรือ 5)
+      if (bet >= 5 && (bet % 10 === 0 || bet % 5 === 0)) {
+        // Adjusted condition based on client
         room.betAmount = bet;
-        console.log(
-          `[Server] Room ${roomId} bet amount set to ${bet} by dealer ${socket.id}`
-        );
-        io.to(roomId).emit("roomSettings", { betAmount: room.betAmount }); // <--- ส่งค่าที่อัปเดตแล้วให้ทุกคน
+        io.to(roomId).emit("roomSettings", { betAmount: room.betAmount });
         io.to(roomId).emit("message", {
           text: `เจ้ามือตั้งค่าเดิมพันเป็น ${bet} บาท`,
         });
       } else {
         socket.emit("errorMessage", {
-          text: "จำนวนเงินเดิมพันไม่ถูกต้อง (ต้องมากกว่า 0 และลงท้ายด้วย 0 หรือ 5)",
+          text: "จำนวนเงินเดิมพันต้องไม่น้อยกว่า 5 และลงท้ายด้วย 0 หรือ 5",
         });
       }
     } else if (room && room.gameStarted) {
@@ -588,23 +722,35 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startGame", (roomIdFromClient) => {
-    // Renamed to avoid conflict with outer scope roomId
     const room = rooms[roomIdFromClient];
     console.log(
-      `[Server] Received 'startGame' for room ${roomIdFromClient} from ${socket.id}. DealerId: ${room?.dealerId}`
+      `[Server] Received 'startGame' for room ${roomIdFromClient} from ${socket.id}. DealerId: ${room?.dealerId}. GameStarted: ${room?.gameStarted}`
     );
     if (room && room.dealerId === socket.id && !room.gameStarted) {
-      if (room.players.length < 1 && room.dealerId !== room.players[0]?.id) {
-        // Require at least one non-dealer or just dealer
+      if (
+        room.players.length > 0 &&
+        room.players.length < 2 &&
+        room.players[0]?.id === room.dealerId
+      ) {
+        // Only dealer in room, prevent start if no other players (unless you want dealer to play alone)
         socket.emit("errorMessage", {
-          text: "ต้องมีผู้เล่นอย่างน้อย 2 คน (รวมเจ้ามือ) เพื่อเริ่มเกม หรือเจ้ามือเท่านั้น",
+          text: "ต้องมีผู้เล่นอย่างน้อย 2 คน (รวมเจ้ามือ) เพื่อเริ่มเกม",
         });
         return;
       }
+      if (room.players.length === 0) {
+        // Should not happen if dealer is always a player
+        socket.emit("errorMessage", {
+          text: "ไม่มีผู้เล่นในห้องเพื่อเริ่มเกม",
+        });
+        return;
+      }
+
       room.gameStarted = true;
       room.isLocked = true;
       io.to(roomIdFromClient).emit("lockRoom", true);
       room.deck = shuffleDeck(createDeck());
+      room.results = null; // Clear previous round results
 
       room.participantsInRound = JSON.parse(JSON.stringify(room.players)).map(
         (p) => ({
@@ -620,13 +766,11 @@ io.on("connection", (socket) => {
 
       let playerCounter = 1;
       room.participantsInRound.forEach((p) => {
-        // Assign roles for this round's participants
         if (p.id !== room.dealerId) {
           p.role = `ผู้เล่นที่ ${playerCounter++}`;
         } else {
           p.role = "เจ้ามือ";
         }
-        // Update role in allPlayersEver as well for summary consistency
         if (room.allPlayersEver[p.id]) room.allPlayersEver[p.id].role = p.role;
       });
 
@@ -635,19 +779,28 @@ io.on("connection", (socket) => {
         room.dealerId
       );
       console.log(
-        `[Server] Game starting in room ${roomIdFromClient}. Ordered players for turns: ${JSON.stringify(
+        `[Server] Game starting in room ${roomIdFromClient}. Participants: ${
+          room.participantsInRound.length
+        }. Ordered for turns: ${JSON.stringify(
           room.orderedGamePlayers.map((p) => p.name)
         )}`
       );
 
       room.participantsInRound.forEach((participant) => {
         for (let i = 0; i < 2; i++) {
-          if (room.deck.length > 0) participant.cards.push(room.deck.pop());
+          if (room.deck.length > 0) {
+            participant.cards.push(room.deck.pop());
+          } else {
+            console.error(
+              "[Server] Deck ran out of cards during dealing for " +
+                participant.name
+            );
+            break;
+          }
         }
         const activePlayer = room.players.find((p) => p.id === participant.id);
         if (activePlayer) activePlayer.cards = [...participant.cards];
 
-        // Use io.to(socketId) for direct emit
         console.log(
           `[Server] Emitting 'yourCards' to ${participant.name} (ID: ${
             participant.id
@@ -668,7 +821,7 @@ io.on("connection", (socket) => {
         startNextTurn(roomIdFromClient, -1);
       } else {
         io.to(roomIdFromClient).emit("message", {
-          text: "ไม่มีผู้เล่นที่ต้องทำการตัดสินใจ เจ้ามือสามารถเปิดไพ่ได้",
+          text: "ไม่มีผู้เล่นอื่นนอกจากเจ้ามือ เจ้ามือสามารถเปิดไพ่ได้",
         });
         checkIfAllPlayersDone(roomIdFromClient);
       }
