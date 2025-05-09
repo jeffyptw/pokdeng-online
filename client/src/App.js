@@ -341,7 +341,7 @@ function App() {
 
   const handleSetBet = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
-      const amount = parseInt(inputBetAmount, 10);
+      const amount = parseInt(inputBetAmount, 5);
       if (
         !isNaN(amount) &&
         amount >= 5 &&
