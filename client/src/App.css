@@ -43,7 +43,7 @@ body {
 .post-round-controls button,
 .exit-button {
   cursor: pointer;
-  color: white;
+  color: rgb(0, 0, 0);
 }
 .App-lobby button,
 .dealer-controls button[onClick*="StartGame"],
@@ -100,7 +100,7 @@ body {
 
 button:disabled {
   background-color: #90e790;
-  color: #888;
+  color: #ffffff;
   cursor: not-allowed;
 }
 
