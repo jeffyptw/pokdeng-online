@@ -72,89 +72,65 @@ function App() {
   useEffect(() => {
     if (!socketClient) {
       console.log("[Client] Initializing new socket connection to", SERVER_URL);
-
       socketClient = io(SERVER_URL, { transports: ["websocket"] });
     }
 
     function onConnect() {
       console.log("[Client] Connected to server with ID:", socketClient.id);
-
       setMyPlayerId(socketClient.id);
-
       setIsConnected(true);
     }
-
     function onDisconnect(reason) {
       console.log("[Client] Disconnected from server. Reason:", reason);
-
       addMessage(`การเชื่อมต่อกับ Server หลุด! (${reason})`, "error");
-
-      setIsConnected(false); // setInRoom(false); setGameStarted(false); // Consider full reset
-
-      function dealerDecisionToDraw(room, dealerParticipant) {
-        if (
-          !dealerParticipant ||
-          !dealerParticipant.cards ||
-          dealerParticipant.cards.length !== 2
-        ) {
-          // เจ้ามือต้องมีไพ่ 2 ใบเพื่อตัดสินใจ
-
-          return false; // ไม่จั่ว
-        }
-      }
+      setIsConnected(false);
+      // อาจจะ reset state อื่นๆ เช่น setInRoom(false), setGameStarted(false)
     }
 
     socketClient.on("connect", onConnect);
-
     socketClient.on("disconnect", onDisconnect);
 
     socketClient.on("roomCreated", (data) => {
       console.log("[Client] Room Created:", data);
-
       setRoomId(data.roomId);
-
       setInRoom(true);
-
       setIsDealer(true);
-
       addMessage(
         `ห้อง ${data.roomId} ถูกสร้างโดย ${name || data.dealerName}`,
-
         "success"
       );
-
       if (typeof data.betAmount === "number") {
         setBetAmount(data.betAmount);
-
         setInputBetAmount(data.betAmount.toString());
       }
     });
 
     socketClient.on("joinedRoom", (data) => {
       console.log("[Client] Joined Room:", data);
-
       setRoomId(data.roomId);
-
       setInRoom(true);
-
       addMessage(
         `เข้าร่วมห้อง ${data.roomId} สำเร็จ. เจ้ามือ: ${
           data.dealerName || "N/A"
         }`,
-
         "success"
       );
-
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
     });
 
     socketClient.on("playersData", (activePlayers) => {
-      console.log("[Client] Received 'playersData':", activePlayers);
-
+      console.log(
+        "[Client] Received 'playersData':",
+        JSON.stringify(
+          activePlayers.map((p) => ({
+            name: p.name,
+            role: p.role,
+            balance: p.balance,
+          }))
+        )
+      );
       setPlayerData(activePlayers);
-
       const me = activePlayers.find((p) => p.id === myPlayerId);
-
       if (me) setIsDealer(me.isDealer);
     });
 
@@ -163,35 +139,27 @@ function App() {
         `[Client ${
           myPlayerId || socketClient?.id
         }] Received 'yourCards'. Data:`,
-
         JSON.stringify(cardsFromServer)
       );
-
       if (Array.isArray(cardsFromServer)) {
-        setMyCards(cardsFromServer); // <--- myCards จะถูกตั้งค่าที่นี่หลังจาก gameStarted
+        setMyCards(cardsFromServer);
       } else {
         console.warn(
           "[Client] 'yourCards' received non-array or invalid data:",
-
           cardsFromServer
         );
-
         setMyCards([]);
       }
-
       setHasStayed(false); // Reset for new hand
     });
 
     socketClient.on("gameStarted", (data) => {
       console.log("[Client] Event 'gameStarted':", data);
-
       addMessage(`เกมเริ่มแล้ว! เดิมพัน: ${data.betAmount} บาท`, "info");
-
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
-
       setGameStarted(true);
       setResult([]);
-      // ไม่ต้อง setMyCards([]) ที่นี่ เพราะ Server จะส่ง yourCards มาให้แล้ว
+      // ไม่ต้อง setMyCards([]) ที่นี่ เพราะ Server จะส่ง yourCards มาให้แล้ว หรือเพิ่งส่งไป
       setHasStayed(false);
       setShowResultBtn(false);
       setShowSummary(false);
@@ -199,189 +167,125 @@ function App() {
 
     socketClient.on("currentTurn", (turnData) => {
       console.log("[Client] Event 'currentTurn':", turnData);
-
       setCurrentTurnId(turnData.id);
-
       setCurrentTurnInfo({
         name: turnData.name,
-
         role: turnData.role,
-
         timeLeft: turnData.timeLeft,
       });
-
       const newCountdown = turnData.timeLeft || DEFAULT_TURN_DURATION;
-
       setCountdown(newCountdown);
-
-      if (turnData.id === myPlayerId) setHasStayed(false);
+      if (turnData.id === myPlayerId) {
+        setHasStayed(false); // Reset hasStayed when it becomes my turn
+      }
     });
 
     socketClient.on("turnTimerUpdate", (timerData) => {
+      // console.log("[Client] Event 'turnTimerUpdate':", timerData); // Frequent log
       if (currentTurnId === timerData.playerId) {
         setCurrentTurnInfo((prev) => ({
           ...prev,
-
           timeLeft: timerData.timeLeft,
         }));
-
-        if (timerData.playerId === myPlayerId) setCountdown(timerData.timeLeft);
+        if (timerData.playerId === myPlayerId) {
+          setCountdown(timerData.timeLeft);
+        }
       }
     });
 
     socketClient.on("enableShowResult", (canShow) => {
       console.log("[Client] Enable Show Result:", canShow);
-
       setShowResultBtn(canShow);
     });
 
     socketClient.on("lockRoom", (isLockedFromServer) => {
       console.log("[Client] Room lock status from server:", isLockedFromServer);
-
       setRoomLocked(isLockedFromServer);
-
-      addMessage(isLockedFromServer ? "ห้องถูกล็อค" : "ห้องถูกปลดล็อค");
+      addMessage(
+        isLockedFromServer
+          ? "ห้องถูกล็อคโดยเจ้ามือ"
+          : "ห้องถูกปลดล็อคโดยเจ้ามือ"
+      );
     });
 
     socketClient.on("result", (roundResults) => {
-      console.log("[Client] Event 'result':", roundResults);
-
+      console.log(
+        "[Client] Event 'result':",
+        JSON.stringify(
+          roundResults.map((r) => ({
+            name: r.name,
+            outcome: r.outcome,
+            moneyChange: r.moneyChange,
+          }))
+        )
+      );
       setResult(roundResults);
-
       setGameStarted(false);
-
       setCurrentTurnId(null);
-
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
-
       setShowResultBtn(false);
-
       setGameRound((prev) => prev + 1);
     });
 
     socketClient.on("resetGame", () => {
       console.log("[Client] Event 'resetGame'");
-
       addMessage("เกมถูกรีเซ็ต เตรียมเริ่มรอบใหม่", "info");
-
       setGameStarted(false);
-
       setMyCards([]);
-
       setResult([]);
-
       setHasStayed(false);
-
       setCurrentTurnId(null);
-
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
-
       setShowResultBtn(false);
     });
 
     socketClient.on("gameEnded", (gameSummary) => {
       console.log("[Client] Event 'gameEnded'. Summary:", gameSummary);
-
       setSummaryData(gameSummary);
-
       setShowSummary(true);
-
       setGameStarted(false);
-
       setResult([]);
-
       setCurrentTurnId(null);
     });
 
     socketClient.on("errorMessage", (msg) =>
-      addMessage(msg.text || (typeof msg === "string" ? msg : "Error"), "error")
+      addMessage(msg.text || String(msg.message) || String(msg), "error")
     );
-
     socketClient.on("message", (msg) =>
-      addMessage(msg.text || (typeof msg === "string" ? msg : "Message"))
+      addMessage(msg.text || String(msg.message) || String(msg))
     );
-
     socketClient.on("playerLeft", (data) =>
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`)
-    ); // ใน App.js -> useEffect(() => { ... }, [myPlayerId, ...]);
-
+    );
     socketClient.on("roomSettings", (settings) => {
       console.log("[Client] Received 'roomSettings'. Data:", settings);
-
       if (settings && typeof settings.betAmount === "number") {
-        addMessage(
-          `[EVENT] ราคาเดิมพันอัปเดตเป็น: ${settings.betAmount} (จาก roomSettings)`,
-
-          "info"
-        );
-
-        setBetAmount(settings.betAmount); // อัปเดต state ที่ใช้แสดงผลหลัก
-
-        if (
-          myPlayerId &&
-          playerData.find((p) => p.id === myPlayerId && p.isDealer)
-        ) {
-          // ตรวจสอบว่าเป็น Dealer จริงๆ
-
-          setInputBetAmount(settings.betAmount.toString()); // อัปเดต input field ของ Dealer
+        addMessage(`ราคาเดิมพันอัปเดตเป็น: ${settings.betAmount} บาท`, "info");
+        setBetAmount(settings.betAmount);
+        if (isDealer) {
+          // isDealer ควรจะถูก set จาก playersData แล้ว
+          setInputBetAmount(settings.betAmount.toString());
         }
-      } else {
-        console.warn(
-          "[Client] 'roomSettings' received invalid data:",
-
-          settings
-        );
       }
     });
 
     return () => {
       console.log(
-        "[Client] useEffect cleanup: Removing listeners for socket ID:",
-
+        "[Client] useEffect cleanup: Removing ALL listeners for socket ID:",
         socketClient?.id
       );
-
       if (socketClient) {
-        socketClient.off("connect", onConnect);
-
-        socketClient.off("disconnect", onDisconnect);
-
-        socketClient.off("roomCreated");
-
-        socketClient.off("joinedRoom");
-
-        socketClient.off("playersData");
-
-        socketClient.off("yourCards");
-
-        socketClient.off("gameStarted");
-
-        socketClient.off("currentTurn");
-
-        socketClient.off("turnTimerUpdate");
-
-        socketClient.off("result");
-
-        socketClient.off("gameEnded");
-
-        socketClient.off("resetGame");
-
-        socketClient.off("enableShowResult");
-
-        socketClient.off("errorMessage");
-
-        socketClient.off("message");
-
-        socketClient.off("lockRoom");
-
-        socketClient.off("playerLeft");
+        socketClient.removeAllListeners(); // ลบ listener ทั้งหมดเมื่อ unmount หรือ dependency เปลี่ยน
+        // ไม่จำเป็นต้อง disconnect ที่นี่ ถ้าต้องการให้ socket คงอยู่ตราบเท่าที่ App component ยังอยู่
+        // socketClient.disconnect();
       }
     };
-  }, [myPlayerId, name, roomId, currentTurnId]); // Added name, roomId, currentTurnId as they are used in some listener logic or conditions // Countdown timer effect
+  }, [myPlayerId]); // ลด dependencies เหลือ myPlayerId หรือตัวที่จำเป็นจริงๆ เพื่อไม่ให้ re-bind บ่อยเกินไป
+  // การใส่ name, roomId, currentTurnId อาจทำให้ re-bind บ่อยถ้าค่าเหล่านี้เปลี่ยน
 
+  // Countdown timer effect
   useEffect(() => {
     let timer;
-
     if (
       gameStarted &&
       currentTurnId === myPlayerId &&
@@ -402,93 +306,64 @@ function App() {
       if (socketClient && socketClient.connected) {
         console.log(
           "[Client] Countdown for my turn ended, auto-staying for room:",
-
           roomId
         );
-
         socketClient.emit("stay", roomId);
-
         setHasStayed(true);
       }
     }
-
     return () => clearTimeout(timer);
   }, [
     countdown,
-
     currentTurnId,
-
     hasStayed,
-
     myPlayerId,
-
     myCards.length,
-
     gameStarted,
-
     roomId,
   ]);
 
+  // --- Action Functions ---
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
       addMessage("ยังไม่ได้เชื่อมต่อกับ Server", "error");
-
       return;
     }
-
     const bal = parseInt(money);
-
     if (!name.trim()) {
       addMessage("กรุณากรอกชื่อของคุณ", "error");
-
       return;
     }
-
     if (bal < 50 || bal % 10 !== 0) {
       addMessage("จำนวนเงินขั้นต่ำ 50 และต้องลงท้ายด้วย 0 เท่านั้น", "error");
-
       return;
     }
-
     console.log("[Client] Emitting 'createRoom'");
-
     socketClient.emit("createRoom", { playerName: name, initialBalance: bal });
   };
 
   const handleJoinRoom = () => {
     if (!socketClient || !isConnected) {
       addMessage("ยังไม่ได้เชื่อมต่อกับ Server", "error");
-
       return;
     }
-
     const bal = parseInt(money);
-
     if (!name.trim()) {
       addMessage("กรุณากรอกชื่อของคุณ", "error");
-
       return;
     }
-
     if (!inputRoomId.trim()) {
       addMessage("กรุณากรอกรหัสห้อง", "error");
-
       return;
     }
-
     if (bal < 10 || bal % 10 !== 0) {
       addMessage("จำนวนเงินขั้นต่ำ 10 และต้องลงท้ายด้วย 0 เท่านั้น", "error");
-
       return;
     }
-
     console.log("[Client] Emitting 'joinRoom' to room:", inputRoomId.trim());
-
     socketClient.emit("joinRoom", {
       roomId: inputRoomId.trim(),
-
       playerName: name,
-
       initialBalance: bal,
     });
   };
@@ -496,21 +371,13 @@ function App() {
   const handleSetBet = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
       const amount = parseInt(inputBetAmount);
-
-      if (
-        amount > 0 &&
-        (amount % 10 === 0 || amount % 5 === 0) &&
-        amount >= 5
-      ) {
-        // ปรับเงื่อนไขตาม server
-
+      if (amount >= 5 && (amount % 10 === 0 || amount % 5 === 0)) {
+        // Adjusted condition
         console.log("[Client] Emitting 'setBetAmount' with amount:", amount);
-
         socketClient.emit("setBetAmount", { roomId, amount });
       } else {
         addMessage(
           "จำนวนเงินเดิมพันต้องไม่น้อยกว่า 5 และลงท้ายด้วย 0 หรือ 5",
-
           "error"
         );
       }
@@ -522,62 +389,49 @@ function App() {
   const handleToggleLockRoom = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
       console.log("[Client] Emitting 'lockRoom' with new state:", !roomLocked);
-
       socketClient.emit("lockRoom", { roomId, lock: !roomLocked });
     }
   };
 
   const handleCopyRoomId = () => {
     if (!roomId) return;
-
     navigator.clipboard
-
       .writeText(roomId)
-
-      .then(() => alert(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`))
-
-      .catch((err) => console.error("คัดลอกไม่สำเร็จ", err));
+      .then(() =>
+        addMessage(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`, "success")
+      )
+      .catch((err) => addMessage("คัดลอกไม่สำเร็จ: " + err, "error"));
   };
 
   const handleStartGame = () => {
     console.log(
       "[Client] Attempting 'startGame'. Socket connected:",
-
       socketClient?.connected,
-
       "RoomId:",
-
       roomId,
-
       "IsDealer:",
-
       isDealer
     );
-
-    if (socketClient && socketClient.connected && roomId && isDealer) {
+    if (socketClient && isConnected && roomId && isDealer) {
       socketClient.emit("startGame", roomId);
     } else {
       addMessage(
         "ไม่สามารถเริ่มเกมได้ (ตรวจสอบการเชื่อมต่อ, รหัสห้อง, หรือสิทธิ์เจ้ามือ)",
-
         "error"
       );
     }
   };
 
   const handleDrawCard = () => {
-    // <--- ประกาศฟังก์ชันนี้
-
     if (
       socketClient &&
-      socketClient.connected &&
+      isConnected &&
       gameStarted &&
       currentTurnId === myPlayerId &&
       !hasStayed &&
       myCards.length < 3
     ) {
       console.log("[Client] Emitting 'drawCard' in room:", roomId);
-
       socketClient.emit("drawCard", roomId);
     } else {
       addMessage("ไม่สามารถจั่วไพ่ได้ในขณะนี้", "error");
@@ -585,19 +439,15 @@ function App() {
   };
 
   const handleStay = () => {
-    // <--- ประกาศฟังก์ชันนี้
-
     if (
       socketClient &&
-      socketClient.connected &&
+      isConnected &&
       gameStarted &&
       currentTurnId === myPlayerId &&
       !hasStayed
     ) {
       console.log("[Client] Emitting 'stay' in room:", roomId);
-
       socketClient.emit("stay", roomId);
-
       setHasStayed(true);
     } else {
       addMessage("ไม่สามารถอยู่ได้ในขณะนี้", "error");
@@ -607,31 +457,29 @@ function App() {
   const handleShowResult = () => {
     if (
       socketClient &&
-      socketClient.connected &&
+      isConnected &&
       isDealer &&
-      gameStarted &&
+      (gameStarted || (!gameStarted && result && result.length === 0)) &&
       showResultBtn
     ) {
+      // Allow show result even if gameStarted is false but results are expected
       console.log("[Client] Emitting 'showResult' for room:", roomId);
-
-      socketClient.emit("showResult", roomId); // setGameRound((prev) => prev + 1); // Server doesn't rely on this, client updates on result
+      socketClient.emit("showResult", roomId);
     } else {
       addMessage("ไม่สามารถแสดงผลได้ในขณะนี้", "error");
     }
   };
 
   const handleResetGameHandler = () => {
-    if (socketClient && socketClient.connected && isDealer) {
+    if (socketClient && isConnected && isDealer) {
       console.log("[Client] Emitting 'resetGame' for room:", roomId);
-
       socketClient.emit("resetGame", roomId);
     }
   };
 
   const handleEndGame = () => {
-    if (socketClient && socketClient.connected && isDealer) {
+    if (socketClient && isConnected && isDealer) {
       console.log("[Client] Emitting 'endGame' for room:", roomId);
-
       socketClient.emit("endGame", roomId);
     }
   };
@@ -647,46 +495,32 @@ function App() {
       typeof card.suit !== "undefined"
     )
       return `${card.value}${card.suit}`;
-
-    console.warn("[Client] getCardDisplay invalid card:", card);
-
     return "?";
   };
-
   const getCardPoint = (v) =>
     ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
-
   const calculateRankForDisplay = (cardsToRank) => {
     if (!cardsToRank || cardsToRank.length === 0)
       return { score: 0, type: "ยังไม่มีไพ่" };
-
     const calculatedScore =
       cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
-
     let type = `${calculatedScore} แต้ม`;
-
     if (cardsToRank.length === 2) {
       const isPok = calculatedScore === 8 || calculatedScore === 9;
-
       const isDeng =
         cardsToRank[0].suit === cardsToRank[1].suit ||
         cardsToRank[0].value === cardsToRank[1].value;
-
       if (isPok) {
         type = `ป๊อก ${calculatedScore}`;
-
         if (isDeng) type += " สองเด้ง";
       } else if (isDeng) {
         type = `สองเด้ง (${calculatedScore} แต้ม)`;
       }
     } else if (cardsToRank.length === 3) {
       const suits = cardsToRank.map((c) => c.suit);
-
       const sameSuit = suits.every((s) => s === suits[0]);
-
       if (sameSuit) type = `สามเด้ง (${calculatedScore} แต้ม)`;
     }
-
     return { score: calculatedScore, type };
   };
 
@@ -696,8 +530,7 @@ function App() {
   if (
     myCards &&
     myCards.length > 0 &&
-    gameStarted &&
-    (!result || result.length === 0)
+    (gameStarted || (result && result.length > 0 && !showSummary))
   ) {
     const rankData = calculateRankForDisplay(myCards);
     myHandScore = rankData.score;
@@ -940,21 +773,15 @@ function App() {
             <p>
               แต้ม: {myHandScore}, ประเภท: {myHandType}{" "}
             </p>{" "}
-            {!isDealer &&
-              isMyTurn &&
-              myCards.length === 2 &&
-              !hasStayed && ( // เงื่อนไขปุ่มจั่ว/อยู่
-                <div className="player-actions">
-                  <p>ตาของคุณ! เวลา: {countdown} วินาที</p>{" "}
-                  <button
-                    onClick={handleDrawCard}
-                    disabled={myCards.length >= 3}
-                  >
-                    จั่ว{" "}
-                  </button>
-                  <button onClick={handleStay}>อยู่</button>{" "}
-                </div>
-              )}{" "}
+            {!isDealer && isMyTurn && myCards.length === 2 && !hasStayed && (
+              <div className="player-actions">
+                <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
+                <button onClick={handleDrawCard} disabled={myCards.length >= 3}>
+                  จั่ว
+                </button>
+                <button onClick={handleStay}>อยู่</button>
+              </div>
+            )}{" "}
           </div>
         )}{" "}
       {gameStarted &&

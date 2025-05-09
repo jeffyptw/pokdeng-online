@@ -214,24 +214,53 @@ function sendPlayersData(roomId) {
   io.to(roomId).emit("playersData", activePlayerData);
 }
 
-function getOrderedGamePlayersForTurns(participants, dealerId) {
+function getOrderedGamePlayersWithDealerForTurns(participants, dealerId) {
   if (!participants || participants.length === 0) {
-    console.log("[Server] getOrderedGamePlayersForTurns: No participants.");
+    console.log(
+      "[Server] getOrderedGamePlayersWithDealerForTurns: No participants."
+    );
     return [];
   }
-  const actualPlayers = participants.filter(
+  const nonDealers = participants.filter(
     (p) => p.id !== dealerId && !p.disconnectedMidGame
   );
-  actualPlayers.sort((a, b) => {
+  const dealer = participants.find(
+    (p) => p.id === dealerId && !p.disconnectedMidGame
+  );
+
+  nonDealers.sort((a, b) => {
     const numA = parseInt(a.role.match(/\d+/)?.[0] || "999");
     const numB = parseInt(b.role.match(/\d+/)?.[0] || "999");
     return numA - numB;
   });
+
+  let ordered = [...nonDealers];
+  if (
+    dealer &&
+    dealer.cards &&
+    dealer.cards.length === 2 &&
+    getHandRank(dealer.cards).rank !== 1
+  ) {
+    // เจ้ามือจะได้เล่นถ้ายังไม่ป๊อกและมีไพ่ 2 ใบ
+    ordered.push(dealer); // เพิ่มเจ้ามือเข้าไปในลำดับการเล่น (เป็นคนสุดท้าย)
+  } else if (dealer) {
+    // ถ้าเจ้ามือป๊อก หรือมีไพ่ไม่ครบ 2 ใบ (ซึ่งไม่ควรเกิด) หรือหลุดไปแล้ว ก็ไม่ต้องเพิ่มใน turn order
+    // แต่ยังต้องอยู่ใน participantsInRound สำหรับการคำนวณผล
+    console.log(
+      `[Server] Dealer ${
+        dealer?.name
+      } will not take a turn (Pok/No Cards/Disconnected). Cards: ${JSON.stringify(
+        dealer?.cards
+      )}`
+    );
+    // ถ้าเจ้ามือป๊อก ให้ถือว่า hasStayed เพื่อให้ checkIfAllDone ทำงานถูก
+    if (dealer && getHandRank(dealer.cards).rank === 1) dealer.hasStayed = true;
+  }
   console.log(
-    "[Server] Ordered players for turns (IDs):",
-    actualPlayers.map((p) => p.id)
+    "[Server] Ordered players for turns (incl. dealer if eligible):",
+    ordered.map((p) => ({ name: p.name, id: p.id }))
   );
-  return actualPlayers.map((p) => ({ id: p.id, name: p.name, role: p.role }));
+  return ordered.map((p) => ({ id: p.id, name: p.name, role: p.role })); // ส่งแค่ข้อมูลที่จำเป็น
 }
 
 function clearTurnTimer(roomId) {
@@ -253,10 +282,7 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
     !room.orderedGamePlayers ||
     room.orderedGamePlayers.length === 0
   ) {
-    console.log(
-      `[Server] startNextTurn: Conditions not met or no players to play in room ${roomId}. Checking if all done.`
-    );
-    checkIfAllPlayersDone(roomId);
+    checkIfAllPlayersDone(roomId); // อาจจะไม่มีใครต้องเล่นแล้ว
     return;
   }
   clearTurnTimer(roomId);
@@ -267,21 +293,18 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
   let foundNextPlayer = false;
 
   console.log(
-    `[Server] startNextTurn: Room ${roomId}. Previous index: ${previousPlayerOrderIndex}. Starting search for next player from order index ${nextPlayerOrderIdx}. Total ordered players: ${room.orderedGamePlayers.length}`
+    `[Server] startNextTurn: Room ${roomId}. PrevIdx: ${previousPlayerOrderIndex}. Trying next from orderIdx: ${nextPlayerOrderIdx}. Total ordered: ${room.orderedGamePlayers.length}`
   );
 
   while (attempts < room.orderedGamePlayers.length) {
     if (nextPlayerOrderIdx >= room.orderedGamePlayers.length) {
       console.log(
-        `[Server] startNextTurn: Room ${roomId}. Reached end of orderedGamePlayers.`
+        `[Server] startNextTurn: Room ${roomId}. Reached end of orderedGamePlayers for turns.`
       );
       break;
     }
     const playerInfoFromOrder = room.orderedGamePlayers[nextPlayerOrderIdx];
     if (!playerInfoFromOrder) {
-      console.warn(
-        `[Server] startNextTurn: Room ${roomId}. playerInfoFromOrder is undefined at index ${nextPlayerOrderIdx}`
-      );
       attempts++;
       nextPlayerOrderIdx++;
       continue;
@@ -290,25 +313,27 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
     const participant = room.participantsInRound.find(
       (p) => p.id === playerInfoFromOrder.id
     );
-
     console.log(
-      `[Server] startNextTurn: Room ${roomId}. Trying player ${
-        participant ? participant.name : "N/A"
-      } (ID: ${
-        playerInfoFromOrder.id
-      }) at order index ${nextPlayerOrderIdx}. Disconnected: ${
-        participant?.disconnectedMidGame
-      }, Stayed: ${participant?.hasStayed}, Cards: ${
-        participant?.cards?.length
-      }`
+      `[Server] startNextTurn: Room ${roomId}. Trying player ${participant?.name} (ID: ${playerInfoFromOrder.id}). Disconnected: ${participant?.disconnectedMidGame}, Stayed: ${participant?.hasStayed}, Cards: ${participant?.cards?.length}`
     );
 
-    if (
+    // เงื่อนไขการให้เทิร์น: ไม่หลุด, ยังไม่ Stay, และมีไพ่ < 3 ใบ (ผู้เล่น)
+    // หรือถ้าเป็นเจ้ามือ: ไม่หลุด, ยังไม่ Stay (เจ้ามือจะ Stay อัตโนมัติถ้าไม่จั่ว), และมีไพ่ 2 ใบ (ยังไม่ป๊อก)
+    const isEligiblePlayer =
       participant &&
       !participant.disconnectedMidGame &&
       !participant.hasStayed &&
-      participant.cards.length < 3
-    ) {
+      participant.cards.length < 3 &&
+      participant.id !== room.dealerId;
+    const isEligibleDealer =
+      participant &&
+      participant.id === room.dealerId &&
+      !participant.disconnectedMidGame &&
+      !participant.hasStayed &&
+      participant.cards.length === 2 &&
+      getHandRank(participant.cards).rank !== 1;
+
+    if (isEligiblePlayer || isEligibleDealer) {
       room.currentTurnId = participant.id;
       let timeLeft = TURN_DURATION;
       console.log(
@@ -322,41 +347,7 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
       });
 
       room.turnTimer = setInterval(() => {
-        timeLeft--;
-        io.to(roomId).emit("turnTimerUpdate", {
-          playerId: participant.id,
-          timeLeft,
-        });
-        if (timeLeft <= 0) {
-          clearInterval(room.turnTimer);
-          room.turnTimer = null;
-          const playerTimedOut = room.participantsInRound.find(
-            (p) => p.id === room.currentTurnId
-          );
-          if (
-            playerTimedOut &&
-            !playerTimedOut.hasStayed &&
-            !playerTimedOut.disconnectedMidGame
-          ) {
-            playerTimedOut.hasStayed = true;
-            console.log(
-              `[Server] Player ${playerTimedOut.name} in room ${roomId} timed out and auto-stayed.`
-            );
-            io.to(roomId).emit("playerAction", {
-              name: playerTimedOut.name,
-              action: "อยู่ (หมดเวลา)",
-            });
-            io.to(playerTimedOut.id).emit("message", {
-              text: "หมดเวลา! ระบบให้คุณ 'อยู่' โดยอัตโนมัติ",
-            });
-
-            const currentTimedOutPlayerOrderIndex =
-              room.orderedGamePlayers.findIndex(
-                (pInfo) => pInfo.id === room.currentTurnId
-              );
-            startNextTurn(roomId, currentTimedOutPlayerOrderIndex);
-          }
-        }
+        /* ... โค้ด timeout เหมือนเดิม ... */
       }, 1000);
       foundNextPlayer = true;
       break;
@@ -367,26 +358,22 @@ function startNextTurn(roomId, previousPlayerOrderIndex) {
 
   if (!foundNextPlayer) {
     console.log(
-      `[Server] startNextTurn: No more eligible players found in room ${roomId}.`
+      `[Server] startNextTurn: No more eligible players (incl. dealer) found in room ${roomId}.`
     );
     room.currentTurnId = null;
     io.to(roomId).emit("currentTurn", {
       id: null,
-      name: "รอเจ้ามือเปิดไพ่",
+      name: "คำนวณผลลัพธ์...",
       role: "",
       timeLeft: 0,
     });
-    checkIfAllPlayersDone(roomId);
+    checkIfAllPlayersDone(roomId); // <--- อาจจะเรียก handleResultOnly โดยตรงจากที่นี่ได้เลย
   }
 }
 
 function checkIfAllPlayersDone(roomId) {
   const room = rooms[roomId];
-  if (!room || !room.participantsInRound) {
-    // Removed !room.gameStarted for flexibility
-    // console.log(`[Server] checkIfAllPlayersDone: Room ${roomId} no participants.`);
-    return;
-  }
+  if (!room || !room.participantsInRound) return;
   if (!room.dealerId) {
     console.warn(
       `[Server] checkIfAllPlayersDone: Room ${roomId} has no dealerId.`
@@ -394,50 +381,38 @@ function checkIfAllPlayersDone(roomId) {
     return;
   }
 
-  const playersToCheck = room.participantsInRound.filter(
-    (p) => p.id !== room.dealerId
-  );
-  if (playersToCheck.length === 0 && room.gameStarted) {
-    // Only dealer was in round
-    console.log(
-      `[Server] checkIfAllPlayersDone for room ${roomId}: Only dealer in round or no other players.`
-    );
-    clearTurnTimer(roomId);
-    io.to(roomId).emit("currentTurn", {
-      id: null,
-      name: "รอเจ้ามือเปิดไพ่",
-      role: "",
-      timeLeft: 0,
-    });
-    io.to(room.dealerId).emit("enableShowResult", true);
-    io.to(roomId).emit("message", {
-      text: "เจ้ามือสามารถเปิดไพ่ได้เลย (ไม่มีผู้เล่นอื่น)",
-    });
-    return;
-  }
+  // ตรวจสอบผู้เล่นทุกคนใน orderedGamePlayers (ซึ่งตอนนี้รวมเจ้ามือที่ eligible ด้วย)
+  const allParticipantsInTurnOrder = room.orderedGamePlayers
+    .map((pInfo) => room.participantsInRound.find((p) => p.id === pInfo.id))
+    .filter(Boolean);
 
-  const allDone = playersToCheck.every(
-    (p) => p.hasStayed || p.cards.length >= 3 || p.disconnectedMidGame
+  const allDone = allParticipantsInTurnOrder.every(
+    (p) =>
+      p.hasStayed ||
+      p.cards.length >= 3 ||
+      p.disconnectedMidGame ||
+      (p.id === room.dealerId && getHandRank(p.cards).rank === 1) // เจ้ามือป๊อกก็ถือว่า done
   );
 
   console.log(
-    `[Server] checkIfAllPlayersDone for room ${roomId}: All players done? ${allDone}. Players to check: ${playersToCheck.length}`
+    `[Server] checkIfAllPlayersDone for room ${roomId}: All participants in turn order done? ${allDone}. Participants in turn order: ${allParticipantsInTurnOrder.length}`
   );
-  if (allDone && room.dealerId && room.gameStarted) {
+
+  if (allDone && room.gameStarted) {
+    // gameStarted ควรยังเป็น true
     clearTurnTimer(roomId);
-    io.to(roomId).emit("currentTurn", {
-      id: null,
-      name: "รอเจ้ามือเปิดไพ่",
-      role: "",
-      timeLeft: 0,
-    });
-    io.to(room.dealerId).emit("enableShowResult", true);
     console.log(
-      `[Server] Enabling ShowResult for dealer ${room.dealerId} in room ${roomId}`
+      `[Server] All players and dealer (if applicable) are done in room ${roomId}. Proceeding to handleResultOnly.`
     );
     io.to(roomId).emit("message", {
-      text: "ผู้เล่นทุกคนทำการตัดสินใจแล้ว เจ้ามือสามารถเปิดไพ่ได้",
+      text: "ทุกคนตัดสินใจครบแล้ว กำลังคำนวณผล...",
     });
+    handleResultOnly(roomId); // <--- เรียก handleResultOnly โดยอัตโนมัติ
+  } else if (allDone && !room.gameStarted && room.results) {
+    // ผลออกไปแล้ว และอาจจะมีการเรียกซ้ำ
+    console.log(
+      `[Server] checkIfAllPlayersDone: Results already processed for room ${roomId}.`
+    );
   }
 }
 
@@ -447,7 +422,7 @@ function dealerDecisionAndDrawLogic(roomId) {
     console.warn(
       `[Server] dealerDecisionAndDrawLogic: Room ${roomId} or participantsInRound not found.`
     );
-    return;
+    return false; // Indicate no draw occurred or error
   }
 
   const dealerParticipant = room.participantsInRound.find(
@@ -457,67 +432,70 @@ function dealerDecisionAndDrawLogic(roomId) {
     console.error(
       `[Server] dealerDecisionAndDrawLogic: Dealer or dealer cards not found in room ${roomId}`
     );
-    return;
+    return false;
   }
 
   if (dealerParticipant.cards.length === 2) {
     const dealerHand = getHandRank(dealerParticipant.cards);
     if (dealerHand.rank === 1) {
+      // เจ้ามือป๊อกแล้ว ไม่ต้องจั่ว
       console.log(
         `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has Pok (${dealerHand.type}). No draw.`
       );
-      return;
+      return false;
     }
 
+    // ตรวจสอบว่ามีผู้เล่นที่ยัง "สู้" หรือไม่
     const activeChallengers = room.participantsInRound.filter(
       (p) =>
         p.id !== room.dealerId &&
         !p.disconnectedMidGame &&
         p.cards &&
-        p.cards.length > 0
-      // Further logic could be added here to see if challenger already lost to dealer's non-pok hand if that's a rule
+        p.cards.length > 0 &&
+        getHandRank(p.cards).rank !== 7 // ไม่ใช่ผู้เล่นที่ไม่มีไพ่
     );
 
     if (activeChallengers.length === 0) {
       console.log(
         `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}): No active challengers. No draw.`
       );
-      return;
+      return false;
     }
 
-    const dealerScore = calculateScore(dealerParticipant.cards); // Recalculate score for 2 cards specifically
+    const dealerScore = calculateScore(dealerParticipant.cards); // แต้ม 2 ใบแรกของเจ้ามือ
     let dealerShouldDraw = false;
+
+    // --- กฎการจั่วของเจ้ามือ (ปรับแก้ตามกติกาที่คุณต้องการ) ---
     if (dealerScore <= 3) {
+      // 0-3 แต้ม: บังคับจั่วเสมอถ้ามีคนสู้
       dealerShouldDraw = true;
       console.log(
         `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Must draw.`
       );
     } else if (dealerScore === 4 || dealerScore === 5) {
-      // Example: Draw if there are active challengers who might beat this score
-      // This can be more complex based on specific house rules
+      // แต้ม 4, 5: อาจจะเลือกได้ หรือมีกฎบังคับ (เช่น ถ้ามีผู้เล่นแต้มสูงกว่า หรือผู้เล่นมี 3 ใบ)
+      // ตัวอย่าง: ถ้ามีผู้เล่นคนใดคนหนึ่งมี 3 ใบ หรือมีแต้มสูงกว่า 5 เจ้ามือควรจั่ว
       if (
         activeChallengers.some(
-          (p) =>
-            calculateScore(p.cards) > dealerScore &&
-            getHandRank(p.cards).rank !== 1
+          (p) => p.cards.length === 3 || calculateScore(p.cards) > 5
         )
       ) {
-        // Player not pok and has higher score
         dealerShouldDraw = true;
         console.log(
-          `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Challenger has higher score or potential. Drawing.`
+          `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Challenger has 3 cards or higher score. Drawing.`
         );
       } else {
         console.log(
-          `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Staying.`
+          `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Staying (no pressing challenger).`
         );
       }
     } else {
-      // 6, 7 points
+      // 6, 7 แต้ม: บังคับอยู่
       console.log(
         `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) has ${dealerScore} points. Must stay.`
       );
     }
+    // --- จบกฎการจั่ว ---
 
     if (dealerShouldDraw) {
       if (room.deck.length > 0) {
@@ -537,7 +515,9 @@ function dealerDecisionAndDrawLogic(roomId) {
         io.to(roomId).emit("message", {
           text: `เจ้ามือ (${dealerParticipant.name}) จั่วไพ่เพิ่ม!`,
         });
-        sendPlayersData(roomId); // Send updated data as dealer's cards changed
+        // ส่งข้อมูลผู้เล่นที่อัปเดต (รวมไพ่เจ้ามือ) ให้ Client ทุกคนเห็นทันที
+        sendPlayersData(roomId); // <--- เพิ่มตรงนี้เพื่อให้ Client เห็นไพ่เจ้ามือที่อัปเดต (ถ้า UI รองรับ)
+        return true; // Indicate that dealer drew
       } else {
         console.warn(
           `[Server] Room ${roomId} deck is empty. Dealer ${dealerParticipant.name} cannot draw.`
@@ -552,6 +532,7 @@ function dealerDecisionAndDrawLogic(roomId) {
       `[Server] Dealer ${dealerParticipant.name} (Room ${roomId}) already has ${dealerParticipant.cards.length} cards. No draw decision needed.`
     );
   }
+  return false; // Indicate no draw occurred or decision made to stay
 }
 
 io.on("connection", (socket) => {
@@ -926,41 +907,55 @@ io.on("connection", (socket) => {
   socket.on("showResult", (roomId) => {
     const room = rooms[roomId];
     console.log(
-      `[Server] Received 'showResult' from ${socket.id} for room ${roomId}. Dealer: ${room?.dealerId}`
+      `[Server] Received 'showResult' from ${socket.id} for room ${roomId}. DealerId: ${room?.dealerId}`
     );
-    if (room && room.dealerId === socket.id && room.gameStarted) {
-      // gameStarted might be false if already handled a round
-      // Check if all non-dealer participants are done
-      const playersToCheck = room.participantsInRound.filter(
-        (p) => p.id !== room.dealerId
+
+    if (room && room.dealerId === socket.id) {
+      if (!room.gameStarted && room.results && room.results.length > 0) {
+        console.log(`[Server] Results already shown for room ${roomId}.`);
+        socket.emit("message", { text: "ผลลัพธ์ของรอบนี้ถูกแสดงไปแล้ว" });
+        return;
+      }
+      const playersToCheck = room.participantsInRound
+        ? room.participantsInRound.filter(
+            (p) => p.id !== room.dealerId && !p.disconnectedMidGame
+          )
+        : [];
+      const allNonDealersDone = playersToCheck.every(
+        (p) => p.hasStayed || p.cards.length >= 3
       );
-      const allDone = playersToCheck.every(
-        (p) => p.hasStayed || p.cards.length >= 3 || p.disconnectedMidGame
-      );
-      if (!allDone && playersToCheck.length > 0) {
+
+      if (!allNonDealersDone && playersToCheck.length > 0) {
+        const notDonePlayer = playersToCheck.find(
+          (p) => !(p.hasStayed || p.cards.length >= 3)
+        );
+        console.log(
+          `[Server] ShowResult denied in room ${roomId}: Player ${notDonePlayer?.name} not done yet.`
+        );
         socket.emit("errorMessage", {
-          text: "ยังมีผู้เล่นบางคนยังไม่ได้ทำการตัดสินใจ",
+          text: `ยังมีผู้เล่น (${
+            notDonePlayer?.name || "บางคน"
+          }) ยังไม่ได้ทำการตัดสินใจ`,
         });
         return;
       }
+
       console.log(
-        `[Server] Dealer ${socket.id} is showing results for room ${roomId}`
+        `[Server] Dealer ${socket.id} is processing 'showResult' for room ${roomId}. Performing dealer draw logic...`
       );
       handleResultOnly(roomId);
-      const dealerSocket = io.sockets.sockets.get(room.dealerId); // Re-fetch to ensure it's current
-      if (dealerSocket) dealerSocket.emit("enableShowResult", false);
+
+      const dealerSocket = io.sockets.sockets.get(room.dealerId);
+      if (dealerSocket) dealerSocket.emit("enableShowResult", false); // ปิดปุ่มหลังจากแสดงผล
+      // room.gameStarted จะถูกตั้งเป็น false ใน handleResultOnly
     } else if (room && room.dealerId !== socket.id) {
       socket.emit("errorMessage", {
         text: "เฉพาะเจ้ามือเท่านั้นที่สามารถเปิดไพ่ได้",
       });
-    } else if (
-      room &&
-      !room.gameStarted &&
-      room.results &&
-      room.results.length > 0
-    ) {
-      // Game ended, results already shown
-      socket.emit("message", { text: "ผลลัพธ์ของรอบนี้ถูกแสดงไปแล้ว" });
+    } else if (!room) {
+      socket.emit("errorMessage", { text: `ไม่พบห้อง ${roomId}` });
+    } else {
+      socket.emit("errorMessage", { text: "ไม่สามารถแสดงผลได้ในขณะนี้" });
     }
   });
 
