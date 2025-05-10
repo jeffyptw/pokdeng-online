@@ -735,26 +735,6 @@ function App() {
           ))}
         </ul>
       </div>
-
-      {/* Player's Cards and Actions: ใช้ isMyTurn ที่แก้ไขแล้ว และเงื่อนไขปุ่มที่ถูกต้อง */}
-      {gameStarted && myCards && myCards.length > 0 && (!result || result.length === 0) && (
-          <div className="my-cards-area">
-          <h3>ไพ่ของคุณ: {myCards.map((card, idx) => (<span key={idx}>{getCardDisplay(card)} </span>))}</h3>
-          <p>แต้ม: {myHandScore}, ประเภท: {myHandType}</p>
-          {isMyTurn && myCards.length >= 2 && !hasStayed && (
-              <div className="player-actions">
-                <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
-                {myCards.length < 3 && (
-                  <button onClick={handleDrawCard} disabled={hasStayed || myCards.length >=3}>จั่ว</button>
-                )}
-                <button onClick={handleStay} disabled={hasStayed}>อยู่</button>
-              </div>
-          )}
-        </div>
-      )}
-
-      {/* Removed console.log from JSX */}
-
       {gameStarted &&
         myCards &&
         myCards.length > 0 &&
