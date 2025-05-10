@@ -692,6 +692,8 @@ function App() {
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
+        <br></br>
+        <hr />
         <input
           type="number"
           placeholder="เงินเริ่มต้น (ขั้นต่ำ 50)"
