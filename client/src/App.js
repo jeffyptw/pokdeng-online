@@ -1125,10 +1125,10 @@ function App() {
               className="btn-inroom-restart"
               onClick={handleResetGameHandler}
             >
-              รีเซ็ต (ดูสรุป)
+              รีเซ็ตตา
             </button>
             <button className="btn-inroom-result" onClick={handleEndGame}>
-              จบเกมทั้งหมด (ดูสรุป)
+              จบเกม&ดูสรุปยอด
             </button>
           </div>
         )}
