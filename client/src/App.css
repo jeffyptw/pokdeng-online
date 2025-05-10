@@ -35,9 +35,6 @@ body {
 .btn-inroom-restart,
 .btn-inroom-endgame,
 .btn-inroom-result,
-.btn-inroom-startgame:hover,
-.btn-inroom-startgame:active,
-.btn-inroom-startgame:disabled,
 .btn-inroom-lockgame,
 .btn-inroom-lockgame.locked,
 .btn-inroom-lockgame.unlocked,
@@ -48,6 +45,17 @@ body {
   border: 1px solid #ccc;
   font-size: 1em;
 }
+
+.btn-inroom-startgame:hover,
+.btn-inroom-startgame:active,
+.btn-inroom-startgame:disabled {
+  padding: 10px 15px;
+  margin: 5px;
+  border-radius: 5px;
+  border: 1px solid rgb(138, 241, 129);
+  font-size: 1em;
+}
+
 .App-lobby button,
 .dealer-controls button,
 .player-actions button,
