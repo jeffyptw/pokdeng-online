@@ -1118,7 +1118,7 @@ function App() {
       {isDealer &&
         (!gameStarted || (result && result.length > 0)) &&
         !showSummary && (
-          <div className="btn-inroom-restart">
+          <div className="turn-indicator">
             {" "}
             <button
               className="btn-inroom-startgame"
