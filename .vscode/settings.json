@@ -1,17 +1,50 @@
 {
+  // ────────────────── General & Auto-Save ──────────────────
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-
   "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  "files.autoSave": "onFocusChange",
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "explorer.confirmDelete": false,
 
+  // ─────────────────────── Prettier ───────────────────────
+  "prettier.requireConfig": true,
+  "prettier.singleQuote": true,
+  "prettier.trailingComma": "es5",
+  "prettier.semi": false,
+
+  // ─────────────────────── ESLint ────────────────────────
   "eslint.enable": true,
+  "eslint.alwaysShowStatus": true,
   "eslint.validate": [
     "javascript",
     "javascriptreact",
     "typescript",
-    "typescriptreact"
+    "typescriptreact",
+    "html"
   ],
+  "eslint.format.enable": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": true,
+    "source.organizeImports": true
+  },
 
-  "files.autoSave": "onFocusChange",
+  // ────────────────────── Stylelint ───────────────────────
+  "stylelint.enable": true,
+  "stylelint.validate": ["css", "scss", "less"],
+
+  // ──────────────────── Code Spell Checker ─────────────────
+  "cSpell.enabled": true,
+  "cSpell.language": "en,th",
+  "cSpell.minWordLength": 3,
+
+  // ────────────────────── SonarLint ───────────────────────
+  // (ถ้าเชื่อมต่อกับ SonarQube/Cloud ให้ตั้งค่าเพิ่มเติมในไฟล์ workspace)
+  "sonarlint.ls.javaHome": "/path/to/your/java/home",
+
+  // ─────────────────── Tailwind CSS IntelliSense ───────────────────
   "tailwindCSS.includeLanguages": {
     "plaintext": "html",
     "javascript": "javascript",
@@ -20,14 +53,27 @@
   },
   "tailwindCSS.emmetCompletions": true,
 
-  "javascript.preferences.importModuleSpecifier": "non-relative",
-  "typescript.preferences.importModuleSpecifier": "non-relative",
+  // ───────────────── Bracket & Error Highlight ────────────────
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": "active",
+  "errorLens.enabled": true,
 
-  "editor.codeActionsOnSave": {
-    "source.organizeImports": "explicit"
+  // ────────────── JS/TS Type-Checking (checkJs) ──────────────
+  "javascript.implicitProjectConfig.checkJs": true,
+  "javascript.validate.enable": false,
+  "typescript.validate.enable": false,
+
+  // ─────────── Language-Specific Formatter Override ───────────
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
-
-  "files.trimTrailingWhitespace": true,
-  "files.insertFinalNewline": true,
-  "explorer.confirmDelete": false
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  }
 }

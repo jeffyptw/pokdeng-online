@@ -136,6 +136,15 @@ button:disabled {
   margin: 2px 0;
   border-radius: 3px;
 }
+/* เพิ่ม CSS สำหรับ message-type-highlight */
+.message-type-highlight {
+  color: #8a6d3b; /* Dark yellow / brown */
+  background-color: #fcf8e3; /* Light yellow */
+  border: 1px solid #faebcc;
+  padding: 3px 6px;
+  margin: 2px 0;
+  border-radius: 3px;
+}
 
 .App header {
   border-bottom: 2px solid #337ab7;
@@ -313,4 +322,27 @@ th {
 }
 .text-button2:hover {
   text-decoration: underline; /* เน้นเมื่อ hover */
+}
+
+/* ส่วนแสดงไพ่ของผู้เล่นที่ป๊อก (เพิ่มเติม) */
+.revealed-pok-cards {
+  font-size: 0.9em;
+  color: navy;
+  margin-top: 5px;
+  padding: 5px;
+  background-color: #fffacd; /* LemonChiffon like */
+  border: 1px solid #f0e68c; /* Khaki like */
+  border-radius: 4px;
+}
+.revealed-pok-cards strong {
+  color: #8b0000; /* DarkRed */
+}
+.revealed-pok-cards .card-display {
+  display: inline-block;
+  border: 1px solid #ccc;
+  padding: 2px 5px;
+  margin-right: 3px;
+  background-color: white;
+  border-radius: 3px;
+  font-weight: bold;
 }
