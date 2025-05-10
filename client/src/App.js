@@ -814,59 +814,72 @@ function App() {
           <p className="turn-indicator">รอผู้เล่นทุกคนตัดสินใจ...</p>
         )}
       {result && result.length > 0 && (
-        <div className="results-display">
-          <h3>
-            ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
-            บาท)
-          </h3>
-          <table>
-            <thead>
-              <tr>
-                <th>ผู้เล่น (บทบาท)</th> <th>ไพ่</th> <th>แต้ม</th>
-                <th>ประเภท</th> <th>ผล</th> <th>ได้/เสีย</th> <th>เงินใหม่</th>
-              </tr>
-            </thead>
-            <tbody>
-              {result.map((r, i) => (
-                <tr
-                  key={r.id || i}
-                  className={
-                    r.id === myPlayerId
-                      ? "my-result-row"
-                      : r.disconnectedMidGame
-                      ? "disconnected-result-row"
-                      : ""
-                  }
-                >
-                  <td>{r.name} ({r.role || 'N/A'})</td> <td>{r.cardsDisplay || "N/A"}</td>
-                  <td>{r.score}</td> <td>{r.specialType}</td>
-                  <td
-                    className={`outcome-${r.outcome
-                      ?.toLowerCase()
-                      .replace(/\s+/g, "-")
-                      .replace(/[()]/g, "")}`}
-                  >
-                    {r.outcome}
-                  </td>
-                  <td
-                    className={
-                      r.moneyChange > 0
-                        ? "profit"
-                        : r.moneyChange < 0
-                        ? "loss"
-                        : ""
-                    }
-                  >
-                    {r.moneyChange !== 0
-                      ? r.moneyChange?.toLocaleString()
-                      : "-"}
-                  </td>
-                  <td>{r.balance?.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+    <div className="results-display">
+      <h3>
+        ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
+        บาท)
+      </h3>
+      <table>
+        <thead>
+          <tr>
+            <th>ผู้เล่น (บทบาท)</th>
+            <th>ไพ่</th>
+            <th>แต้ม</th>
+            <th>ประเภท</th>
+            <th>ผล</th>
+            <th>ได้/เสีย</th>
+            <th>เงินคงเหลือ</th> {/* <--- เปลี่ยนชื่อคอลัมน์ */}
+          </tr>
+        </thead>
+        <tbody>
+          {result.map((r, i) => ( // Server ควรจะส่ง result ที่เรียงลำดับมาแล้ว (เจ้ามือก่อน)
+            <tr
+              key={r.id || i}
+              className={
+                r.id === myPlayerId
+                  ? "my-result-row"
+                  : r.disconnectedMidGame
+                  ? "disconnected-result-row"
+                  : ""
+              }
+            >
+              <td>{r.name} ({r.role || 'N/A'})</td> {/* แสดง role ตามที่ Server ส่งมา */}
+              <td>{r.cardsDisplay || "N/A"}</td>
+              <td>{r.score}</td>
+              <td>{r.specialType}</td>
+              <td> {/* <--- แก้ไขการแสดงผล "ผล" */}
+                {r.outcome === "ชนะ" && "✅ ชนะ"}
+                {r.outcome === "แพ้" && "❌ แพ้"}
+                {r.outcome === "เสมอ" && "🤝 เสมอ"}
+                {r.outcome === "เจ้ามือ" && "เจ้ามือ"}
+                {r.outcome === "ขาดการเชื่อมต่อ" && "ขาดการเชื่อมต่อ"}
+                {/* เพิ่มเงื่อนไขสำหรับ outcome อื่นๆ ถ้ามี */}
+                {!(["ชนะ", "แพ้", "เสมอ", "เจ้ามือ", "ขาดการเชื่อมต่อ"].includes(r.outcome)) && r.outcome}
+              </td>
+              <td
+  className={
+    r.moneyChange > 0
+      ? "profit"
+      : r.moneyChange < 0
+      ? "loss"
+      : ""
+  }
+>
+  {r.moneyChange > 0 && `+${r.moneyChange?.toLocaleString()} บาท`}
+  {r.moneyChange < 0 && `${r.moneyChange?.toLocaleString()} บาท`}
+  {/* แก้ไขบรรทัดล่างนี้ โดยการเอา {} ชั้นนอกออก */}
+  {r.moneyChange === 0 && (
+    (r.outcome === "เจ้ามือ" || r.outcome === "เสมอ" || (r.outcome === "ขาดการเชื่อมต่อ" && r.balance < betAmount))
+      ? "-"
+      : "0 บาท" // ถ้า moneyChange เป็น 0 และไม่เข้าเงื่อนไขข้างบน ก็แสดง "0 บาท"
+  )}
+</td>
+              <td>{r.balance?.toLocaleString()} บาท</td> {/* <--- แก้ไขการแสดงผล "เงินคงเหลือ" */}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
       )}
       {isDealer &&
         (!gameStarted || (result && result.length > 0)) &&
