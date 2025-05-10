@@ -151,7 +151,6 @@ function App() {
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
       setGameStarted(true);
       setResult([]);
-      setMyCards([]); // เคลียร์ไพ่เก่าเมื่อเริ่มเกมใหม่ (Server จะส่ง yourCards ชุดใหม่มา)
       setHasStayed(false);
       setShowResultBtn(false);
       setShowSummary(false);
