@@ -700,8 +700,8 @@ function App() {
           min="50"
           step="10"
         />
-        <div style={{ marginTop: 20 }}>
-        &nbsp;&nbsp;&nbsp;<button
+        &nbsp;&nbsp;&nbsp;<div style={{ marginTop: 20 }}>
+        <button
             onClick={handleCreateRoom}
             disabled={!isConnected || !name.trim() || !money.trim()}
           >
