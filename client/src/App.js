@@ -685,16 +685,7 @@ function App() {
   </p>
 )}
 
-        <p>
-          สถานะ:&nbsp;
-          <span
-            className={isConnected ? "status-connected" : "status-connecting"}
-          >
-            {isConnected
-              ? "เชื่อมต่อกับเซิฟเวอร์แล้ว"
-              : "กำลังเชื่อมต่อกับเซิฟเวอร์..."}
-          </span>
-        </p>
+
         <input
           type="text"
           placeholder="ชื่อคุณ"
