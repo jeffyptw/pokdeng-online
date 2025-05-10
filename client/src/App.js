@@ -675,9 +675,9 @@ function App() {
     className="error-message"
     style={{
       color: "#000000", // กำหนดสีตัวอักษรเป็นสีดำ
-      border: "1px solid rgb(85, 24, 24)",
+      border: "1px solid #551818",
       padding: "5px",
-      backgroundColor: "#fdd",
+      backgroundColor: "#eeeeee",
       whiteSpace: "pre-wrap",
     }}
   >
