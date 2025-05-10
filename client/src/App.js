@@ -1120,7 +1120,7 @@ function App() {
         !showSummary && (
           <div className="turn-indicator">
             <button
-              className="btn-inroom-startgame"
+              className="btn-inroom-restart"
               onClick={handleResetGameHandler}
             >
               เริ่มรอบใหม่ / รีเซ็ต (ดูสรุป)
