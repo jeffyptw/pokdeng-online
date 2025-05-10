@@ -22,7 +22,7 @@ const io = socketIO(server, {
 });
 
 const rooms = {};
-const DEFAULT_BET_AMOUNT = 5; // ตามที่คุณตั้งไว้
+const DEFAULT_BET_AMOUNT = 5;
 const TURN_DURATION = 30;
 
 function generateRoomId() {
@@ -535,6 +535,26 @@ function dealerDecisionAndDrawLogic(roomId) {
   return false; // Indicate no draw occurred or decision made to stay
 }
 
+function getOrderedGamePlayersForTurns(participants, dealerId) {
+  if (!participants || participants.length === 0) {
+    console.log("[Server] getOrderedGamePlayersForTurns: No participants.");
+    return [];
+  }
+  const actualPlayers = participants.filter(
+    (p) => p.id !== dealerId && !p.disconnectedMidGame
+  );
+  actualPlayers.sort((a, b) => {
+    const numA = parseInt(a.role.match(/\d+/)?.[0] || "999");
+    const numB = parseInt(b.role.match(/\d+/)?.[0] || "999");
+    return numA - numB;
+  });
+  console.log(
+    "[Server] Ordered players for turns (IDs):",
+    actualPlayers.map((p) => p.id)
+  );
+  return actualPlayers.map((p) => ({ id: p.id, name: p.name, role: p.role }));
+}
+
 io.on("connection", (socket) => {
   console.log(`[Server] User connected: ${socket.id}`);
 
@@ -731,7 +751,7 @@ io.on("connection", (socket) => {
       room.isLocked = true;
       io.to(roomIdFromClient).emit("lockRoom", true);
       room.deck = shuffleDeck(createDeck());
-      room.results = null; // Clear previous round results
+      room.results = null;
 
       room.participantsInRound = JSON.parse(JSON.stringify(room.players)).map(
         (p) => ({
