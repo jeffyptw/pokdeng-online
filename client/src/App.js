@@ -21,7 +21,7 @@ function App() {
   const [inRoom, setInRoom] = useState(false);
   const [isDealer, setIsDealer] = useState(false);
   const [playerData, setPlayerData] = useState([]);
-  const [betAmount, setBetAmount] = useState(0);
+  const [betAmount, setBetAmount] = useState(5);
   const [inputBetAmount, setInputBetAmount] = useState("5");
   const [roomLocked, setRoomLocked] = useState(false);
 
@@ -41,12 +41,17 @@ function App() {
   const [gameRound, setGameRound] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState([]);
-  const [transferSummary, setTransferSummary] = useState({ toPay: [], toReceive: [] });
+  const [transferSummary, setTransferSummary] = useState({
+    toPay: [],
+    toReceive: [],
+  });
 
   useEffect(() => {
     if (showSummary && summaryData.length > 0 && myPlayerId) {
-      const currentUserSummary = summaryData.find(p => p.id === myPlayerId);
-      const otherPlayersSummary = summaryData.filter(p => p.id !== myPlayerId);
+      const currentUserSummary = summaryData.find((p) => p.id === myPlayerId);
+      const otherPlayersSummary = summaryData.filter(
+        (p) => p.id !== myPlayerId
+      );
 
       if (!currentUserSummary) return;
 
@@ -54,43 +59,48 @@ function App() {
       const toReceiveList = [];
 
       // กรณีที่ผู้เล่นปัจจุบันเป็น "ผู้เล่น" (ไม่ใช่เจ้ามือ)
-      if (!currentUserSummary.isDealer) { // หรือ !isDealer (ถ้า isDealer state ถูกต้อง ณ จุดนี้)
-        if (currentUserSummary.netChange < 0) { // เราเสียเงิน
+      if (!currentUserSummary.isDealer) {
+        // หรือ !isDealer (ถ้า isDealer state ถูกต้อง ณ จุดนี้)
+        if (currentUserSummary.netChange < 0) {
+          // เราเสียเงิน
           // ในเกมนี้ ผู้เล่นจะเสียให้เจ้ามือเท่านั้น
-          const dealer = summaryData.find(p => p.isDealer); // หรือ p.role === "เจ้ามือ"
+          const dealer = summaryData.find((p) => p.isDealer); // หรือ p.role === "เจ้ามือ"
           if (dealer) {
             toPayList.push({
               name: dealer.name,
               role: dealer.role,
-              amount: Math.abs(currentUserSummary.netChange) // จำนวนเงินที่ต้องโอนให้เจ้ามือ
+              amount: Math.abs(currentUserSummary.netChange), // จำนวนเงินที่ต้องโอนให้เจ้ามือ
             });
           }
-        } else if (currentUserSummary.netChange > 0) { // เราได้เงิน
+        } else if (currentUserSummary.netChange > 0) {
+          // เราได้เงิน
           // ผู้เล่นจะได้เงินจากเจ้ามือเท่านั้น
-          const dealer = summaryData.find(p => p.isDealer);
+          const dealer = summaryData.find((p) => p.isDealer);
           if (dealer) {
             toReceiveList.push({
               name: dealer.name,
               role: dealer.role,
-              amount: currentUserSummary.netChange // จำนวนเงินที่ได้จากเจ้ามือ
+              amount: currentUserSummary.netChange, // จำนวนเงินที่ได้จากเจ้ามือ
             });
           }
         }
       }
       // กรณีที่ผู้เล่นปัจจุบันเป็น "เจ้ามือ"
       else {
-        otherPlayersSummary.forEach(player => {
-          if (player.netChange > 0) { // ผู้เล่นคนนี้ได้เงินจากเรา (เจ้ามือ)
+        otherPlayersSummary.forEach((player) => {
+          if (player.netChange > 0) {
+            // ผู้เล่นคนนี้ได้เงินจากเรา (เจ้ามือ)
             toPayList.push({
               name: player.name,
               role: player.role,
-              amount: player.netChange
+              amount: player.netChange,
             });
-          } else if (player.netChange < 0) { // เรา (เจ้ามือ) ได้เงินจากผู้เล่นคนนี้
+          } else if (player.netChange < 0) {
+            // เรา (เจ้ามือ) ได้เงินจากผู้เล่นคนนี้
             toReceiveList.push({
               name: player.name,
               role: player.role,
-              amount: Math.abs(player.netChange)
+              amount: Math.abs(player.netChange),
             });
           }
         });
@@ -120,7 +130,12 @@ function App() {
     });
     // แสดง errorMsg เฉพาะเมื่อ type เป็น error, success, info (หรือตามต้องการ)
     // และไม่ทับข้อความ error ที่สำคัญกว่าถ้ามีข้อความใหม่เข้ามาเร็ว
-    if (type === "error" || type === "success" || type === "info" || type === "highlight") {
+    if (
+      type === "error" ||
+      type === "success" ||
+      type === "info" ||
+      type === "highlight"
+    ) {
       setErrorMsg(text); // แสดง errorMsg ชั่วคราวสำหรับ type เหล่านี้ด้วย
       setTimeout(
         () => setErrorMsg((current) => (current === text ? "" : current)),
@@ -151,7 +166,7 @@ function App() {
     }
 
     function onConnectError(err) {
-      console.error('[Client] Connection Attempt Error:', err);
+      console.error("[Client] Connection Attempt Error:", err);
       addMessage(`พยายามเชื่อมต่อ Server ไม่สำเร็จ: ${err.message}`, "error");
       setIsConnected(false);
     }
@@ -162,8 +177,13 @@ function App() {
 
     socketClient.on("roomCreated", (data) => {
       console.log("[Client] Room Created:", data);
-      setRoomId(data.roomId); setInRoom(true); setIsDealer(true);
-      addMessage(`ห้อง ${data.roomId} ถูกสร้างโดย ${name || data.dealerName}`, "success");
+      setRoomId(data.roomId);
+      setInRoom(true);
+      setIsDealer(true);
+      addMessage(
+        `ห้อง ${data.roomId} ถูกสร้างโดย ${name || data.dealerName}`,
+        "success"
+      );
       if (typeof data.betAmount === "number") {
         setBetAmount(data.betAmount);
         setInputBetAmount(data.betAmount.toString());
@@ -172,8 +192,14 @@ function App() {
 
     socketClient.on("joinedRoom", (data) => {
       console.log("[Client] Joined Room:", data);
-      setRoomId(data.roomId); setInRoom(true);
-      addMessage(`เข้าร่วมห้อง ${data.roomId} สำเร็จ. เจ้ามือ: ${data.dealerName || "N/A"}`, "success");
+      setRoomId(data.roomId);
+      setInRoom(true);
+      addMessage(
+        `เข้าร่วมห้อง ${data.roomId} สำเร็จ. เจ้ามือ: ${
+          data.dealerName || "N/A"
+        }`,
+        "success"
+      );
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
     });
 
@@ -188,21 +214,31 @@ function App() {
           setHasStayed(me.hasStayed);
         }
       }
-
-
-
     });
 
-
-
-    socketClient.on("yourCards", (cardsFromServer) => { // Server ต้องส่ง array of objects
-      console.log(`[Client ${myPlayerId || socketClient?.id}] Received 'yourCards'. Data:`, JSON.stringify(cardsFromServer));
-      if (Array.isArray(cardsFromServer) && cardsFromServer.every(c => typeof c === 'object' && c !== null && 'value' in c && 'suit' in c)) {
+    socketClient.on("yourCards", (cardsFromServer) => {
+      // Server ต้องส่ง array of objects
+      console.log(
+        `[Client ${
+          myPlayerId || socketClient?.id
+        }] Received 'yourCards'. Data:`,
+        JSON.stringify(cardsFromServer)
+      );
+      if (
+        Array.isArray(cardsFromServer) &&
+        cardsFromServer.every(
+          (c) =>
+            typeof c === "object" && c !== null && "value" in c && "suit" in c
+        )
+      ) {
         setMyCards(cardsFromServer);
         // ไม่ควร setHasStayed(false) ที่นี่โดยไม่มีเงื่อนไข เพราะอาจจะล้างสถานะที่ server กำหนด
         // การ reset hasStayed ควรทำเมื่อเริ่มรอบใหม่ (gameStarted) หรือเมื่อถึงตาของผู้เล่น (currentTurn)
       } else {
-        console.warn("[Client] 'yourCards' received non-array of objects or invalid data:", cardsFromServer);
+        console.warn(
+          "[Client] 'yourCards' received non-array of objects or invalid data:",
+          cardsFromServer
+        );
         setMyCards([]); // ตั้งเป็น array ว่างถ้าข้อมูลไม่ถูกต้อง
       }
     });
@@ -222,23 +258,30 @@ function App() {
     socketClient.on("currentTurn", (turnData) => {
       console.log("[Client] Event 'currentTurn':", turnData);
       setCurrentTurnId(turnData.id);
-      setCurrentTurnInfo({ name: turnData.name, role: turnData.role, timeLeft: turnData.timeLeft });
+      setCurrentTurnInfo({
+        name: turnData.name,
+        role: turnData.role,
+        timeLeft: turnData.timeLeft,
+      });
       const newCountdown = turnData.timeLeft || DEFAULT_TURN_DURATION;
       setCountdown(newCountdown);
       if (turnData.id === myPlayerId) {
         // รีเซ็ต hasStayed เมื่อถึงตาของผู้เล่น *ยกเว้น* server ได้บอกแล้วว่าผู้เล่นนี้ hasStayed (เช่น ป๊อก)
         // การตรวจสอบนี้อาจจะซับซ้อน ถ้า me.hasStayed จาก playersData ถูกต้อง ก็ไม่ต้องทำอะไรมาก
         // เพื่อความปลอดภัย, ถ้า server บอกว่า hasStayed แล้ว ก็ไม่ควรเปลี่ยนเป็น false
-        const meInPlayerData = playerData.find(p => p.id === myPlayerId);
+        const meInPlayerData = playerData.find((p) => p.id === myPlayerId);
         if (!(meInPlayerData && meInPlayerData.hasStayed)) {
-            setHasStayed(false);
+          setHasStayed(false);
         }
       }
     });
 
     socketClient.on("turnTimerUpdate", (timerData) => {
       if (currentTurnId === timerData.playerId) {
-        setCurrentTurnInfo((prev) => ({ ...prev, timeLeft: timerData.timeLeft }));
+        setCurrentTurnInfo((prev) => ({
+          ...prev,
+          timeLeft: timerData.timeLeft,
+        }));
         if (timerData.playerId === myPlayerId) setCountdown(timerData.timeLeft);
       }
     });
@@ -279,24 +322,29 @@ function App() {
 
     // *** NEW: Listener for player_revealed_pok ***
     socketClient.on("player_revealed_pok", (data) => {
-        console.log("[Client] Player revealed Pok:", data);
-        if (data && data.playerId && data.cards && data.handDetails) {
-            addMessage(
-                `${data.role || 'ผู้เล่น'} (${data.name}) ป๊อก! แสดงไพ่: ${data.cards.map(getCardDisplay).join(" ")} (${data.handDetails.type})`,
-                "highlight" // ใช้ type ใหม่ หรือ 'info'
-            );
-            setRevealedPokPlayers(prev => ({
-                ...prev,
-                [data.playerId]: {
-                    name: data.name,
-                    role: data.role,
-                    cards: data.cards,
-                    handDetails: data.handDetails
-                }
-            }));
-        } else {
-            console.warn("[Client] Received invalid data for player_revealed_pok:", data);
-        }
+      console.log("[Client] Player revealed Pok:", data);
+      if (data && data.playerId && data.cards && data.handDetails) {
+        addMessage(
+          `${data.role || "ผู้เล่น"} (${data.name}) ป๊อก! แสดงไพ่: ${data.cards
+            .map(getCardDisplay)
+            .join(" ")} (${data.handDetails.type})`,
+          "highlight" // ใช้ type ใหม่ หรือ 'info'
+        );
+        setRevealedPokPlayers((prev) => ({
+          ...prev,
+          [data.playerId]: {
+            name: data.name,
+            role: data.role,
+            cards: data.cards,
+            handDetails: data.handDetails,
+          },
+        }));
+      } else {
+        console.warn(
+          "[Client] Received invalid data for player_revealed_pok:",
+          data
+        );
+      }
     });
 
     socketClient.on("gameEnded", (gameSummary) => {
@@ -411,7 +459,6 @@ function App() {
     // addMessage was removed as a dependency because it's stable if defined outside or via useCallback
   ]);
 
-
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
       addMessage("ยังไม่ได้เชื่อมต่อกับ Server", "error");
@@ -490,27 +537,39 @@ function App() {
     }
   };
 
-  const handleCopyRoomId = () => { // ปรับปรุงให้ใช้ addMessage
+  const handleCopyRoomId = () => {
+    // ปรับปรุงให้ใช้ addMessage
     if (!roomId) return;
     navigator.clipboard
       .writeText(roomId)
-      .then(() => addMessage(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`, "success"))
+      .then(() =>
+        addMessage(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`, "success")
+      )
       .catch((err) => {
-          console.error("คัดลอกไม่สำเร็จ:", err);
-          addMessage("คัดลอกเลขห้องไม่สำเร็จ", "error");
+        console.error("คัดลอกไม่สำเร็จ:", err);
+        addMessage("คัดลอกเลขห้องไม่สำเร็จ", "error");
       });
   };
 
-  const handleStartGame = () => { // ปรับปรุงเงื่อนไข disabled ใน JSX
+  const handleStartGame = () => {
+    // ปรับปรุงเงื่อนไข disabled ใน JSX
     if (socketClient && socketClient.connected && roomId && isDealer) {
       if (betAmount <= 0) {
         addMessage("กรุณากำหนดเงินเดิมพันก่อนเริ่มเกม", "error");
         return;
       }
-      console.log("[Client] Attempting 'startGame'. RoomId:", roomId, "IsDealer:", isDealer);
+      console.log(
+        "[Client] Attempting 'startGame'. RoomId:",
+        roomId,
+        "IsDealer:",
+        isDealer
+      );
       socketClient.emit("startGame", roomId);
     } else {
-      addMessage("ไม่สามารถเริ่มเกมได้ (ตรวจสอบการเชื่อมต่อ, รหัสห้อง, หรือสิทธิ์เจ้ามือ)", "error");
+      addMessage(
+        "ไม่สามารถเริ่มเกมได้ (ตรวจสอบการเชื่อมต่อ, รหัสห้อง, หรือสิทธิ์เจ้ามือ)",
+        "error"
+      );
     }
   };
 
@@ -579,32 +638,52 @@ function App() {
     window.location.reload();
   };
 
-  const getCardDisplay = (card) => { // ควรจะทำงานถูกต้องถ้า server ส่ง object ไพ่มา
-    if (card && typeof card.value !== "undefined" && typeof card.suit !== "undefined")
+  const getCardDisplay = (card) => {
+    // ควรจะทำงานถูกต้องถ้า server ส่ง object ไพ่มา
+    if (
+      card &&
+      typeof card.value !== "undefined" &&
+      typeof card.suit !== "undefined"
+    )
       return `${card.value}${card.suit}`;
     console.warn("[Client] getCardDisplay received invalid card object:", card);
     return "?";
   };
 
-  const getCardPoint = (v) => ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
+  const getCardPoint = (v) =>
+    ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
 
-  const calculateRankForDisplay = (cardsToRank) => { // เพิ่มการเช็ค "ตอง"
-    if (!cardsToRank || cardsToRank.length === 0) return { score: 0, type: "ยังไม่มีไพ่" };
-    const calculatedScore = cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
+  const calculateRankForDisplay = (cardsToRank) => {
+    // เพิ่มการเช็ค "ตอง"
+    if (!cardsToRank || cardsToRank.length === 0)
+      return { score: 0, type: "ยังไม่มีไพ่" };
+    const calculatedScore =
+      cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
     let type = `${calculatedScore} แต้ม`;
 
     if (cardsToRank.length === 2) {
       const isPok = calculatedScore === 8 || calculatedScore === 9;
-      const isDeng = cardsToRank[0].suit === cardsToRank[1].suit || cardsToRank[0].value === cardsToRank[1].value;
-      if (isPok) { type = `ป๊อก ${calculatedScore}`; if (isDeng) type += " สองเด้ง"; }
-      else if (isDeng) { type = `สองเด้ง (${calculatedScore} แต้ม)`; }
+      const isDeng =
+        cardsToRank[0].suit === cardsToRank[1].suit ||
+        cardsToRank[0].value === cardsToRank[1].value;
+      if (isPok) {
+        type = `ป๊อก ${calculatedScore}`;
+        if (isDeng) type += " สองเด้ง";
+      } else if (isDeng) {
+        type = `สองเด้ง (${calculatedScore} แต้ม)`;
+      }
     } else if (cardsToRank.length === 3) {
       const suits = cardsToRank.map((c) => c.suit);
       const values = cardsToRank.map((c) => c.value).sort();
       const isSameSuit = suits.every((s) => s === suits[0]);
       const isTaong = values[0] === values[1] && values[1] === values[2];
-      if (isTaong) { type = `ตอง ${values[0]} (${calculatedScore} แต้ม)`; if (isSameSuit) type += " (สี)";} // ตองสี
-      else if (isSameSuit) { type = `สามเด้ง (${calculatedScore} แต้ม)`; }
+      if (isTaong) {
+        type = `ตอง ${values[0]} (${calculatedScore} แต้ม)`;
+        if (isSameSuit) type += " (สี)";
+      } // ตองสี
+      else if (isSameSuit) {
+        type = `สามเด้ง (${calculatedScore} แต้ม)`;
+      }
       // สามารถเพิ่มการตรวจสอบ เรียง, เซียน ที่นี่ได้ถ้าต้องการให้ Client แสดงผลแม่นยำขึ้น
     }
     return { score: calculatedScore, type };
@@ -614,15 +693,20 @@ function App() {
   let myHandScore = "-";
   let myHandType = "ยังไม่มีไพ่";
 
-  if (myCards && myCards.length > 0 && gameStarted && (!result || result.length === 0)) {
+  if (
+    myCards &&
+    myCards.length > 0 &&
+    gameStarted &&
+    (!result || result.length === 0)
+  ) {
     const rankData = calculateRankForDisplay(myCards);
     myHandScore = rankData.score;
     myHandType = rankData.type;
   }
   // ปรับปรุง isMyTurn ให้ถูกต้อง (เอา myCards.length < 3 ออก)
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
-   // JSX
-   if (showSummary) {
+  // JSX
+  if (showSummary) {
     return (
       <div className="App-summary">
         <h2>สรุปยอดเงินหลังจบเกม (ห้อง: {roomId})</h2>
@@ -641,7 +725,9 @@ function App() {
           </thead>
           <tbody>
             {summaryData.map((p, i) => (
-              <tr key={p.id || i}> {/* ยังคงใช้ p.id สำหรับ key เพื่อความ unique */}
+              <tr key={p.id || i}>
+                {" "}
+                {/* ยังคงใช้ p.id สำหรับ key เพื่อความ unique */}
                 {/* คอลัมน์ 1: แสดงชื่อผู้เล่น */}
                 <td>{p.name}</td>
                 {/* คอลัมน์ 2: แสดงบทบาท */}
@@ -652,14 +738,14 @@ function App() {
                 <td className={p.netChange >= 0 ? "profit" : "loss"}>
                   {p.netChange > 0 && `+${p.netChange?.toLocaleString()} บาท`}
                   {p.netChange < 0 && `${p.netChange?.toLocaleString()} บาท`}
-                  {p.netChange === 0 && "0 บาท"} {/* หรือจะแสดงเป็น "-" ก็ได้ */}
+                  {p.netChange === 0 && "0 บาท"}{" "}
+                  {/* หรือจะแสดงเป็น "-" ก็ได้ */}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
         <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
-
 
         <button onClick={handleExitGame}>ออกจากเกม (เริ่มใหม่)</button>
       </div>
@@ -671,28 +757,28 @@ function App() {
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
         {errorMsg && (
-  <p
-    className="error-message"
-    style={{
-      color: "#000000", // กำหนดสีตัวอักษรเป็นสีดำ
-      border: "1px solid #551818",
-      padding: "5px",
-      backgroundColor: "#eeeeee",
-      whiteSpace: "pre-wrap",
-    }}
-  >
-    {errorMsg}
-  </p>
-)}
-
-
-      ชื่อคุณ: <input
+          <p
+            className="error-message"
+            style={{
+              color: "#000000", // กำหนดสีตัวอักษรเป็นสีดำ
+              border: "1px solid #551818",
+              padding: "5px",
+              backgroundColor: "#eeeeee",
+              whiteSpace: "pre-wrap",
+            }}
+          >
+            {errorMsg}
+          </p>
+        )}
+        ชื่อคุณ:{" "}
+        <input
           type="text"
-          placeholder="ชื่อคุณ"
+          placeholder="กรุณาใส่ชื่อของคุณ"
           value={name}
-          onChange={(e) => setName(e.target.value)}></input>
-
-        เงิน: <input
+          onChange={(e) => setName(e.target.value)}
+        ></input>
+        เงินเริ่มต้น:{" "}
+        <input
           type="number"
           placeholder="เงินเริ่มต้น (ขั้นต่ำ 50)"
           value={money}
@@ -700,8 +786,9 @@ function App() {
           min="50"
           step="10"
         />
-        &nbsp;&nbsp;&nbsp;<div style={{ marginTop: 20 }}>
-        <button
+        &nbsp;&nbsp;&nbsp;
+        <div style={{ marginTop: 20 }}>
+          <button
             onClick={handleCreateRoom}
             disabled={!isConnected || !name.trim() || !money.trim()}
           >
@@ -783,12 +870,25 @@ function App() {
           <h4>ตั้งค่าเกม (เจ้ามือ):</h4>
           <div>
             <label>เงินเดิมพัน: </label>
-            <input type="number" value={inputBetAmount} onChange={(e) => setInputBetAmount(e.target.value)} step="5" min="5"/>
-            <button className="btn-inroom-setting" onClick={handleSetBet}>ตั้งค่า</button>
+            <input
+              type="number"
+              placeholder="กรุณาใส่เงินเงินเดิมพัน ขั้นต่ำ 5 บาท"
+              value={inputBetAmount}
+              onChange={(e) => setInputBetAmount(e.target.value)}
+              step="5"
+              min="5"
+            />
+            <button className="btn-inroom-setting" onClick={handleSetBet}>
+              ตั้งค่า
+            </button>
           </div>
-          <button onClick={handleToggleLockRoom}>{roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}</button>
-          <button onClick={handleStartGame} disabled={betAmount <= 0} >
-            {gameRound > 0 || (result && result.length > 0) ? "เริ่มเกมรอบใหม่" : "เริ่มเกม"}
+          <button onClick={handleToggleLockRoom}>
+            {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
+          </button>
+          <button onClick={handleStartGame} disabled={betAmount <= 0}>
+            {gameRound > 0 || (result && result.length > 0)
+              ? "เริ่มเกมรอบใหม่"
+              : "เริ่มเกม"}
           </button>
         </div>
       )}
@@ -796,21 +896,30 @@ function App() {
         <h4>ผู้เล่นในห้อง ({playerData.length} คน):</h4>
         <ul>
           {playerData.map((user) => (
-            <li key={user.id} className={user.id === currentTurnId ? "current-turn-player" : ""}>
-              {user.name} ({user.role}) - เงิน: {user.balance?.toLocaleString()} บาท
-              {user.id === currentTurnId && currentTurnInfo.timeLeft > 0 && gameStarted &&
+            <li
+              key={user.id}
+              className={user.id === currentTurnId ? "current-turn-player" : ""}
+            >
+              {user.name} ({user.role}) - เงิน: {user.balance?.toLocaleString()}{" "}
+              บาท
+              {user.id === currentTurnId &&
+                currentTurnInfo.timeLeft > 0 &&
+                gameStarted &&
                 ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}
-              {revealedPokPlayers[user.id] && user.id !== myPlayerId && gameStarted && (!result || result.length === 0) && (
-                <div className="revealed-pok-cards">
-                  <strong>ไพ่ที่ป๊อก:</strong>{" "}
-                  {revealedPokPlayers[user.id].cards.map((card, cIdx) => (
-                    <span key={cIdx} className="card-display">
-                      {getCardDisplay(card)}
-                    </span>
-                  ))}
-                  <em> ({revealedPokPlayers[user.id].handDetails.type})</em>
-                </div>
-              )}
+              {revealedPokPlayers[user.id] &&
+                user.id !== myPlayerId &&
+                gameStarted &&
+                (!result || result.length === 0) && (
+                  <div className="revealed-pok-cards">
+                    <strong>ไพ่ที่ป๊อก:</strong>{" "}
+                    {revealedPokPlayers[user.id].cards.map((card, cIdx) => (
+                      <span key={cIdx} className="card-display">
+                        {getCardDisplay(card)}
+                      </span>
+                    ))}
+                    <em> ({revealedPokPlayers[user.id].handDetails.type})</em>
+                  </div>
+                )}
             </li>
           ))}
         </ul>
@@ -894,72 +1003,94 @@ function App() {
           <p className="turn-indicator">รอผู้เล่นทุกคนตัดสินใจ...</p>
         )}
       {result && result.length > 0 && (
-    <div className="results-display">
-      <h3>
-        ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
-        บาท)
-      </h3>
-      <table>
-        <thead>
-          <tr>
-            <th>ผู้เล่น (บทบาท)</th>
-            <th>ไพ่</th>
-            <th>แต้ม</th>
-            <th>ประเภท</th>
-            <th>ผล</th>
-            <th>ได้/เสีย</th>
-            <th>เงินคงเหลือ</th> {/* <--- เปลี่ยนชื่อคอลัมน์ */}
-          </tr>
-        </thead>
-        <tbody>
-          {result.map((r, i) => ( // Server ควรจะส่ง result ที่เรียงลำดับมาแล้ว (เจ้ามือก่อน)
-            <tr
-              key={r.id || i}
-              className={
-                r.id === myPlayerId
-                  ? "my-result-row"
-                  : r.disconnectedMidGame
-                  ? "disconnected-result-row"
-                  : ""
-              }
-            >
-              <td>{r.name} ({r.role || 'N/A'})</td>
-              <td>{r.cardsDisplay || "N/A"}</td>
-              <td>{r.score}</td>
-              <td>{r.specialType}</td>
-              <td> {/* <--- แก้ไขการแสดงผล "ผล" */}
-                {r.outcome === "ชนะ" && "✅ ชนะ"}
-                {r.outcome === "แพ้" && "❌ แพ้"}
-                {r.outcome === "เสมอ" && "🤝 เสมอ"}
-                {r.outcome === "เจ้ามือ" && "เจ้ามือ"}
-                {r.outcome === "ขาดการเชื่อมต่อ" && "ขาดการเชื่อมต่อ"}
-                {/* เพิ่มเงื่อนไขสำหรับ outcome อื่นๆ ถ้ามี */}
-                {!(["ชนะ", "แพ้", "เสมอ", "เจ้ามือ", "ขาดการเชื่อมต่อ"].includes(r.outcome)) && r.outcome}
-              </td>
-              <td
-  className={
-    r.moneyChange > 0
-      ? "profit"
-      : r.moneyChange < 0
-      ? "loss"
-      : ""
-  }
->
-  {r.moneyChange > 0 && `+${r.moneyChange?.toLocaleString()} บาท`}
-  {r.moneyChange < 0 && `${r.moneyChange?.toLocaleString()} บาท`}
-  {/* แก้ไขบรรทัดล่างนี้ โดยการเอา {} ชั้นนอกออก */}
-  {r.moneyChange === 0 && (
-    (r.outcome === "เจ้ามือ" || r.outcome === "เสมอ" || (r.outcome === "ขาดการเชื่อมต่อ" && r.balance < betAmount))
-      ? "-"
-      : "0 บาท" // ถ้า moneyChange เป็น 0 และไม่เข้าเงื่อนไขข้างบน ก็แสดง "0 บาท"
-  )}
-</td>
-              <td>{r.balance?.toLocaleString()} บาท</td> {/* <--- แก้ไขการแสดงผล "เงินคงเหลือ" */}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+        <div className="results-display">
+          <h3>
+            ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
+            บาท)
+          </h3>
+          <table>
+            <thead>
+              <tr>
+                <th>ผู้เล่น (บทบาท)</th>
+                <th>ไพ่</th>
+                <th>แต้ม</th>
+                <th>ประเภท</th>
+                <th>ผล</th>
+                <th>ได้/เสีย</th>
+                <th>เงินคงเหลือ</th> {/* <--- เปลี่ยนชื่อคอลัมน์ */}
+              </tr>
+            </thead>
+            <tbody>
+              {result.map(
+                (
+                  r,
+                  i // Server ควรจะส่ง result ที่เรียงลำดับมาแล้ว (เจ้ามือก่อน)
+                ) => (
+                  <tr
+                    key={r.id || i}
+                    className={
+                      r.id === myPlayerId
+                        ? "my-result-row"
+                        : r.disconnectedMidGame
+                        ? "disconnected-result-row"
+                        : ""
+                    }
+                  >
+                    <td>
+                      {r.name} ({r.role || "N/A"})
+                    </td>
+                    <td>{r.cardsDisplay || "N/A"}</td>
+                    <td>{r.score}</td>
+                    <td>{r.specialType}</td>
+                    <td>
+                      {" "}
+                      {/* <--- แก้ไขการแสดงผล "ผล" */}
+                      {r.outcome === "ชนะ" && "✅ ชนะ"}
+                      {r.outcome === "แพ้" && "❌ แพ้"}
+                      {r.outcome === "เสมอ" && "🤝 เสมอ"}
+                      {r.outcome === "เจ้ามือ" && "เจ้ามือ"}
+                      {r.outcome === "ขาดการเชื่อมต่อ" && "ขาดการเชื่อมต่อ"}
+                      {/* เพิ่มเงื่อนไขสำหรับ outcome อื่นๆ ถ้ามี */}
+                      {![
+                        "ชนะ",
+                        "แพ้",
+                        "เสมอ",
+                        "เจ้ามือ",
+                        "ขาดการเชื่อมต่อ",
+                      ].includes(r.outcome) && r.outcome}
+                    </td>
+                    <td
+                      className={
+                        r.moneyChange > 0
+                          ? "profit"
+                          : r.moneyChange < 0
+                          ? "loss"
+                          : ""
+                      }
+                    >
+                      {r.moneyChange > 0 &&
+                        `+${r.moneyChange?.toLocaleString()} บาท`}
+                      {r.moneyChange < 0 &&
+                        `${r.moneyChange?.toLocaleString()} บาท`}
+                      {/* แก้ไขบรรทัดล่างนี้ โดยการเอา {} ชั้นนอกออก */}
+                      {
+                        r.moneyChange === 0 &&
+                          (r.outcome === "เจ้ามือ" ||
+                          r.outcome === "เสมอ" ||
+                          (r.outcome === "ขาดการเชื่อมต่อ" &&
+                            r.balance < betAmount)
+                            ? "-"
+                            : "0 บาท") // ถ้า moneyChange เป็น 0 และไม่เข้าเงื่อนไขข้างบน ก็แสดง "0 บาท"
+                      }
+                    </td>
+                    <td>{r.balance?.toLocaleString()} บาท</td>{" "}
+                    {/* <--- แก้ไขการแสดงผล "เงินคงเหลือ" */}
+                  </tr>
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
       {isDealer &&
         (!gameStarted || (result && result.length > 0)) &&
