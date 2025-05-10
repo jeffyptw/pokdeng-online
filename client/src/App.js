@@ -1,5 +1,5 @@
 // App.js
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import io from "socket.io-client";
 import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์นี้ หรือลบการ import ถ้าไม่ใช้
 
@@ -56,7 +56,8 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = (text, type = "info") => {
+  const addMessage = useCallback((text, type = "info") => {
+    // <--- ห่อด้วย useCallback
     const fullText = `[${new Date().toLocaleTimeString()}] ${text}`;
     setMessages((prev) => {
       const newMessages = [...prev, { text: fullText, type }];
@@ -70,13 +71,13 @@ function App() {
       type === "info" ||
       type === "highlight"
     ) {
-      setErrorMsg(text);
+      setErrorMsg(text); // setErrorMsg เป็น stable function จาก useState
       setTimeout(
         () => setErrorMsg((current) => (current === text ? "" : current)),
         type === "error" ? 7000 : 5000
       );
     }
-  };
+  });
 
   useEffect(() => {
     if (!socketClient) {
@@ -110,8 +111,12 @@ function App() {
       setRoomId(data.roomId);
       setInRoom(true);
       setIsDealer(true);
+      // ใช้ data.dealerName ที่ Server ส่งมา เพราะนั่นคือชื่อที่ Server ยืนยันแล้ว
+      // ส่วน 'name' ที่เป็น state ของ Client คือชื่อที่ผู้ใช้กรอกใน input field
+      // ซึ่งอาจจะยังไม่ได้ถูกใช้ใน Server จนกว่าจะมีการ emit event ที่ใช้ 'name' state นั้น
+      const actualCreatorName = data.dealerName || name || "ผู้เล่น"; // <--- ใช้ dealerName จาก server เป็นหลัก
       addMessage(
-        `ห้อง ${data.roomId} ถูกสร้างโดย ${name || data.dealerName}`,
+        `ห้อง ${data.roomId} ถูกสร้างโดย ${actualCreatorName}`,
         "success"
       );
       if (typeof data.betAmount === "number") {
@@ -305,9 +310,22 @@ function App() {
     socketClient.on("errorMessage", (msg) =>
       addMessage(msg.text || (typeof msg === "string" ? msg : "Error"), "error")
     );
-    socketClient.on("message", (msg) =>
-      addMessage(msg.text || (typeof msg === "string" ? msg : "Message"))
-    );
+    socketClient.on("message", (msg) => {
+      // <--- แก้ไขส่วนนี้
+      console.log("[Client] Received 'message' event:", msg);
+      if (msg && typeof msg.text === "string" && msg.text.trim() !== "") {
+        // ตรวจสอบ msg.text ให้ละเอียดขึ้น
+        addMessage(msg.text, msg.type || "info");
+      } else if (typeof msg === "string" && msg.trim() !== "") {
+        // กรณี Server ส่งมาเป็น string เปล่าๆ และไม่ว่าง
+        addMessage(msg, "info");
+      } else {
+        // ไม่แสดง error ถ้า msg.text เป็นสตริงว่าง หรือ object ไม่มี text
+        // หรือจะ log ไว้เพื่อ debug ก็ได้
+        console.warn("[Client] Received empty or invalid message object:", msg);
+        // addMessage("ได้รับข้อความที่ไม่ถูกต้องจากเซิร์ฟเวอร์", "error"); // อาจจะไม่จำเป็นต้องแจ้งผู้ใช้ทุกครั้ง
+      }
+    });
     socketClient.on("playerLeft", (data) =>
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`)
     );
@@ -377,7 +395,7 @@ function App() {
       countdown === 0
     ) {
       if (socketClient && socketClient.connected) {
-        addMessage("หมดเวลา! ทำการ 'อยู่' อัตโนมัติ", "info");
+        addMessage("หมดเวลา! ทำการ 'อยู่' อัตโนมัติ", "info"); // ตอนนี้ addMessage จะ stable
         socketClient.emit("stay", roomId);
         setHasStayed(true);
       }
@@ -391,7 +409,7 @@ function App() {
     myCards.length,
     gameStarted,
     roomId,
-    addMessage,
+    addMessage, // addMessage ที่ถูก memoize แล้ว
   ]);
 
   useEffect(() => {

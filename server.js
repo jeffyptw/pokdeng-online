@@ -574,9 +574,29 @@ function performResultCalculation(room) {
 io.on("connection", (socket) => {
   console.log(`[Server] User connected: ${socket.id}`);
 
-  socket.on("createRoom", ({ name, money }) => {
+  socket.on("createRoom", ({ playerName, initialBalance }) => {
+    // <--- เปลี่ยนจาก name, money เป็น playerName, initialBalance
+    // ตรวจสอบและตั้งค่า default สำหรับ playerName
+    const creatorName =
+      playerName && playerName.trim() !== ""
+        ? playerName.trim()
+        : "ผู้เล่นนิรนาม"; // <--- แก้ไขตรงนี้
+    const validInitialBalance = parseInt(initialBalance, 10);
+    if (isNaN(validInitialBalance) || validInitialBalance < 10) {
+      // <--- เพิ่มการตรวจสอบ initialBalance
+      socket.emit("errorMessage", {
+        text: "จำนวนเงินเริ่มต้นไม่ถูกต้อง (ขั้นต่ำ 10)",
+      });
+      return;
+    }
+    if (!creatorName || (creatorName === "ผู้เล่นนิรนาม" && !playerName)) {
+      // ป้องกันกรณีส่ง playerName มาเป็น null หรือ empty string
+      socket.emit("errorMessage", { text: "กรุณาระบุชื่อผู้เล่น" });
+      return;
+    }
+
     const roomId = Math.floor(10000 + Math.random() * 90000).toString();
-    const initialMoney = parseInt(money, 10) || 100;
+    // const initialMoney = parseInt(money, 10) || 100; // ใช้ validInitialBalance แทน
 
     rooms[roomId] = {
       id: roomId,
@@ -587,8 +607,8 @@ io.on("connection", (socket) => {
       betAmount: DEFAULT_BET_AMOUNT,
       turnTimerInterval: null,
       turnTimeout: null,
-      dealerId: socket.id, // เจ้ามือคือผู้สร้างห้อง
-      dealerName: name,
+      dealerId: socket.id,
+      dealerName: creatorName, // <--- ใช้ creatorName
       hostId: socket.id,
       locked: false,
       roundSummary: {},
@@ -596,8 +616,8 @@ io.on("connection", (socket) => {
     const room = rooms[roomId];
     const player = {
       id: socket.id,
-      name: name,
-      balance: initialMoney,
+      name: creatorName, // <--- ใช้ creatorName
+      balance: validInitialBalance, // <--- ใช้ validInitialBalance
       cards: [],
       handDetails: null,
       isDealer: true,
@@ -609,26 +629,30 @@ io.on("connection", (socket) => {
     };
     room.players.push(player);
     room.roundSummary[player.id] = {
-      name: player.name,
+      name: player.name, // creatorName
       totalChange: 0,
       roundsPlayed: 0,
     };
 
     socket.join(roomId);
-    console.log(`[Server] Room ${roomId} created by ${name} (${socket.id})`);
+    console.log(
+      `[Server] Room ${roomId} created by ${creatorName} (${socket.id})`
+    );
     socket.emit("roomCreated", {
+      // <--- ส่ง dealerName ที่ server กำหนดไปด้วย
       roomId,
       playerId: socket.id,
       isDealer: true,
-      initialMoney,
-      players: getRoomPlayerData(room),
+      initialMoney: validInitialBalance,
+      players: getRoomPlayerData(room), // ควรส่งข้อมูล player ที่อัปเดตแล้ว
       betAmount: room.betAmount,
       roomLocked: room.locked,
+      dealerName: creatorName, // <--- เพิ่ม dealerName ตรงนี้
     });
     io.to(roomId).emit("playersData", getRoomPlayerData(room));
     io.to(roomId).emit("message", {
       type: "system",
-      text: `${name} สร้างห้อง ${roomId} และเป็นเจ้ามือ.`,
+      text: `${creatorName} สร้างห้อง ${roomId} และเป็นเจ้ามือ.`, // <--- ใช้ creatorName
     });
   });
 
