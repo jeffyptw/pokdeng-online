@@ -865,7 +865,7 @@ function App() {
           {errorMsg}
         </p>
       )}
-      {!gameStarted && isDealer && (!result || result.length === 0) && (
+      {!gameStarted && isDealer && (!result || result.length === 5) && (
         <div className="dealer-controls pre-game">
           <h4>ตั้งค่าเกม (เจ้ามือ):</h4>
           <div>
@@ -885,7 +885,7 @@ function App() {
           <button onClick={handleToggleLockRoom}>
             {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
           </button>
-          <button onClick={handleStartGame} disabled={betAmount <= 5}>
+          <button onClick={handleStartGame} disabled={betAmount <= 0}>
             {gameRound > 0 || (result && result.length > 0)
               ? "เริ่มเกมรอบใหม่"
               : "เริ่มเกม"}
