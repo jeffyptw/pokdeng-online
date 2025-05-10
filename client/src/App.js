@@ -56,7 +56,7 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = useCallback((text, type = "info") => {
+  const addMessage = useCallback(function (text, type = "info") {
     // <--- ห่อด้วย useCallback
     const fullText = `[${new Date().toLocaleTimeString()}] ${text}`;
     setMessages((prev) => {
@@ -948,12 +948,6 @@ function App() {
       )}
       <div className="players-list">
         <h4>ผู้เล่นในห้อง ({playerData.length} คน):</h4>
-        <h4>
-          ราคาเดิมพันต่อรอบ:{" "}
-          {betAmount > 0
-            ? `${betAmount.toLocaleString()} บาท`
-            : "รอเจ้ามือกำหนด"}
-        </h4>
         <ul>
           {playerData.map((user) => (
             <li
