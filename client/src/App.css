@@ -279,6 +279,10 @@ th {
   border-color: #000000;
   color: #fff;
 }
+.btn-inroom-startgame {
+  background-color: #5cb85c;
+  border-color: #4cae4c;
+}
 /* App.css */
 /* … โค้ดข้างบน … */
 
