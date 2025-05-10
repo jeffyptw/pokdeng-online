@@ -198,19 +198,29 @@ function performResultCalculation(room) {
             dealerNetChangeTotal -= moneyChange;
         }
         roundResults.push({
-            id: player.id, name: player.name,
-            cardsDisplay: (player.handDetails.cards || []).map(getCardDisplay).join(" "),
-            score: player.handDetails.score, specialType: player.handDetails.type,
-            outcome: outcome, moneyChange: moneyChange, balance: player.balance,
+          id: player.id,
+          name: player.name,
+          role: player.role, // <<--- ตรวจสอบว่า player.role นี้มีค่าที่ถูกต้อง ("ผู้เล่นที่ X" หรือ "เจ้ามือ")
+          cardsDisplay: (player.handDetails.cards || []).map(getCardDisplay).join(" "),
+          score: player.handDetails.score,
+          specialType: player.handDetails.type,
+          outcome: outcome,
+          moneyChange: moneyChange,
+          balance: player.balance,
         });
     });
 
     dealer.balance += dealerNetChangeTotal;
     roundResults.push({
-        id: dealer.id, name: dealer.name,
-        cardsDisplay: (dealer.handDetails.cards || []).map(getCardDisplay).join(" "),
-        score: dealer.handDetails.score, specialType: dealer.handDetails.type,
-        outcome: "เจ้ามือ", moneyChange: dealerNetChangeTotal, balance: dealer.balance,
+      id: dealer.id,
+      name: dealer.name,
+      role: dealer.role, // <<--- ตรวจสอบว่า dealer.role นี้มีค่า "เจ้ามือ"
+      cardsDisplay: (dealer.handDetails.cards || []).map(getCardDisplay).join(" "),
+      score: dealer.handDetails.score,
+      specialType: dealer.handDetails.type,
+      outcome: "เจ้ามือ",
+      moneyChange: dealerNetChangeTotal,
+      balance: dealer.balance,
     });
 
     return roundResults.sort((a,b) => {

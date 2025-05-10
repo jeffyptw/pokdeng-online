@@ -838,7 +838,7 @@ function App() {
                       : ""
                   }
                 >
-                  <td>{r.name}</td> <td>{r.cardsDisplay || "N/A"}</td>
+                  <td>{r.name} ({r.role || 'N/A'})</td> <td>{r.cardsDisplay || "N/A"}</td>
                   <td>{r.score}</td> <td>{r.specialType}</td>
                   <td
                     className={`outcome-${r.outcome
