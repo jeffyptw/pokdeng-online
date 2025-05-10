@@ -230,24 +230,27 @@ function performResultCalculation(room) {
   const dealer = room.players.find(p => p.isDealer);
   if (!dealer) {
       console.error(`[Server] CRITICAL: Dealer not found for result calculation in room: ${room.id}`);
-      io.to(room.id).emit("errorMessage", { text: "เกิดข้อผิดพลาด: ไม่พบเจ้ามือ aoคำนวณผล" });
+      if (io && room && room.id) { // Check if io and room are defined before emitting
+          io.to(room.id).emit("errorMessage", { text: "เกิดข้อผิดพลาด: ไม่พบเจ้ามือ aoคำนวณผล" });
+      }
       return null;
   }
-  // คำนวณ handDetails ของเจ้ามือให้แน่ใจว่าล่าสุด
   dealer.handDetails = getHandRank(dealer.cards);
-  if (!dealer.handDetails) { // ป้องกันกรณี getHandRank คืน null/undefined
+  if (!dealer.handDetails) {
       console.error(`[Server] CRITICAL: Failed to get hand details for dealer in room: ${room.id}`);
-      io.to(room.id).emit("errorMessage", { text: "เกิดข้อผิดพลาด: ไม่สามารถคำนวณไพ่เจ้ามือ" });
+      if (io && room && room.id) {
+          io.to(room.id).emit("errorMessage", { text: "เกิดข้อผิดพลาด: ไม่สามารถคำนวณไพ่เจ้ามือ" });
+      }
       return null;
   }
-
 
   const roundResults = [];
   let dealerNetChangeTotal = 0;
-  const betAmount = room.betAmount || DEFAULT_BET_AMOUNT;
+    const betAmount = room.betAmount || DEFAULT_BET_AMOUNT;
 
-  room.players.forEach(player => {
-      if (player.isDealer) return; // ข้ามเจ้ามือไปก่อน จะคำนวณแยกตอนท้าย
+    room.players.forEach(player => {
+        if (player.isDealer) return;
+
 
       // คำนวณ handDetails ของผู้เล่นทุกคนให้แน่ใจว่าล่าสุด
       if (!player.disconnectedMidGame) {
@@ -310,12 +313,13 @@ function performResultCalculation(room) {
       player.balance += moneyChange;
       dealerNetChangeTotal -= moneyChange;
   }
-  roundResults.push({
-      id: player.id, name: player.name,
-      cardsDisplay: (player.handDetails.cards || []).map(getCardDisplay).join(" "),
-      score: player.handDetails.score, specialType: player.handDetails.type,
-      outcome: outcome, moneyChange: moneyChange, balance: player.balance,
-  });
+  dealer.balance += dealerNetChangeTotal;
+    roundResults.push({
+        id: dealer.id, name: dealer.name,
+        cardsDisplay: (dealer.handDetails.cards || []).map(getCardDisplay).join(" "),
+        score: dealer.handDetails.score, specialType: dealer.handDetails.type,
+        outcome: "เจ้ามือ", moneyChange: dealerNetChangeTotal, balance: dealer.balance,
+    });
 });
 if (moneyChange < 0 && Math.abs(moneyChange) > player.balance && !player.disconnectedMidGame) { // dont apply if already disconnected
   moneyChange = -player.balance;
@@ -331,13 +335,6 @@ if (moneyChange > 0 && moneyChange > (dealer.balance + dealerNetChangeTotal)) { 
 player.balance += moneyChange;
 dealerNetChangeTotal -= moneyChange;
 }
-roundResults.push({
-id: player.id, name: player.name,
-cardsDisplay: (player.handDetails.cards || []).map(getCardDisplay).join(" "),
-score: player.handDetails.score, specialType: player.handDetails.type,
-outcome: outcome, moneyChange: moneyChange, balance: player.balance,
-});
-
 function calculateAndEmitResults(roomId) {
   // ... (เหมือนเดิมจากครั้งก่อน) ...
   const room = rooms[roomId];
