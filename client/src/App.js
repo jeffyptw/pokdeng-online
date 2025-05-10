@@ -1119,14 +1119,12 @@ function App() {
         (!gameStarted || (result && result.length > 0)) &&
         !showSummary && (
           <div className="turn-indicator">
-            {" "}
             <button
               className="btn-inroom-startgame"
               onClick={handleResetGameHandler}
             >
-              {" "}
-              เริ่มรอบใหม่ / รีเซ็ต{" "}
-            </button>{" "}
+              เริ่มรอบใหม่ / รีเซ็ต (ดูสรุป)
+            </button>
             <button className="btn-inroom-result" onClick={handleEndGame}>
               จบเกมทั้งหมด (ดูสรุป)
             </button>
