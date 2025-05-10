@@ -1,5 +1,5 @@
 // App.js
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์นี้ หรือลบการ import ถ้าไม่ใช้
 
@@ -11,7 +11,7 @@ let socketClient = null;
 const DEFAULT_TURN_DURATION = 30;
 
 function App() {
-  // const [isGameStarted, setIsGameStarted] = useState(false); // <--- ลบ State นี้ออก
+  const [isGameStarted, setIsGameStarted] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [name, setName] = useState("");
@@ -56,8 +56,7 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addMessage = useCallback(function (text, type = "info") {
-    // <--- ห่อด้วย useCallback
+  const addMessage = (text, type = "info") => {
     const fullText = `[${new Date().toLocaleTimeString()}] ${text}`;
     setMessages((prev) => {
       const newMessages = [...prev, { text: fullText, type }];
@@ -71,13 +70,13 @@ function App() {
       type === "info" ||
       type === "highlight"
     ) {
-      setErrorMsg(text); // setErrorMsg เป็น stable function จาก useState
+      setErrorMsg(text);
       setTimeout(
         () => setErrorMsg((current) => (current === text ? "" : current)),
         type === "error" ? 7000 : 5000
       );
     }
-  });
+  };
 
   useEffect(() => {
     if (!socketClient) {
@@ -111,12 +110,8 @@ function App() {
       setRoomId(data.roomId);
       setInRoom(true);
       setIsDealer(true);
-      // ใช้ data.dealerName ที่ Server ส่งมา เพราะนั่นคือชื่อที่ Server ยืนยันแล้ว
-      // ส่วน 'name' ที่เป็น state ของ Client คือชื่อที่ผู้ใช้กรอกใน input field
-      // ซึ่งอาจจะยังไม่ได้ถูกใช้ใน Server จนกว่าจะมีการ emit event ที่ใช้ 'name' state นั้น
-      const actualCreatorName = data.dealerName || name || "ผู้เล่น"; // <--- ใช้ dealerName จาก server เป็นหลัก
       addMessage(
-        `ห้อง ${data.roomId} ถูกสร้างโดย ${actualCreatorName}`,
+        `ห้อง ${data.roomId} ถูกสร้างโดย ${name || data.dealerName}`,
         "success"
       );
       if (typeof data.betAmount === "number") {
@@ -310,22 +305,9 @@ function App() {
     socketClient.on("errorMessage", (msg) =>
       addMessage(msg.text || (typeof msg === "string" ? msg : "Error"), "error")
     );
-    socketClient.on("message", (msg) => {
-      // <--- แก้ไขส่วนนี้
-      console.log("[Client] Received 'message' event:", msg);
-      if (msg && typeof msg.text === "string" && msg.text.trim() !== "") {
-        // ตรวจสอบ msg.text ให้ละเอียดขึ้น
-        addMessage(msg.text, msg.type || "info");
-      } else if (typeof msg === "string" && msg.trim() !== "") {
-        // กรณี Server ส่งมาเป็น string เปล่าๆ และไม่ว่าง
-        addMessage(msg, "info");
-      } else {
-        // ไม่แสดง error ถ้า msg.text เป็นสตริงว่าง หรือ object ไม่มี text
-        // หรือจะ log ไว้เพื่อ debug ก็ได้
-        console.warn("[Client] Received empty or invalid message object:", msg);
-        // addMessage("ได้รับข้อความที่ไม่ถูกต้องจากเซิร์ฟเวอร์", "error"); // อาจจะไม่จำเป็นต้องแจ้งผู้ใช้ทุกครั้ง
-      }
-    });
+    socketClient.on("message", (msg) =>
+      addMessage(msg.text || (typeof msg === "string" ? msg : "Message"))
+    );
     socketClient.on("playerLeft", (data) =>
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`)
     );
@@ -338,6 +320,9 @@ function App() {
           "info"
         );
         setBetAmount(settings.betAmount);
+        // The playerData state used in the condition below will be the latest value
+        // due to closure, even if 'playerData' is not in the useEffect dependency array.
+        // This listener is re-attached if myPlayerId changes, which is appropriate.
         const amIDealer = playerData.find(
           (p) => p.id === myPlayerId && p.isDealer
         );
@@ -376,9 +361,11 @@ function App() {
         socketClient.off("player_revealed_pok");
       }
     };
-  }, [myPlayerId, name, roomId, currentTurnId, playerData, addMessage]);
+  }, [myPlayerId, name, roomId, currentTurnId, playerData]); // playerData ถูกเพิ่มแล้ว
 
+  // Countdown timer effect
   useEffect(() => {
+    // Countdown timer effect
     let timer;
     if (
       gameStarted &&
@@ -395,7 +382,8 @@ function App() {
       countdown === 0
     ) {
       if (socketClient && socketClient.connected) {
-        addMessage("หมดเวลา! ทำการ 'อยู่' อัตโนมัติ", "info"); // ตอนนี้ addMessage จะ stable
+        // ตรวจสอบก่อน emit
+        addMessage("หมดเวลา! ทำการ 'อยู่' อัตโนมัติ", "info");
         socketClient.emit("stay", roomId);
         setHasStayed(true);
       }
@@ -409,10 +397,11 @@ function App() {
     myCards.length,
     gameStarted,
     roomId,
-    addMessage, // addMessage ที่ถูก memoize แล้ว
-  ]);
+    addMessage,
+  ]); // เพิ่ม addMessage ถ้าใช้ใน effect
 
   useEffect(() => {
+    // useEffect สำหรับคำนวณ transferSummary
     if (showSummary && summaryData.length > 0 && myPlayerId) {
       const currentUserSummary = summaryData.find((p) => p.id === myPlayerId);
       if (!currentUserSummary) {
@@ -422,6 +411,7 @@ function App() {
         setTransferSummary({ toPay: [], toReceive: [] });
         return;
       }
+      // ใช้ isDealer จาก currentUserSummary ที่ Server ส่งมาใน summaryData
       const amIDealer = currentUserSummary.isDealer;
       const toPayList = [];
       const toReceiveList = [];
@@ -468,7 +458,7 @@ function App() {
     } else if (!showSummary) {
       setTransferSummary({ toPay: [], toReceive: [] });
     }
-  }, [showSummary, summaryData, myPlayerId]);
+  }, [showSummary, summaryData, myPlayerId]); // isDealer ไม่จำเป็นถ้า summaryData มีข้อมูล isDealer แล้ว
 
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
@@ -657,6 +647,7 @@ function App() {
   const getCardPoint = (v) =>
     ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
   const calculateRankForDisplay = (cardsToRank) => {
+    /* ... (เพิ่มการเช็ค "ตอง" หรืออื่นๆ ตามต้องการ) ... */
     if (!cardsToRank || cardsToRank.length === 0)
       return { score: 0, type: "ยังไม่มีไพ่" };
     const calculatedScore =
@@ -681,10 +672,12 @@ function App() {
       if (calculatedScore === 9) {
         type = `9 หลัง`;
         if (isSameSuit) type += " (สามเด้ง)";
-      } else if (calculatedScore === 8) {
+      } // 9 หลัง
+      else if (calculatedScore === 8) {
         type = `8 หลัง`;
         if (isSameSuit) type += " (สามเด้ง)";
-      } else if (isTaong) {
+      } // 8 หลัง
+      else if (isTaong) {
         type = `ตอง ${values[0]}`;
         if (isSameSuit) type += " (สี)";
       } else if (isSameSuit) {
@@ -708,9 +701,9 @@ function App() {
     myHandType = rankData.type;
   }
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
-
+  // JSX
   if (showSummary) {
-    const me = summaryData.find((p) => p.id === myPlayerId);
+    const me = summaryData.find((p) => p.id === myPlayerId); // หาข้อมูลผู้เล่นปัจจุบัน
 
     return (
       <div className="App-summary">
@@ -770,7 +763,7 @@ function App() {
           )?.toLocaleString()}{" "}
           บาท
         </h3>
-        {me && (
+        {me && ( // แสดงส่วนนี้ต่อเมื่อมีข้อมูล me
           <p
             style={{
               fontStyle: "italic",
@@ -805,7 +798,7 @@ function App() {
           <p
             className="error-message"
             style={{
-              color: "#000000",
+              color: "#000000", // กำหนดสีตัวอักษรเป็นสีดำ
               border: "1px solid #551818",
               padding: "5px",
               backgroundColor: "#eeeeee",
