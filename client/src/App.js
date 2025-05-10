@@ -41,6 +41,63 @@ function App() {
   const [gameRound, setGameRound] = useState(0);
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState([]);
+  const [transferSummary, setTransferSummary] = useState({ toPay: [], toReceive: [] });
+
+  useEffect(() => {
+    if (showSummary && summaryData.length > 0 && myPlayerId) {
+      const currentUserSummary = summaryData.find(p => p.id === myPlayerId);
+      const otherPlayersSummary = summaryData.filter(p => p.id !== myPlayerId);
+
+      if (!currentUserSummary) return;
+
+      const toPayList = [];
+      const toReceiveList = [];
+
+      // กรณีที่ผู้เล่นปัจจุบันเป็น "ผู้เล่น" (ไม่ใช่เจ้ามือ)
+      if (!currentUserSummary.isDealer) { // หรือ !isDealer (ถ้า isDealer state ถูกต้อง ณ จุดนี้)
+        if (currentUserSummary.netChange < 0) { // เราเสียเงิน
+          // ในเกมนี้ ผู้เล่นจะเสียให้เจ้ามือเท่านั้น
+          const dealer = summaryData.find(p => p.isDealer); // หรือ p.role === "เจ้ามือ"
+          if (dealer) {
+            toPayList.push({
+              name: dealer.name,
+              role: dealer.role,
+              amount: Math.abs(currentUserSummary.netChange) // จำนวนเงินที่ต้องโอนให้เจ้ามือ
+            });
+          }
+        } else if (currentUserSummary.netChange > 0) { // เราได้เงิน
+          // ผู้เล่นจะได้เงินจากเจ้ามือเท่านั้น
+          const dealer = summaryData.find(p => p.isDealer);
+          if (dealer) {
+            toReceiveList.push({
+              name: dealer.name,
+              role: dealer.role,
+              amount: currentUserSummary.netChange // จำนวนเงินที่ได้จากเจ้ามือ
+            });
+          }
+        }
+      }
+      // กรณีที่ผู้เล่นปัจจุบันเป็น "เจ้ามือ"
+      else {
+        otherPlayersSummary.forEach(player => {
+          if (player.netChange > 0) { // ผู้เล่นคนนี้ได้เงินจากเรา (เจ้ามือ)
+            toPayList.push({
+              name: player.name,
+              role: player.role,
+              amount: player.netChange
+            });
+          } else if (player.netChange < 0) { // เรา (เจ้ามือ) ได้เงินจากผู้เล่นคนนี้
+            toReceiveList.push({
+              name: player.name,
+              role: player.role,
+              amount: Math.abs(player.netChange)
+            });
+          }
+        });
+      }
+      setTransferSummary({ toPay: toPayList, toReceive: toReceiveList });
+    }
+  }, [showSummary, summaryData, myPlayerId, isDealer]);
 
   // State ใหม่สำหรับเก็บไพ่ของผู้เล่นอื่นที่ป๊อกแล้วถูกเปิด
   const [revealedPokPlayers, setRevealedPokPlayers] = useState({}); // { playerId: { name, role, cards, handDetails }, ... }
@@ -131,7 +188,12 @@ function App() {
           setHasStayed(me.hasStayed);
         }
       }
+
+
+
     });
+
+
 
     socketClient.on("yourCards", (cardsFromServer) => { // Server ต้องส่ง array of objects
       console.log(`[Client ${myPlayerId || socketClient?.id}] Received 'yourCards'. Data:`, JSON.stringify(cardsFromServer));
@@ -336,6 +398,7 @@ function App() {
       socketClient.emit("stay", roomId);
       setHasStayed(true); // Optimistic update
     }
+
     return () => clearTimeout(timer);
   }, [
     countdown,
@@ -347,6 +410,7 @@ function App() {
     roomId,
     // addMessage was removed as a dependency because it's stable if defined outside or via useCallback
   ]);
+
 
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
@@ -558,34 +622,45 @@ function App() {
   // ปรับปรุง isMyTurn ให้ถูกต้อง (เอา myCards.length < 3 ออก)
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
    // JSX
-  if (showSummary) {
+   if (showSummary) {
     return (
       <div className="App-summary">
         <h2>สรุปยอดเงินหลังจบเกม (ห้อง: {roomId})</h2>
         <table border="1" cellPadding="5">
           <thead>
             <tr>
-              <th>ID</th> <th>ชื่อผู้เล่น</th>
-              <th>บทบาท</th> <th>ยอดเงินเริ่มต้น</th>
-              <th>ยอดเงินสุดท้าย</th> <th>กำไร/ขาดทุนสุทธิ</th>
+              {/* คอลัมน์ 1: ชื่อผู้เล่น */}
+              <th>ชื่อผู้เล่น</th>
+              {/* คอลัมน์ 2: บทบาท */}
+              <th>บทบาท</th>
+              {/* คอลัมน์ 3: เงินคงเหลือ */}
+              <th>ยอดเงินคงเหลือ</th>
+              {/* คอลัมน์ 4: กำไร/ขาดทุนสุทธิ */}
+              <th>กำไร/ขาดทุนสุทธิ</th>
             </tr>
           </thead>
           <tbody>
             {summaryData.map((p, i) => (
-              <tr key={p.id || i}>
-                <td>{p.id?.substring(0, 5)}</td> <td>{p.name}</td>
+              <tr key={p.id || i}> {/* ยังคงใช้ p.id สำหรับ key เพื่อความ unique */}
+                {/* คอลัมน์ 1: แสดงชื่อผู้เล่น */}
+                <td>{p.name}</td>
+                {/* คอลัมน์ 2: แสดงบทบาท */}
                 <td>{p.role}</td>
-                <td>{p.initialBalance?.toLocaleString()}</td>
-                <td>{p.finalBalance?.toLocaleString()}</td>
+                {/* คอลัมน์ 3: แสดงยอดเงินสุดท้าย */}
+                <td>{p.finalBalance?.toLocaleString()} บาท</td>
+                {/* คอลัมน์ 4: แสดงกำไร/ขาดทุนสุทธิ */}
                 <td className={p.netChange >= 0 ? "profit" : "loss"}>
-                  {p.netChange >= 0
-                    ? `+${p.netChange?.toLocaleString()}`
-                    : p.netChange?.toLocaleString()}
+                  {p.netChange > 0 && `+${p.netChange?.toLocaleString()} บาท`}
+                  {p.netChange < 0 && `${p.netChange?.toLocaleString()} บาท`}
+                  {p.netChange === 0 && "0 บาท"} {/* หรือจะแสดงเป็น "-" ก็ได้ */}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
+        <h2>สรุปยอดต้องโอนให้และต้องได้</h2>
+
+
         <button onClick={handleExitGame}>ออกจากเกม (เริ่มใหม่)</button>
       </div>
     );
@@ -595,7 +670,7 @@ function App() {
     return (
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
-        {errorMsg && <p className="error-message">{errorMsg}</p>}
+        {errorMsg && <p className="emessage-type-success">{errorMsg}</p>}
         <p>
           สถานะ:&nbsp;
           <span
@@ -843,7 +918,7 @@ function App() {
                   : ""
               }
             >
-              <td>{r.name} ({r.role || 'N/A'})</td> {/* แสดง role ตามที่ Server ส่งมา */}
+              <td>{r.name} ({r.role || 'N/A'})</td>
               <td>{r.cardsDisplay || "N/A"}</td>
               <td>{r.score}</td>
               <td>{r.specialType}</td>
