@@ -763,9 +763,9 @@ function App() {
         <p
           className="error-message"
           style={{
-            border: "1px solid orange",
+            border: "1px solid #3c763d",
             padding: "5px",
-            backgroundColor: "#fff3cd",
+            backgroundColor: "#dff0d8",
             whiteSpace: "pre-wrap",
           }}
         >
