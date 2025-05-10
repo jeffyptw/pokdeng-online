@@ -553,7 +553,7 @@ function App() {
 
   const handleStartGame = () => {
     if (socketClient && socketClient.connected && roomId && isDealer) {
-      if (betAmount <= 0) {
+      if (betAmount <= 5) {
         addMessage("กรุณากำหนดเงินเดิมพันก่อนเริ่มเกม", "error");
         return;
       }
@@ -938,7 +938,7 @@ function App() {
   return (
     <div className="App">
       <header>
-        <h2>
+        <h1>
           ห้อง:&nbsp;
           <button
             className="text-button2"
@@ -947,18 +947,13 @@ function App() {
           >
             {roomId}
           </button>
-          <br></br>(ราคาเดิมพันต่อรอบ:{" "}
-          {betAmount > 0
-            ? `${betAmount.toLocaleString()} บาท`
-            : "รอเจ้ามือกำหนด"}
-          )
-        </h2>
+        </h1>
         <p>
           คุณ: {name}{" "}
           {isDealer
             ? "(เจ้ามือ)"
             : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}{" "}
-          | ID: {myPlayerId?.substring(0, 5)} | เงิน:{" "}
+          | เงินคงเหลือ:{" "}
           {myCurrentPlayerData?.balance?.toLocaleString() || money} |
           ห้อง:&nbsp;
           <button
@@ -1233,7 +1228,7 @@ function App() {
       <div className="turn-indicator">
         <button className="btn-inroom-endgame" onClick={handleExitGame}>
           {" "}
-          ออกจากห้อง/เกม (โหลดใหม่){" "}
+          ออกจากห้อง
         </button>
       </div>
       <div className="messages-log">
