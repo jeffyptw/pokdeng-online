@@ -11,7 +11,7 @@ let socketClient = null;
 const DEFAULT_TURN_DURATION = 30;
 
 function App() {
-  const [isGameStarted, setIsGameStarted] = useState(false);
+  // const [isGameStarted, setIsGameStarted] = useState(false); // <--- ลบ State นี้ออก
   const [isConnected, setIsConnected] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [name, setName] = useState("");
@@ -320,9 +320,6 @@ function App() {
           "info"
         );
         setBetAmount(settings.betAmount);
-        // The playerData state used in the condition below will be the latest value
-        // due to closure, even if 'playerData' is not in the useEffect dependency array.
-        // This listener is re-attached if myPlayerId changes, which is appropriate.
         const amIDealer = playerData.find(
           (p) => p.id === myPlayerId && p.isDealer
         );
@@ -361,11 +358,9 @@ function App() {
         socketClient.off("player_revealed_pok");
       }
     };
-  }, [myPlayerId, name, roomId, currentTurnId, playerData]); // playerData ถูกเพิ่มแล้ว
+  }, [myPlayerId, name, roomId, currentTurnId, playerData]);
 
-  // Countdown timer effect
   useEffect(() => {
-    // Countdown timer effect
     let timer;
     if (
       gameStarted &&
@@ -382,7 +377,6 @@ function App() {
       countdown === 0
     ) {
       if (socketClient && socketClient.connected) {
-        // ตรวจสอบก่อน emit
         addMessage("หมดเวลา! ทำการ 'อยู่' อัตโนมัติ", "info");
         socketClient.emit("stay", roomId);
         setHasStayed(true);
@@ -398,10 +392,9 @@ function App() {
     gameStarted,
     roomId,
     addMessage,
-  ]); // เพิ่ม addMessage ถ้าใช้ใน effect
+  ]);
 
   useEffect(() => {
-    // useEffect สำหรับคำนวณ transferSummary
     if (showSummary && summaryData.length > 0 && myPlayerId) {
       const currentUserSummary = summaryData.find((p) => p.id === myPlayerId);
       if (!currentUserSummary) {
@@ -411,7 +404,6 @@ function App() {
         setTransferSummary({ toPay: [], toReceive: [] });
         return;
       }
-      // ใช้ isDealer จาก currentUserSummary ที่ Server ส่งมาใน summaryData
       const amIDealer = currentUserSummary.isDealer;
       const toPayList = [];
       const toReceiveList = [];
@@ -458,7 +450,7 @@ function App() {
     } else if (!showSummary) {
       setTransferSummary({ toPay: [], toReceive: [] });
     }
-  }, [showSummary, summaryData, myPlayerId]); // isDealer ไม่จำเป็นถ้า summaryData มีข้อมูล isDealer แล้ว
+  }, [showSummary, summaryData, myPlayerId]);
 
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
@@ -647,7 +639,6 @@ function App() {
   const getCardPoint = (v) =>
     ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
   const calculateRankForDisplay = (cardsToRank) => {
-    /* ... (เพิ่มการเช็ค "ตอง" หรืออื่นๆ ตามต้องการ) ... */
     if (!cardsToRank || cardsToRank.length === 0)
       return { score: 0, type: "ยังไม่มีไพ่" };
     const calculatedScore =
@@ -672,12 +663,10 @@ function App() {
       if (calculatedScore === 9) {
         type = `9 หลัง`;
         if (isSameSuit) type += " (สามเด้ง)";
-      } // 9 หลัง
-      else if (calculatedScore === 8) {
+      } else if (calculatedScore === 8) {
         type = `8 หลัง`;
         if (isSameSuit) type += " (สามเด้ง)";
-      } // 8 หลัง
-      else if (isTaong) {
+      } else if (isTaong) {
         type = `ตอง ${values[0]}`;
         if (isSameSuit) type += " (สี)";
       } else if (isSameSuit) {
@@ -701,9 +690,9 @@ function App() {
     myHandType = rankData.type;
   }
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
-  // JSX
+
   if (showSummary) {
-    const me = summaryData.find((p) => p.id === myPlayerId); // หาข้อมูลผู้เล่นปัจจุบัน
+    const me = summaryData.find((p) => p.id === myPlayerId);
 
     return (
       <div className="App-summary">
@@ -763,7 +752,7 @@ function App() {
           )?.toLocaleString()}{" "}
           บาท
         </h3>
-        {me && ( // แสดงส่วนนี้ต่อเมื่อมีข้อมูล me
+        {me && (
           <p
             style={{
               fontStyle: "italic",
@@ -798,7 +787,7 @@ function App() {
           <p
             className="error-message"
             style={{
-              color: "#000000", // กำหนดสีตัวอักษรเป็นสีดำ
+              color: "#000000",
               border: "1px solid #551818",
               padding: "5px",
               backgroundColor: "#eeeeee",
@@ -941,6 +930,12 @@ function App() {
       )}
       <div className="players-list">
         <h4>ผู้เล่นในห้อง ({playerData.length} คน):</h4>
+        <h4>
+          ราคาเดิมพันต่อรอบ:{" "}
+          {betAmount > 0
+            ? `${betAmount.toLocaleString()} บาท`
+            : "รอเจ้ามือกำหนด"}
+        </h4>
         <ul>
           {playerData.map((user) => (
             <li
