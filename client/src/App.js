@@ -929,7 +929,7 @@ function App() {
           </button>
 
           <button
-            className={`btn-inroom-startgame ${isGameStarted ? "started" : ""}`}
+            className="btn-inroom-start1"
             onClick={handleStartGame}
             disabled={betAmount <= 0}
           >

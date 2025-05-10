@@ -35,10 +35,14 @@ body {
 .btn-inroom-restart,
 .btn-inroom-endgame,
 .btn-inroom-result,
+.btn-inroom-startgame:hover,
+.btn-inroom-startgame:active,
+.btn-inroom-startgame:disabled,
 .btn-inroom-lockgame,
 .btn-inroom-lockgame.locked,
 .btn-inroom-lockgame.unlocked,
-.btn-inroom-waitinggame {
+.btn-inroom-waitinggame,
+.btn-inroom-start1 {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
@@ -46,13 +50,11 @@ body {
   font-size: 1em;
 }
 
-.btn-inroom-startgame:hover,
-.btn-inroom-startgame:active,
-.btn-inroom-startgame:disabled {
+.btn-inroom-waitinggame {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
-  border: 1px solid rgb(138, 241, 129);
+  border: 1px solid #ccc;
   font-size: 1em;
 }
 
@@ -295,28 +297,28 @@ th {
 .btn-inroom-setting {
   background-color: #ff7b00;
   border-color: #000000;
-  color: #4cae4c;
+  color: #fff;
 }
 .btn-inroom-restart {
   background-color: #3d8df7;
   border-color: #000000;
-  color: #4cae4c;
+  color: #fff;
 }
 .btn-inroom-endgame {
   background-color: #ac2c2c;
   border-color: #000000;
-  color: #4cae4c;
+  color: #fff;
 }
 .btn-inroom-result {
   background-color: #8743e0;
   border-color: #000000;
-  color: #4cae4c;
+  color: #fff;
 }
 
 .btn-inroom-waitinggame {
   background-color: #0cd1a0;
   border-color: #000000;
-  color: #4cae4c;
+  color: #fff;
 }
 
 .btn-inroom-startgame:hover {
@@ -344,7 +346,11 @@ th {
 .btn-inroom-lockgame.locked {
   background-color: #d9534f; /* สีแดง */
 }
-
+.btn-inroom-start1 {
+  background-color: #5cb85c;
+  border-color: #4cae4c;
+  color: #000000;
+}
 .btn-inroom-lockgame.unlocked {
   background-color: #d6d6d6; /* สีเทา */
   color: #333;
