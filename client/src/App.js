@@ -701,7 +701,7 @@ function App() {
           step="10"
         />
         <div style={{ marginTop: 20 }}>
-          <button
+        &nbsp;&nbsp;&nbsp;<button
             onClick={handleCreateRoom}
             disabled={!isConnected || !name.trim() || !money.trim()}
           >
