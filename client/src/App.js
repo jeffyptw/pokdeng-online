@@ -827,7 +827,7 @@ function App() {
         (!result || result.length === 0) && (
           <p className="turn-indicator">
             ผู้เล่น ({currentTurnInfo.role}) {currentTurnInfo.name}{" "}
-            กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...{" "}
+            กำลังตัดสินใจ
           </p>
         )}{" "}
       {isDealer &&
