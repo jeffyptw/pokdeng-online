@@ -919,9 +919,15 @@ function App() {
               ตั้งค่า
             </button>
           </div>
-          <button onClick={handleToggleLockRoom}>
+          <button
+            className={`btn-inroom-lockgame ${
+              roomLocked ? "locked" : "unlocked"
+            }`}
+            onClick={handleToggleLockRoom}
+          >
             {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
           </button>
+
           <button
             className={`btn-inroom-startgame ${isGameStarted ? "started" : ""}`}
             onClick={handleStartGame}
@@ -1112,13 +1118,15 @@ function App() {
       {isDealer &&
         (!gameStarted || (result && result.length > 0)) &&
         !showSummary && (
-          <div className="post-round-controls">
+          <div className="btn-inroom-restart">
             {" "}
             <button onClick={handleResetGameHandler}>
               {" "}
               เริ่มรอบใหม่ / รีเซ็ต{" "}
             </button>{" "}
-            <button onClick={handleEndGame}>จบเกมทั้งหมด (ดูสรุป)</button>{" "}
+            <button className="btn-inroom-result" onClick={handleEndGame}>
+              จบเกมทั้งหมด (ดูสรุป)
+            </button>{" "}
           </div>
         )}
       {!isDealer &&
@@ -1126,12 +1134,12 @@ function App() {
         result.length > 0 &&
         !gameStarted &&
         !showSummary && (
-          <p className="turn-indicator">
+          <p className="btn-inroom-endgame">
             {" "}
             --- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---{" "}
           </p>
         )}
-      <button onClick={handleExitGame} className="exit-button">
+      <button onClick={handleExitGame} className="btn-inroom-endgame">
         {" "}
         ออกจากห้อง/เกม (โหลดใหม่){" "}
       </button>

@@ -83,7 +83,7 @@ body {
 .show-result-btn,
 .post-round-controls button[onClick*="EndGame"] {
   background-color: #d9534f;
-  border-color: #d43f3a;
+  border-color: #000000;
 }
 .show-result-btn:hover,
 .post-round-controls button[onClick*="EndGame"]:hover {
@@ -279,6 +279,22 @@ th {
   border-color: #000000;
   color: #fff;
 }
+.btn-inroom-restart {
+  background-color: #3541e7;
+  border-color: #000000;
+  color: #fff;
+}
+.btn-inroom-endgame {
+  background-color: #ac2c2c;
+  border-color: #000000;
+  color: #fff;
+}
+.btn-inroom-result {
+  background-color: #8743e0;
+  border-color: #000000;
+  color: #fff;
+}
+
 .btn-inroom-startgame:hover {
   background-color: #4cae4c;
 }
@@ -291,6 +307,23 @@ th {
   background-color: #d6d6d6;
   border-color: #ccc;
   cursor: not-allowed;
+}
+.btn-inroom-lockgame {
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn-inroom-lockgame.locked {
+  background-color: #d9534f; /* สีแดง */
+}
+
+.btn-inroom-lockgame.unlocked {
+  background-color: #d6d6d6; /* สีเทา */
+  color: #333;
 }
 
 /* App.css */
