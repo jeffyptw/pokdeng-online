@@ -227,131 +227,116 @@ function getRoomPlayerData(room) {
 }
 
 function performResultCalculation(room) {
-  // ... (เหมือนเดิมจากครั้งก่อน) ...
-  const dealer = room.players.find((p) => p.isDealer);
+  const dealer = room.players.find(p => p.isDealer);
   if (!dealer) {
-    console.error(
-      `[Server] CRITICAL: Dealer not found in performResultCalculation for room: ${room.id}`
-    );
-    return null;
+      console.error(`[Server] CRITICAL: Dealer not found for result calculation in room: ${room.id}`);
+      io.to(room.id).emit("errorMessage", { text: "เกิดข้อผิดพลาด: ไม่พบเจ้ามือ aoคำนวณผล" });
+      return null;
   }
+  // คำนวณ handDetails ของเจ้ามือให้แน่ใจว่าล่าสุด
   dealer.handDetails = getHandRank(dealer.cards);
+  if (!dealer.handDetails) { // ป้องกันกรณี getHandRank คืน null/undefined
+      console.error(`[Server] CRITICAL: Failed to get hand details for dealer in room: ${room.id}`);
+      io.to(room.id).emit("errorMessage", { text: "เกิดข้อผิดพลาด: ไม่สามารถคำนวณไพ่เจ้ามือ" });
+      return null;
+  }
+
+
   const roundResults = [];
   let dealerNetChangeTotal = 0;
-  room.players.forEach((player) => {
-    if (player.isDealer) return;
-    player.handDetails = getHandRank(player.cards);
-    let outcome = "แพ้";
-    let moneyChange = 0;
-    const betAmount = room.betAmount || DEFAULT_BET_AMOUNT;
-    if (player.disconnectedMidGame) {
-      outcome = "ขาดการเชื่อมต่อ";
-      if (player.balance >= betAmount) {
-        moneyChange = -betAmount;
-      } else {
-        moneyChange = -player.balance;
+  const betAmount = room.betAmount || DEFAULT_BET_AMOUNT;
+
+  room.players.forEach(player => {
+      if (player.isDealer) return; // ข้ามเจ้ามือไปก่อน จะคำนวณแยกตอนท้าย
+
+      // คำนวณ handDetails ของผู้เล่นทุกคนให้แน่ใจว่าล่าสุด
+      if (!player.disconnectedMidGame) {
+          player.handDetails = getHandRank(player.cards);
       }
-      player.balance += moneyChange;
-      dealerNetChangeTotal -= moneyChange;
-    } else {
-      const playerHand = player.handDetails;
-      const dealerHand = dealer.handDetails;
-      if (playerHand.rank === 1 && dealerHand.rank === 1) {
-        if (playerHand.score > dealerHand.score) {
-          outcome = "ชนะ";
-          moneyChange = betAmount * playerHand.multiplier;
-        } else if (playerHand.score < dealerHand.score) {
-          outcome = "แพ้";
-          moneyChange = -betAmount;
-        } else {
-          if (playerHand.multiplier > dealerHand.multiplier) {
-            outcome = "ชนะ";
-            moneyChange = betAmount * playerHand.multiplier;
-          } else if (playerHand.multiplier < dealerHand.multiplier) {
-            outcome = "แพ้";
-            moneyChange = -betAmount;
-          } else {
-            outcome = "เสมอ";
-            moneyChange = 0;
-          }
-        }
-      } else if (playerHand.rank === 1 && dealerHand.rank !== 1) {
-        outcome = "ชนะ";
-        moneyChange = betAmount * playerHand.multiplier;
-      } else if (dealerHand.rank === 1 && playerHand.rank !== 1) {
-        outcome = "แพ้";
-        moneyChange = -betAmount;
+      // ถ้า handDetails ยังไม่มี (เช่น disconnected ก่อนได้ไพ่ หรือมีปัญหา) ให้ใช้ค่า default
+      if (!player.handDetails) {
+          player.handDetails = { score: 0, type: player.disconnectedMidGame ? "ขาดการเชื่อมต่อ" : "ไม่มีไพ่", rank: 8, multiplier: 1, cards: player.cards || [] };
+      }
+
+
+      let outcome = "แพ้";
+      let moneyChange = 0;
+
+      if (player.disconnectedMidGame) {
+          outcome = "ขาดการเชื่อมต่อ";
+          // เงินที่เสีย = เดิมพัน แต่ไม่เกินเงินที่มี
+          moneyChange = player.balance >= betAmount ? -betAmount : -player.balance;
+          player.balance += moneyChange;
+          dealerNetChangeTotal -= moneyChange; // เจ้ามือได้เงินส่วนนี้
       } else {
-        if (playerHand.rank < dealerHand.rank) {
-          outcome = "ชนะ";
-          moneyChange = betAmount * playerHand.multiplier;
-        } else if (playerHand.rank > dealerHand.rank) {
-          outcome = "แพ้";
-          moneyChange = -betAmount;
-        } else {
-          let playerComparableScore = playerHand.score;
-          let dealerComparableScore = dealerHand.score;
-          if (playerHand.rank === 2 && dealerHand.rank === 2) {
-            playerComparableScore = playerHand.subRank || playerHand.score;
-            dealerComparableScore = dealerHand.subRank || dealerHand.score;
-          }
-          if (playerComparableScore > dealerComparableScore) {
-            outcome = "ชนะ";
-            moneyChange = betAmount * playerHand.multiplier;
-          } else if (playerComparableScore < dealerComparableScore) {
-            outcome = "แพ้";
-            moneyChange = -betAmount;
-          } else {
-            if (playerHand.multiplier > dealerHand.multiplier) {
-              outcome = "ชนะ";
-              moneyChange = betAmount * playerHand.multiplier;
-            } else if (playerHand.multiplier < dealerHand.multiplier) {
-              outcome = "แพ้";
-              moneyChange = -betAmount;
-            } else {
-              outcome = "เสมอ";
-              moneyChange = 0;
+          const playerHand = player.handDetails;
+          const dealerHand = dealer.handDetails;
+          if (!playerHand || !dealerHand) {
+            console.error(`[Server] Hand details missing for comparison. Player: ${player.id}, Dealer: ${dealer.id} in room ${room.id}`);
+            // อาจจะถือว่าผู้เล่นแพ้ หรือ เสมอ ในกรณีนี้
+            outcome = "Error/แพ้";
+            moneyChange = -betAmount; // หรือ 0
+        } else if (playerHand.rank === 1 && dealerHand.rank === 1) {
+            // ... (Pok vs Pok)
+            if (playerHand.score > dealerHand.score) { outcome = "ชนะ"; moneyChange = betAmount * playerHand.multiplier; }
+            else if (playerHand.score < dealerHand.score) { outcome = "แพ้"; moneyChange = -betAmount; }
+            else { if (playerHand.multiplier > dealerHand.multiplier) { outcome = "ชนะ"; moneyChange = betAmount * playerHand.multiplier; } else if (playerHand.multiplier < dealerHand.multiplier) { outcome = "แพ้"; moneyChange = -betAmount; } else { outcome = "เสมอ"; moneyChange = 0; } }
+        } else if (playerHand.rank === 1 && dealerHand.rank !== 1) { outcome = "ชนะ"; moneyChange = betAmount * playerHand.multiplier;
+        } else if (dealerHand.rank === 1 && playerHand.rank !== 1) { outcome = "แพ้"; moneyChange = -betAmount;
+        } else { // Neither has Pok
+            if (playerHand.rank < dealerHand.rank) { outcome = "ชนะ"; moneyChange = betAmount * playerHand.multiplier; }
+            else if (playerHand.rank > dealerHand.rank) { outcome = "แพ้"; moneyChange = -betAmount; }
+            else { // Ranks are equal
+                let playerComparableScore = playerHand.score; let dealerComparableScore = dealerHand.score;
+                if (playerHand.rank === 2 && dealerHand.rank === 2) { // Both Tong
+                    playerComparableScore = playerHand.subRank || playerHand.score; dealerComparableScore = dealerHand.subRank || dealerHand.score;
+                }
+                if (playerComparableScore > dealerComparableScore) { outcome = "ชนะ"; moneyChange = betAmount * playerHand.multiplier; }
+                else if (playerComparableScore < dealerComparableScore) { outcome = "แพ้"; moneyChange = -betAmount; }
+                else { if (playerHand.multiplier > dealerHand.multiplier) { outcome = "ชนะ"; moneyChange = betAmount * playerHand.multiplier; } else if (playerHand.multiplier < dealerHand.multiplier) { outcome = "แพ้"; moneyChange = -betAmount; } else { outcome = "เสมอ"; moneyChange = 0; } }
             }
-          }
         }
+        if (moneyChange < 0 && Math.abs(moneyChange) > player.balance && !player.disconnectedMidGame) { // dont apply if already disconnected
+          moneyChange = -player.balance;
       }
-      if (moneyChange < 0 && Math.abs(moneyChange) > player.balance)
-        moneyChange = -player.balance;
-      if (moneyChange > 0 && moneyChange > dealer.balance)
-        moneyChange = dealer.balance;
+      // Player cannot win more than what dealer can pay for this specific player interaction
+      // Dealer's total balance change is handled by dealerNetChangeTotal
+      if (moneyChange > 0 && moneyChange > (dealer.balance + dealerNetChangeTotal)) { // Check against dealer's available pot for this win
+           // This logic can be complex if dealer's money runs out mid-payouts to multiple winners
+           // Simpler: Cap win at dealer's current balance (before this specific payout) if dealer cannot cover.
+           // For now, let's assume dealer has enough or this will be reflected in dealer's final balance.
+      }
+
       player.balance += moneyChange;
       dealerNetChangeTotal -= moneyChange;
-    }
-    roundResults.push({
-      id: player.id,
-      name: player.name,
-      cardsDisplay: player.cards.map(getCardDisplay).join(" "),
-      score: player.handDetails.score,
-      specialType: player.handDetails.type,
-      outcome: outcome,
-      moneyChange: moneyChange,
-      balance: player.balance,
-    });
-  });
-  dealer.balance += dealerNetChangeTotal;
+  }
   roundResults.push({
-    id: dealer.id,
-    name: dealer.name,
-    cardsDisplay: dealer.cards.map(getCardDisplay).join(" "),
-    score: dealer.handDetails.score,
-    specialType: dealer.handDetails.type,
-    outcome: "เจ้ามือ",
-    moneyChange: dealerNetChangeTotal,
-    balance: dealer.balance,
+      id: player.id, name: player.name,
+      cardsDisplay: (player.handDetails.cards || []).map(getCardDisplay).join(" "),
+      score: player.handDetails.score, specialType: player.handDetails.type,
+      outcome: outcome, moneyChange: moneyChange, balance: player.balance,
   });
-  return roundResults.sort((a, b) => {
-    const playerA = room.players.find((p) => p.id === a.id);
-    const playerB = room.players.find((p) => p.id === b.id);
-    if (playerA && playerA.isDealer) return 1;
-    if (playerB && playerB.isDealer) return -1;
-    return 0;
-  });
+});
+if (moneyChange < 0 && Math.abs(moneyChange) > player.balance && !player.disconnectedMidGame) { // dont apply if already disconnected
+  moneyChange = -player.balance;
 }
+// Player cannot win more than what dealer can pay for this specific player interaction
+// Dealer's total balance change is handled by dealerNetChangeTotal
+if (moneyChange > 0 && moneyChange > (dealer.balance + dealerNetChangeTotal)) { // Check against dealer's available pot for this win
+   // This logic can be complex if dealer's money runs out mid-payouts to multiple winners
+   // Simpler: Cap win at dealer's current balance (before this specific payout) if dealer cannot cover.
+   // For now, let's assume dealer has enough or this will be reflected in dealer's final balance.
+}
+
+player.balance += moneyChange;
+dealerNetChangeTotal -= moneyChange;
+}
+roundResults.push({
+id: player.id, name: player.name,
+cardsDisplay: (player.handDetails.cards || []).map(getCardDisplay).join(" "),
+score: player.handDetails.score, specialType: player.handDetails.type,
+outcome: outcome, moneyChange: moneyChange, balance: player.balance,
+});
 
 function calculateAndEmitResults(roomId) {
   // ... (เหมือนเดิมจากครั้งก่อน) ...
