@@ -540,11 +540,9 @@ io.on("connection", (socket) => {
 
       for (const player of room.players) {
         if (!player.isDealer && player.balance < room.betAmount) {
-          return io
-            .to(roomId)
-            .emit("errorMessage", {
-              text: `ผู้เล่น ${player.name} มีเงินไม่พอ (${room.betAmount})`,
-            });
+          return io.to(roomId).emit("errorMessage", {
+            text: `ผู้เล่น ${player.name} มีเงินไม่พอ (${room.betAmount})`,
+          });
         }
       }
 
