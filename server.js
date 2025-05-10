@@ -54,85 +54,52 @@ function getCardPoint(value) {
   if (value === "A") return 1;
   return parseInt(value);
 }
-
 function calculateScore(cards) {
   if (!cards || cards.length === 0) return 0;
   return cards.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
 }
-
+function getCardDisplay(card) {
+  if (
+    card &&
+    typeof card.value !== "undefined" &&
+    typeof card.suit !== "undefined"
+  )
+    return `${card.value}${card.suit}`;
+  return "?";
+}
 function getHandRank(cardsInput) {
   const cards = cardsInput || [];
   if (cards.length === 0) {
-    return { rank: 9, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards };
+    return { rank: 8, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards };
   }
-
   const values = cards.map((c) => c.value);
   const suits = cards.map((c) => c.suit);
   const score = calculateScore(cards);
   const isSameSuit = cards.length > 0 && suits.every((s) => s === suits[0]);
-
-  // --- Logic ตรวจสอบไพ่เรียง (Straight) ---
+  const valueCounts = {};
+  values.forEach((v) => (valueCounts[v] = (valueCounts[v] || 0) + 1));
   let isStraight = false;
   if (cards.length === 3) {
-    const cardValueMap = {
-      A: 1,
-      2: 2,
-      3: 3,
-      4: 4,
-      5: 5,
-      6: 6,
-      7: 7,
-      8: 8,
-      9: 9,
-      10: 10,
-      J: 11,
-      Q: 12,
-      K: 13,
-    };
-    // ตรวจสอบว่าไพ่ทุกใบมีใน map และแปลงค่าได้
-    if (cards.every((c) => cardValueMap[c.value] !== undefined)) {
-      const sortedNumericalValues = cards
-        .map((c) => cardValueMap[c.value])
-        .sort((a, b) => a - b);
-
-      if (sortedNumericalValues.length === 3) {
-        const isConsecutive =
-          sortedNumericalValues[1] === sortedNumericalValues[0] + 1 &&
-          sortedNumericalValues[2] === sortedNumericalValues[1] + 1;
-        // Q-K-A (เรียงเป็น A, Q, K คือ 1, 12, 13)
-        const isAceKingQueen =
-          sortedNumericalValues[0] === 1 &&
-          sortedNumericalValues[1] === 12 &&
-          sortedNumericalValues[2] === 13;
-
-        if (isConsecutive) {
-          // A-2-3 (คือ 1, 2, 3) ไม่นับเป็นเรียง
-          if (
-            sortedNumericalValues[0] === 1 &&
-            sortedNumericalValues[1] === 2 &&
-            sortedNumericalValues[2] === 3
-          ) {
-            isStraight = false;
-          } else {
-            // เรียงปกติ เช่น 2-3-4, ..., 10-J-Q, J-Q-K
-            isStraight = true;
-          }
-        } else if (isAceKingQueen) {
-          // Q-K-A
-          isStraight = true;
-        } else {
-          isStraight = false;
-        }
-      }
-    } else {
-      isStraight = false; // หากมีไพ่ที่ไม่รู้จักใน cardValueMap
-    }
+    const sortedNumericalValues = cards
+      .map((c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value)))
+      .sort((a, b) => a - b);
+    const isNormalStraight =
+      sortedNumericalValues.length === 3 &&
+      sortedNumericalValues[1] === sortedNumericalValues[0] + 1 &&
+      sortedNumericalValues[2] === sortedNumericalValues[1] + 1;
+    const isAQKStraight =
+      sortedNumericalValues.length === 3 &&
+      sortedNumericalValues[0] === 1 &&
+      sortedNumericalValues[1] === 12 &&
+      sortedNumericalValues[2] === 13;
+    isStraight = isNormalStraight || isAQKStraight;
   }
 
-  // --- ป๊อก (ไพ่ 2 ใบ) ---
+  // Pok (2 cards)
   if (cards.length === 2) {
-    const isPairForPok = values[0] === values[1];
-    const isDoubleDeng = isPairForPok || isSameSuit; // สองเด้งคือ คู่ หรือ สีเดียวกัน
+    const isPair = values[0] === values[1];
+    const isTwoCardSameSuit = isSameSuit;
+    const isDoubleDeng = isPair || isTwoCardSameSuit;
     if (score === 9)
       return {
         rank: 1,
@@ -151,53 +118,57 @@ function getHandRank(cardsInput) {
       };
   }
 
-  // --- ไพ่ 3 ใบ ---
+  // 3-Card Hands
   if (cards.length === 3) {
-    const valueCounts = {};
-    values.forEach((v) => (valueCounts[v] = (valueCounts[v] || 0) + 1));
+    // *** NEW: Check for 8 หลัง / 9 หลัง first for 3 cards ***
+    if (score === 9)
+      return {
+        rank: 1.5,
+        type: "9 หลัง",
+        score,
+        multiplier: isSameSuit ? 3 : 1,
+        cards,
+      }; // 9 หลัง อาจจะมีเด้งสี
+    if (score === 8)
+      return {
+        rank: 1.5,
+        type: "8 หลัง",
+        score,
+        multiplier: isSameSuit ? 3 : 1,
+        cards,
+      }; // 8 หลัง อาจจะมีเด้งสี
+    // (Rank 1.5 ให้ต่ำกว่าป๊อก 2 ใบ แต่สูงกว่าตองและอื่นๆ)
+    // (Multiplier สำหรับ 8/9 หลัง อาจจะต้องพิจารณาตามกฎ เช่น ถ้ามีสีด้วยอาจจะได้ 3 เด้ง)
 
-    // ตอง
     if (Object.values(valueCounts).includes(3)) {
+      // Tong
       let tongValueStrength = 0;
       const cardValue = values[0];
       if (cardValue === "A") tongValueStrength = 14;
       else if (cardValue === "K") tongValueStrength = 13;
       else if (cardValue === "Q") tongValueStrength = 12;
       else if (cardValue === "J") tongValueStrength = 11;
-      else if (cardValue === "10") tongValueStrength = 10;
       else tongValueStrength = parseInt(cardValue);
       return {
         rank: 2,
-        subRank: tongValueStrength, // สำหรับเปรียบเทียบตอง (A สูงสุด)
+        subRank: tongValueStrength,
         type: `ตอง ${values[0]}`,
-        score, // แต้มตองมักจะไม่นำมาคิด แต่ใส่ไว้เผื่อกรณีอื่น
+        score,
         multiplier: 5,
         cards,
       };
     }
-
-    // สเตรทฟลัช (เรียงสี)
     if (isStraight && isSameSuit) {
       return { rank: 3, type: "สเตรทฟลัช", score, multiplier: 5, cards };
     }
-
-    // เซียน (J, Q, K)
     const isThreeFaceCards = values.every((v) => ["J", "Q", "K"].includes(v));
     if (isThreeFaceCards) {
-      // JQK เป็นสเตรทด้วย และถ้าสีเดียวกันจะเป็นสเตรทฟลัช (ถูกดักไปแล้ว)
-      // ถ้าไม่ใช่สีเดียวกัน จะเป็นเซียน
       return { rank: 4, type: "เซียน (JQK)", score: 0, multiplier: 3, cards };
     }
-
-    // เรียง (สเตรทธรรมดา)
     if (isStraight) {
-      // กรณีเป็น สเตรทฟลัช หรือ เซียน(JQK) จะถูกดักไปก่อนแล้ว
       return { rank: 5, type: "เรียง", score, multiplier: 3, cards };
     }
-
-    // สี (สามเด้ง)
     if (isSameSuit) {
-      // กรณีเป็น สเตรทฟลัช จะถูกดักไปก่อนแล้ว
       return {
         rank: 6,
         type: `สามเด้ง (${score} แต้ม)`,
@@ -205,48 +176,39 @@ function getHandRank(cardsInput) {
         multiplier: 3,
         cards,
       };
-    }
-
-    // --- 8 หลัง / 9 หลัง (นับเป็นแต้มธรรมดา) ---
-    // ตรวจสอบหลังจากไม่เข้าพวกไพ่พิเศษ 3 ใบอื่น ๆ (ตอง, สเตรทฟลัช, เซียน, เรียง, สี)
-    if (score === 9) {
-      return { rank: 8, type: "9 หลัง", score, multiplier: 1, cards };
-    }
-    if (score === 8) {
-      return { rank: 8, type: "8 หลัง", score, multiplier: 1, cards };
-    }
-    // หากเป็น 3 ใบ แต่ไม่ใช่แต้มพิเศษ และไม่ใช่ 8 หรือ 9 หลัง ก็จะหลุดไปเป็นแต้มธรรมดาด้านล่าง
+    } // สีธรรมดา 3 ใบ
   }
 
-  // --- สองเด้ง (ไพ่ 2 ใบ, ไม่ใช่ป๊อก) ---
+  // 2-Card Hands (Non-Pok)
   if (cards.length === 2) {
-    // ส่วนนี้จะทำงานเมื่อไม่ใช่ป๊อก 8 หรือ ป๊อก 9
     const isPair = values[0] === values[1];
-    if (isPair || isSameSuit) {
-      // สองเด้งคือ คู่ หรือ สีเดียวกัน
-      let dengType = "";
-      if (isPair && isSameSuit) {
-        // กรณีนี้น้อยมากที่จะแยก แต่ถ้าคู่และสีเดียวกันจริง
-        dengType = "คู่และสี";
-      } else if (isPair) {
-        dengType = "คู่";
-      } else {
-        dengType = "สี";
-      }
+    const isTwoCardSameSuit = isSameSuit;
+    if (isPair && isTwoCardSameSuit)
       return {
-        rank: 7,
-        type: `สองเด้ง (${dengType} ${score} แต้ม)`,
+        rank: 7.1,
+        type: `สองเด้ง (คู่และสี ${score} แต้ม)`,
         score,
         multiplier: 2,
         cards,
       };
-    }
+    if (isPair)
+      return {
+        rank: 7.2,
+        type: `สองเด้ง (คู่ ${score} แต้ม)`,
+        score,
+        multiplier: 2,
+        cards,
+      };
+    if (isTwoCardSameSuit)
+      return {
+        rank: 7.3,
+        type: `สองเด้ง (สี ${score} แต้ม)`,
+        score,
+        multiplier: 2,
+        cards,
+      };
   }
-
-  // --- แต้มธรรมดา ---
-  // สำหรับไพ่ 2 ใบที่ไม่มีเด้งและไม่ป๊อก
-  // หรือไพ่ 3 ใบที่ไม่ใช่แต้มพิเศษ และไม่ใช่ 8 หลัง/9 หลัง (เช่น A23 ได้ 6 แต้ม)
-  return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
+  return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards }; // แต้มธรรมดา
 }
 // --- End Game Logic ---
 
