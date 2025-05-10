@@ -905,7 +905,7 @@ function App() {
       )}
       {!gameStarted && isDealer && (!result || result.length === 0) && (
         <div className="dealer-controls pre-game">
-          <h4>ตั้งค่าเกม (เจ้ามือ):</h4>
+          <h4>ตั้งค่าเกม (เจ้ามือ): ขั้นต่ำ 5 บาท</h4>
           <div>
             <label>เงินเดิมพัน: </label>
             <input
@@ -1123,7 +1123,7 @@ function App() {
               className="btn-inroom-restart"
               onClick={handleResetGameHandler}
             >
-              เริ่มรอบใหม่ / รีเซ็ต (ดูสรุป)
+              รีเซ็ต (ดูสรุป)
             </button>
             <button className="btn-inroom-result" onClick={handleEndGame}>
               จบเกมทั้งหมด (ดูสรุป)
