@@ -1,5 +1,5 @@
 // App.js
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import io from "socket.io-client";
 import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์นี้ หรือลบการ import ถ้าไม่ใช้
 
@@ -376,7 +376,7 @@ function App() {
         socketClient.off("player_revealed_pok");
       }
     };
-  }, [myPlayerId, name, roomId, currentTurnId, playerData]);
+  }, [myPlayerId, name, roomId, currentTurnId, playerData, addMessage]);
 
   useEffect(() => {
     let timer;
