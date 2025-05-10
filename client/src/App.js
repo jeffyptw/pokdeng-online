@@ -1137,9 +1137,8 @@ function App() {
         result.length > 0 &&
         !gameStarted &&
         !showSummary && (
-          <p className="btn-inroom-endgame">
-            {" "}
-            --- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---{" "}
+          <p className="btn-inroom-waitinggame">
+            <center>--- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---</center>
           </p>
         )}
       <div className="turn-indicator">

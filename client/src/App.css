@@ -40,7 +40,8 @@ body {
 .btn-inroom-startgame:disabled,
 .btn-inroom-lockgame,
 .btn-inroom-lockgame.locked,
-.btn-inroom-lockgame.unlocked {
+.btn-inroom-lockgame.unlocked,
+.btn-inroom-waitinggame {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
@@ -300,6 +301,12 @@ th {
 }
 .btn-inroom-result {
   background-color: #8743e0;
+  border-color: #000000;
+  color: #fff;
+}
+
+.btn-inroom-waitinggame {
+  background-color: #0cd1a0;
   border-color: #000000;
   color: #fff;
 }
