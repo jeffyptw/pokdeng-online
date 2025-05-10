@@ -1140,10 +1140,12 @@ function App() {
             --- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---{" "}
           </p>
         )}
-      <button className="btn-inroom-endgame" onClick={handleExitGame}>
-        {" "}
-        ออกจากห้อง/เกม (โหลดใหม่){" "}
-      </button>
+      <div className="turn-indicator">
+        <button className="btn-inroom-endgame" onClick={handleExitGame}>
+          {" "}
+          ออกจากห้อง/เกม (โหลดใหม่){" "}
+        </button>
+      </div>
       <div className="messages-log">
         {" "}
         <h4>ประวัติข้อความ/เหตุการณ์:</h4>{" "}
