@@ -50,47 +50,59 @@ function getCardDisplay(card) {
   return "?";
 }
 function getHandRank(cardsInput) {
-    const cards = cardsInput || [];
-    if (cards.length === 0) { return { rank: 8, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards }; }
-    const values = cards.map((c) => c.value);
-    const suits = cards.map((c) => c.suit);
-    const score = calculateScore(cards);
-    const isSameSuit = cards.length > 0 && suits.every((s) => s === suits[0]);
-    const valueCounts = {};
-    values.forEach((v) => (valueCounts[v] = (valueCounts[v] || 0) + 1));
-    let isStraight = false;
-    if (cards.length === 3) {
-        const sortedNumericalValues = cards.map((c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value))).sort((a, b) => a - b);
-        const isNormalStraight = (sortedNumericalValues.length === 3 && sortedNumericalValues[1] === sortedNumericalValues[0] + 1 && sortedNumericalValues[2] === sortedNumericalValues[1] + 1);
-        const isAQKStraight = (sortedNumericalValues.length === 3 && sortedNumericalValues[0] === 1 && sortedNumericalValues[1] === 12 && sortedNumericalValues[2] === 13);
-        isStraight = isNormalStraight || isAQKStraight;
-    }
-    if (cards.length === 2) {
-        const isPair = values[0] === values[1];
-        const isTwoCardSameSuit = isSameSuit;
-        const isDoubleDeng = isPair || isTwoCardSameSuit;
-        if (score === 9) return { rank: 1, type: isDoubleDeng ? "ป๊อก 9 สองเด้ง" : "ป๊อก 9", score, multiplier: isDoubleDeng ? 2 : 1, cards };
-        if (score === 8) return { rank: 1, type: isDoubleDeng ? "ป๊อก 8 สองเด้ง" : "ป๊อก 8", score, multiplier: isDoubleDeng ? 2 : 1, cards };
-    }
-    if (cards.length === 3) {
-        if (Object.values(valueCounts).includes(3)) {
-            let tongValueStrength = 0; const cardValue = values[0];
-            if (cardValue === 'A') tongValueStrength = 14; else if (cardValue === 'K') tongValueStrength = 13; else if (cardValue === 'Q') tongValueStrength = 12; else if (cardValue === 'J') tongValueStrength = 11; else tongValueStrength = parseInt(cardValue);
-            return { rank: 2, subRank: tongValueStrength, type: `ตอง ${values[0]}`, score, multiplier: 5, cards };
-        }
-        if (isStraight && isSameSuit) { return { rank: 3, type: "สเตรทฟลัช", score, multiplier: 5, cards }; }
-        const isThreeFaceCards = values.every(v => ['J', 'Q', 'K'].includes(v));
-        if (isThreeFaceCards) { return { rank: 4, type: "เซียน (JQK)", score: 0, multiplier: 3, cards }; }
-        if (isStraight) { return { rank: 5, type: "เรียง", score, multiplier: 3, cards }; }
-        if (isSameSuit) { return { rank: 6, type: `สามเด้ง (${score} แต้ม)`, score, multiplier: 3, cards }; }
-    }
-    if (cards.length === 2) {
-        const isPair = values[0] === values[1]; const isTwoCardSameSuit = isSameSuit;
-        if (isPair && isTwoCardSameSuit) return { rank: 7.1, type: `สองเด้ง (คู่และสี ${score} แต้ม)`, score, multiplier: 2, cards };
-        if (isPair) return { rank: 7.2, type: `สองเด้ง (คู่ ${score} แต้ม)`, score, multiplier: 2, cards };
-        if (isTwoCardSameSuit) return { rank: 7.3, type: `สองเด้ง (สี ${score} แต้ม)`, score, multiplier: 2, cards };
-    }
-    return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
+  const cards = cardsInput || [];
+  if (cards.length === 0) { return { rank: 8, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards }; }
+  const values = cards.map((c) => c.value);
+  const suits = cards.map((c) => c.suit);
+  const score = calculateScore(cards);
+  const isSameSuit = cards.length > 0 && suits.every((s) => s === suits[0]);
+  const valueCounts = {};
+  values.forEach((v) => (valueCounts[v] = (valueCounts[v] || 0) + 1));
+  let isStraight = false;
+  if (cards.length === 3) {
+      const sortedNumericalValues = cards.map((c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value))).sort((a, b) => a - b);
+      const isNormalStraight = (sortedNumericalValues.length === 3 && sortedNumericalValues[1] === sortedNumericalValues[0] + 1 && sortedNumericalValues[2] === sortedNumericalValues[1] + 1);
+      const isAQKStraight = (sortedNumericalValues.length === 3 && sortedNumericalValues[0] === 1 && sortedNumericalValues[1] === 12 && sortedNumericalValues[2] === 13);
+      isStraight = isNormalStraight || isAQKStraight;
+  }
+
+  // Pok (2 cards)
+  if (cards.length === 2) {
+      const isPair = values[0] === values[1];
+      const isTwoCardSameSuit = isSameSuit;
+      const isDoubleDeng = isPair || isTwoCardSameSuit;
+      if (score === 9) return { rank: 1, type: isDoubleDeng ? "ป๊อก 9 สองเด้ง" : "ป๊อก 9", score, multiplier: isDoubleDeng ? 2 : 1, cards };
+      if (score === 8) return { rank: 1, type: isDoubleDeng ? "ป๊อก 8 สองเด้ง" : "ป๊อก 8", score, multiplier: isDoubleDeng ? 2 : 1, cards };
+  }
+
+  // 3-Card Hands
+  if (cards.length === 3) {
+      // *** NEW: Check for 8 หลัง / 9 หลัง first for 3 cards ***
+      if (score === 9) return { rank: 1.5, type: "9 หลัง", score, multiplier: isSameSuit ? 3 : 1, cards }; // 9 หลัง อาจจะมีเด้งสี
+      if (score === 8) return { rank: 1.5, type: "8 หลัง", score, multiplier: isSameSuit ? 3 : 1, cards }; // 8 หลัง อาจจะมีเด้งสี
+      // (Rank 1.5 ให้ต่ำกว่าป๊อก 2 ใบ แต่สูงกว่าตองและอื่นๆ)
+      // (Multiplier สำหรับ 8/9 หลัง อาจจะต้องพิจารณาตามกฎ เช่น ถ้ามีสีด้วยอาจจะได้ 3 เด้ง)
+
+      if (Object.values(valueCounts).includes(3)) { // Tong
+          let tongValueStrength = 0; const cardValue = values[0];
+          if (cardValue === 'A') tongValueStrength = 14; else if (cardValue === 'K') tongValueStrength = 13; else if (cardValue === 'Q') tongValueStrength = 12; else if (cardValue === 'J') tongValueStrength = 11; else tongValueStrength = parseInt(cardValue);
+          return { rank: 2, subRank: tongValueStrength, type: `ตอง ${values[0]}`, score, multiplier: 5, cards };
+      }
+      if (isStraight && isSameSuit) { return { rank: 3, type: "สเตรทฟลัช", score, multiplier: 5, cards }; }
+      const isThreeFaceCards = values.every(v => ['J', 'Q', 'K'].includes(v));
+      if (isThreeFaceCards) { return { rank: 4, type: "เซียน (JQK)", score: 0, multiplier: 3, cards }; }
+      if (isStraight) { return { rank: 5, type: "เรียง", score, multiplier: 3, cards }; }
+      if (isSameSuit) { return { rank: 6, type: `สามเด้ง (${score} แต้ม)`, score, multiplier: 3, cards }; } // สีธรรมดา 3 ใบ
+  }
+
+  // 2-Card Hands (Non-Pok)
+  if (cards.length === 2) {
+      const isPair = values[0] === values[1]; const isTwoCardSameSuit = isSameSuit;
+      if (isPair && isTwoCardSameSuit) return { rank: 7.1, type: `สองเด้ง (คู่และสี ${score} แต้ม)`, score, multiplier: 2, cards };
+      if (isPair) return { rank: 7.2, type: `สองเด้ง (คู่ ${score} แต้ม)`, score, multiplier: 2, cards };
+      if (isTwoCardSameSuit) return { rank: 7.3, type: `สองเด้ง (สี ${score} แต้ม)`, score, multiplier: 2, cards };
+  }
+  return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards }; // แต้มธรรมดา
 }
 // --- End Game Logic ---
 
@@ -230,6 +242,26 @@ function performResultCalculation(room) {
         if(!playerA_isDealer && playerB_isDealer) return -1;
         return 0;
     });
+    const sortedPlayerResults = roundResults.filter(r => r.id !== dealer.id)
+    .sort((a, b) => {
+        // ดึงเลขผู้เล่นจาก role เช่น "ผู้เล่นที่ 1" -> 1
+        const numA = parseInt(a.role.replace(/[^0-9]/g, ''), 10);
+        const numB = parseInt(b.role.replace(/[^0-9]/g, ''), 10);
+        if (!isNaN(numA) && !isNaN(numB)) {
+            return numA - numB;
+        }
+        // Fallback sort by name or original order if role parsing fails
+        return a.name.localeCompare(b.name);
+    });
+
+// สร้าง array ผลลัพธ์ใหม่โดยมีเจ้ามืออยู่บนสุด
+const finalSortedResults = [
+    roundResults.find(r => r.id === dealer.id), // เจ้ามือ
+    ...sortedPlayerResults // ผู้เล่นที่เรียงลำดับแล้ว
+];
+
+return finalSortedResults.filter(r => r); // filter(r=>r) เพื่อกรอง undefined ออกเผื่อกรณี dealer ไม่พบ
+
 }
 
 function calculateAndEmitResults(roomId) {
