@@ -21,7 +21,7 @@ function App() {
   const [inRoom, setInRoom] = useState(false);
   const [isDealer, setIsDealer] = useState(false);
   const [playerData, setPlayerData] = useState([]);
-  const [betAmount, setBetAmount] = useState("5");
+  const [betAmount, setBetAmount] = useState(5);
   const [inputBetAmount, setInputBetAmount] = useState("5");
   const [roomLocked, setRoomLocked] = useState(false);
 
@@ -872,7 +872,7 @@ function App() {
             <label>เงินเดิมพัน: </label>
             <input
               type="number"
-              placeholder="กรุณาใส่เงินเงินเดิมพัน ขั้นต่ำ 5 บาท"
+              placeholder="กรุณาใส่เงินเงินเดิมพัน ขั้นต่ำ 5 "
               value={inputBetAmount}
               onChange={(e) => setInputBetAmount(e.target.value)}
               step="5"
