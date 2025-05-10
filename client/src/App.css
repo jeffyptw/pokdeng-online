@@ -279,10 +279,20 @@ th {
   border-color: #000000;
   color: #fff;
 }
-.btn-inroom-startgame {
-  background-color: #5cb85c;
-  border-color: #4cae4c;
+.btn-inroom-startgame:hover {
+  background-color: #4cae4c;
 }
+
+.btn-inroom-startgame:active {
+  background-color: #449d44;
+}
+
+.btn-inroom-startgame:disabled {
+  background-color: #d6d6d6;
+  border-color: #ccc;
+  cursor: not-allowed;
+}
+
 /* App.css */
 /* … โค้ดข้างบน … */
 

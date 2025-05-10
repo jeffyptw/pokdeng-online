@@ -11,6 +11,7 @@ let socketClient = null;
 const DEFAULT_TURN_DURATION = 30;
 
 function App() {
+  const [isGameStarted, setIsGameStarted] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [name, setName] = useState("");
@@ -922,7 +923,7 @@ function App() {
             {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
           </button>
           <button
-            className="btn-inroom-startgame"
+            className={`btn-inroom-startgame ${isGameStarted ? "started" : ""}`}
             onClick={handleStartGame}
             disabled={betAmount <= 0}
           >
