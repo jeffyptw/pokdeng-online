@@ -21,7 +21,7 @@ function App() {
   const [inRoom, setInRoom] = useState(false);
   const [isDealer, setIsDealer] = useState(false);
   const [playerData, setPlayerData] = useState([]);
-  const [betAmount, setBetAmount] = useState(5);
+  const [betAmount, setBetAmount] = useState();
   const [inputBetAmount, setInputBetAmount] = useState("5");
   const [roomLocked, setRoomLocked] = useState(false);
 
@@ -865,14 +865,13 @@ function App() {
           {errorMsg}
         </p>
       )}
-      {!gameStarted && isDealer && (!result || result.length === 5) && (
+      {!gameStarted && isDealer && (!result || result.length === 0) && (
         <div className="dealer-controls pre-game">
           <h4>ตั้งค่าเกม (เจ้ามือ):</h4>
           <div>
             <label>เงินเดิมพัน: </label>
             <input
               type="number"
-              placeholder="กรุณาใส่เงินเงินเดิมพัน ขั้นต่ำ 5 "
               value={inputBetAmount}
               onChange={(e) => setInputBetAmount(e.target.value)}
               step="5"
