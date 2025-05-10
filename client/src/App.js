@@ -553,7 +553,7 @@ function App() {
 
   const handleStartGame = () => {
     if (socketClient && socketClient.connected && roomId && isDealer) {
-      if (betAmount <= 5) {
+      if (betAmount <= 0) {
         addMessage("กรุณากำหนดเงินเดิมพันก่อนเริ่มเกม", "error");
         return;
       }
