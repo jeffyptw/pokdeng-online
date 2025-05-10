@@ -686,7 +686,7 @@ function App() {
 )}
 
 
-        <input
+      ชื่อคุณ: <input
           type="text"
           placeholder="ชื่อคุณ"
           value={name}
@@ -694,7 +694,7 @@ function App() {
         />
         <br></br>
         <hr />
-        <input
+        เงิน: <input
           type="number"
           placeholder="เงินเริ่มต้น (ขั้นต่ำ 50)"
           value={money}
