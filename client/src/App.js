@@ -885,7 +885,7 @@ function App() {
           <button onClick={handleToggleLockRoom}>
             {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
           </button>
-          <button onClick={handleStartGame} disabled={betAmount <= 0}>
+          <button onClick={handleStartGame} disabled={betAmount <= 5}>
             {gameRound > 0 || (result && result.length > 0)
               ? "เริ่มเกมรอบใหม่"
               : "เริ่มเกม"}

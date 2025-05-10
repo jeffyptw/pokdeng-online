@@ -293,7 +293,7 @@ function performResultCalculation(room) {
   }
 
   const roundResults = [];
-  let dealerNetChangeTotal = 5;
+  let dealerNetChangeTotal = 0;
   const betAmount = room.betAmount || DEFAULT_BET_AMOUNT;
 
   room.players.forEach((player) => {
