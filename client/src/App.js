@@ -670,6 +670,21 @@ function App() {
     return (
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
+        {errorMsg && (
+  <p
+    className="error-message"
+    style={{
+      color: "#000000", // กำหนดสีตัวอักษรเป็นสีดำ
+      border: "1px solid rgb(85, 24, 24)",
+      padding: "5px",
+      backgroundColor: "#fdd",
+      whiteSpace: "pre-wrap",
+    }}
+  >
+    {errorMsg}
+  </p>
+)}
+
         <p>
           สถานะ:&nbsp;
           <span
