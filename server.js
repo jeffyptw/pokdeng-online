@@ -1359,7 +1359,7 @@ io.on("connection", (socket) => {
     return room.players.map((player) => ({
       id: player.id,
       name: player.name,
-      money: player.balance,
+      balance: player.balance,
       isDealer: player.isDealer,
       role: player.role,
       hasStayed: player.hasStayed,
