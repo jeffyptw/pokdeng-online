@@ -91,7 +91,7 @@ body {
 
 .show-result-btn,
 .post-round-controls button[onClick*="EndGame"] {
-  background-color: #d9534f;
+  background-color: #98e441;
   border-color: #000000;
 }
 .show-result-btn:hover,

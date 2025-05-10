@@ -1030,10 +1030,12 @@ function App() {
         gameStarted &&
         showResultBtn &&
         (!result || result.length === 0) && (
-          <button className="show-result-btn" onClick={handleShowResult}>
-            {" "}
-            เปิดไพ่ทั้งหมด (เจ้ามือ){" "}
-          </button>
+          <div className="turn-indicator">
+            <button className="show-result-btn" onClick={handleShowResult}>
+              {" "}
+              เปิดไพ่ดวล{" "}
+            </button>
+          </div>
         )}
       {isDealer &&
         !currentTurnId &&
