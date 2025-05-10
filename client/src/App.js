@@ -557,7 +557,7 @@ function App() {
   }
   // ปรับปรุง isMyTurn ให้ถูกต้อง (เอา myCards.length < 3 ออก)
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
-
+   // JSX
   if (showSummary) {
     return (
       <div className="App-summary">
@@ -720,8 +720,6 @@ function App() {
               {user.name} ({user.role}) - เงิน: {user.balance?.toLocaleString()} บาท
               {user.id === currentTurnId && currentTurnInfo.timeLeft > 0 && gameStarted &&
                 ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}
-
-              {/* *** NEW: Display revealed Pok cards for this user *** */}
               {revealedPokPlayers[user.id] && user.id !== myPlayerId && gameStarted && (!result || result.length === 0) && (
                 <div className="revealed-pok-cards">
                   <strong>ไพ่ที่ป๊อก:</strong>{" "}
@@ -741,19 +739,19 @@ function App() {
       {/* Player's Cards and Actions: ใช้ isMyTurn ที่แก้ไขแล้ว และเงื่อนไขปุ่มที่ถูกต้อง */}
       {gameStarted && myCards && myCards.length > 0 && (!result || result.length === 0) && (
           <div className="my-cards-area">
-            <h3>ไพ่ของคุณ: {myCards.map((card, idx) => (<span key={idx}>{getCardDisplay(card)} </span>))}</h3>
-            <p>แต้ม: {myHandScore}, ประเภท: {myHandType}</p>
-            {isMyTurn && myCards.length >= 2 && !hasStayed && (
-                <div className="player-actions">
-                  <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
-                  {myCards.length < 3 && (
-                    <button onClick={handleDrawCard} disabled={hasStayed || myCards.length >=3}>จั่ว</button>
-                  )}
-                  <button onClick={handleStay} disabled={hasStayed}>อยู่</button>
-                </div>
-            )}
-          </div>
-        )}
+          <h3>ไพ่ของคุณ: {myCards.map((card, idx) => (<span key={idx}>{getCardDisplay(card)} </span>))}</h3>
+          <p>แต้ม: {myHandScore}, ประเภท: {myHandType}</p>
+          {isMyTurn && myCards.length >= 2 && !hasStayed && (
+              <div className="player-actions">
+                <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
+                {myCards.length < 3 && (
+                  <button onClick={handleDrawCard} disabled={hasStayed || myCards.length >=3}>จั่ว</button>
+                )}
+                <button onClick={handleStay} disabled={hasStayed}>อยู่</button>
+              </div>
+          )}
+        </div>
+      )}
 
       {/* Removed console.log from JSX */}
 
