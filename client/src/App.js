@@ -670,7 +670,6 @@ function App() {
     return (
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
-        {errorMsg && <p className="emessage-type-success">{errorMsg}</p>}
         <p>
           สถานะ:&nbsp;
           <span
