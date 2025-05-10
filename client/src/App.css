@@ -31,7 +31,16 @@ body {
 .show-result-btn,
 .post-round-controls button,
 .exit-button,
-.btn-inroom-setting {
+.btn-inroom-setting,
+.btn-inroom-restart,
+.btn-inroom-endgame,
+.btn-inroom-result,
+.btn-inroom-startgame:hover,
+.btn-inroom-startgame:active,
+.btn-inroom-startgame:disabled,
+.btn-inroom-lockgame,
+.btn-inroom-lockgame.locked,
+.btn-inroom-lockgame.unlocked {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
