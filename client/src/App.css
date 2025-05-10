@@ -304,8 +304,8 @@ th {
 }
 
 .btn-inroom-startgame:disabled {
-  background-color: #d6d6d6;
-  border-color: #ccc;
+  background-color: #4cae4c;
+  border-color: #000000;
   cursor: not-allowed;
 }
 .btn-inroom-lockgame {

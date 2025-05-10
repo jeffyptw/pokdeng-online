@@ -1120,13 +1120,16 @@ function App() {
         !showSummary && (
           <div className="btn-inroom-restart">
             {" "}
-            <button onClick={handleResetGameHandler}>
+            <button
+              className="btn-inroom-startgame"
+              onClick={handleResetGameHandler}
+            >
               {" "}
               เริ่มรอบใหม่ / รีเซ็ต{" "}
             </button>{" "}
             <button className="btn-inroom-result" onClick={handleEndGame}>
               จบเกมทั้งหมด (ดูสรุป)
-            </button>{" "}
+            </button>
           </div>
         )}
       {!isDealer &&
@@ -1139,7 +1142,7 @@ function App() {
             --- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---{" "}
           </p>
         )}
-      <button onClick={handleExitGame} className="btn-inroom-endgame">
+      <button className="btn-inroom-endgame" onClick={handleExitGame}>
         {" "}
         ออกจากห้อง/เกม (โหลดใหม่){" "}
       </button>
