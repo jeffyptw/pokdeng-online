@@ -21,7 +21,7 @@ function App() {
   const [inRoom, setInRoom] = useState(false);
   const [isDealer, setIsDealer] = useState(false);
   const [playerData, setPlayerData] = useState([]);
-  const [betAmount, setBetAmount] = useState(5);
+  const [betAmount, setBetAmount] = useState("5");
   const [inputBetAmount, setInputBetAmount] = useState("5");
   const [roomLocked, setRoomLocked] = useState(false);
 
