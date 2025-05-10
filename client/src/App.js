@@ -646,44 +646,127 @@ function App() {
   };
   const getCardPoint = (v) =>
     ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
+
   const calculateRankForDisplay = (cardsToRank) => {
-    /* ... (เพิ่มการเช็ค "ตอง" หรืออื่นๆ ตามต้องการ) ... */
     if (!cardsToRank || cardsToRank.length === 0)
       return { score: 0, type: "ยังไม่มีไพ่" };
+
     const calculatedScore =
       cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
-    let type = `${calculatedScore} แต้ม`;
+
+    let type = `${calculatedScore} แต้ม`; // ประเภทเริ่มต้น
+
     if (cardsToRank.length === 2) {
       const isPok = calculatedScore === 8 || calculatedScore === 9;
+      // isDeng เดิม: ไพ่สีเดียวกัน หรือค่าเหมือนกัน (เด้งสำหรับป๊อก หรือเป็นสองเด้งธรรมดา)
       const isDeng =
         cardsToRank[0].suit === cardsToRank[1].suit ||
         cardsToRank[0].value === cardsToRank[1].value;
+
       if (isPok) {
         type = `ป๊อก ${calculatedScore}`;
         if (isDeng) type += " สองเด้ง";
       } else if (isDeng) {
-        type = `สองเด้ง (${calculatedScore} แต้ม)`;
+        // ปรับปรุงการแสดงผลสำหรับ "สองเด้ง" ให้ละเอียดขึ้น โดยไม่เพิ่มตัวแปรใหม่
+        const isPair_2card = cardsToRank[0].value === cardsToRank[1].value;
+        const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit;
+
+        if (isPair_2card && isSameSuit_2card) {
+          type = `สองเด้ง (คู่และสี ${calculatedScore} แต้ม)`;
+        } else if (isPair_2card) {
+          type = `สองเด้ง (คู่ ${calculatedScore} แต้ม)`;
+        } else if (isSameSuit_2card) {
+          // isDeng เป็น true และไม่ใช่สองกรณีบน แสดงว่าเป็นสีอย่างเดียว
+          type = `สองเด้ง (สี ${calculatedScore} แต้ม)`;
+        }
       }
+      // หากไม่ใช่ป๊อก และไม่ใช่เด้ง (isDeng=false) type จะเป็น `${calculatedScore} แต้ม` ตามค่าเริ่มต้น
     } else if (cardsToRank.length === 3) {
+      // ตัวแปรเดิมจากโค้ดของคุณ
       const suits = cardsToRank.map((c) => c.suit);
-      const values = cardsToRank.map((c) => c.value).sort();
+      const values = cardsToRank.map((c) => c.value).sort(); // ค่าหน้าไพ่เรียงตามตัวอักษร เช่น ["10", "2", "A"] ใช้สำหรับ isTaong
+
       const isSameSuit = suits.every((s) => s === suits[0]);
-      const isTaong = values[0] === values[1] && values[1] === values[2];
-      if (calculatedScore === 9) {
-        type = `9 หลัง`;
-        if (isSameSuit) type += " (สามเด้ง)";
-      } // 9 หลัง
-      else if (calculatedScore === 8) {
-        type = `8 หลัง`;
-        if (isSameSuit) type += " (สามเด้ง)";
-      } // 8 หลัง
-      else if (isTaong) {
-        type = `ตอง ${values[0]}`;
-        if (isSameSuit) type += " (สี)";
+      const isTaong = values[0] === values[1] && values[1] === values[2]; // ตรวจตองจาก values ที่เรียงตามอักษร
+
+      // --- ส่วนตรรกะใหม่สำหรับ สเตรท, เซียน และการเรียงลำดับที่ถูกต้อง ---
+      // ตัวแปรชั่วคราวสำหรับตรรกะใหม่ (พยายามใช้ชื่อที่ไม่ซ้ำกับของเดิม และจำเป็นจริงๆ)
+      const card_face_values = cardsToRank.map((c) => c.value); // ค่าหน้าไพ่แบบดิบ เช่น ["A", "K", "2"]
+
+      // ค่าตัวเลขของไพ่สำหรับตรวจสอบสเตรท เรียงจากน้อยไปมาก เช่น [1, 12, 13] สำหรับ A,Q,K
+      const numeric_values_for_straight_check = card_face_values
+        .map(
+          (v_str) => ({ A: 1, J: 11, Q: 12, K: 13 }[v_str] || parseInt(v_str))
+        )
+        .sort((a, b) => a - b);
+
+      let is_straight_result = false; // ผลลัพธ์การตรวจสอบสเตรท
+      // ตรวจสอบว่ามี 3 ตัวเลขที่ถูกต้องก่อนเข้าถึง index
+      if (
+        numeric_values_for_straight_check.length === 3 &&
+        numeric_values_for_straight_check.every(
+          (n) => typeof n === "number" && !isNaN(n)
+        )
+      ) {
+        // สเตรทปกติ (เช่น 2-3-4, 10-J-Q) แต่ไม่รวม A-2-3
+        if (
+          numeric_values_for_straight_check[1] ===
+            numeric_values_for_straight_check[0] + 1 &&
+          numeric_values_for_straight_check[2] ===
+            numeric_values_for_straight_check[1] + 1
+        ) {
+          if (
+            !(
+              numeric_values_for_straight_check[0] === 1 &&
+              numeric_values_for_straight_check[1] === 2 &&
+              numeric_values_for_straight_check[2] === 3
+            )
+          ) {
+            // ไม่ใช่ A-2-3
+            is_straight_result = true;
+          }
+        }
+        // สเตรท QKA (เรียงเป็น A,Q,K -> 1,12,13)
+        if (
+          numeric_values_for_straight_check[0] === 1 &&
+          numeric_values_for_straight_check[1] === 12 &&
+          numeric_values_for_straight_check[2] === 13
+        ) {
+          is_straight_result = true;
+        }
+      }
+
+      // ตรวจสอบเซียน (J, Q, K สามใบ)
+      const is_sian_result = card_face_values.every((v_str) =>
+        ["J", "Q", "K"].includes(v_str)
+      );
+      // --- สิ้นสุดส่วนตรรกะใหม่ ---
+
+      // ลำดับการตัดสินประเภทไพ่ 3 ใบ
+      if (isTaong) {
+        type = `ตอง ${values[0]}`; // values[0] จากที่เรียงตามอักษรใช้แสดงค่าตองได้ถูกต้อง
+      } else if (is_straight_result && isSameSuit) {
+        type = "สเตรทฟลัช";
+      } else if (is_sian_result) {
+        type = "เซียน"; // JQK ที่ไม่ใช่สีเดียวกัน และไม่ใช่ตอง
+      } else if (is_straight_result) {
+        type = "เรียง";
       } else if (isSameSuit) {
-        type = `สามเด้ง (${calculatedScore} แต้ม)`;
+        type = `สามเด้ง (${calculatedScore} แต้ม)`; // หรือ "สี"
+      } else {
+        // แต้มธรรมดา รวมถึง 8 หลัง / 9 หลัง
+        // type เริ่มต้นคือ `${calculatedScore} แต้ม`
+        // จะถูกเปลี่ยนเป็น "8 หลัง" หรือ "9 หลัง" ถ้าเข้าเงื่อนไข
+        if (calculatedScore === 9) {
+          type = "9 หลัง";
+        } else if (calculatedScore === 8) {
+          type = "8 หลัง";
+        }
+        // หากไม่ใช่ 8 หรือ 9 หลัง type จะคงเป็น `${calculatedScore} แต้ม` ตามเดิม
       }
     }
+    // หากจำนวนไพ่ไม่ใช่ 0, 2, หรือ 3 (เช่น ไพ่ 1 ใบ) type จะเป็นค่าเริ่มต้น `${calculatedScore} แต้ม`
+
     return { score: calculatedScore, type };
   };
 
@@ -940,7 +1023,13 @@ function App() {
         </div>
       )}
       <div className="players-list">
-        <h4>ผู้เล่นในห้อง ({playerData.length} คน):</h4>
+        <h4>
+          ราคาเดิมพันต่อรอบ:{" "}
+          {betAmount > 0
+            ? `${betAmount.toLocaleString()} บาท`
+            : "รอเจ้ามือกำหนด"}
+        </h4>
+        <h4>ผู้เล่นในห้อง: ({playerData.length} คน)</h4>
         <ul>
           {playerData.map((user) => (
             <li

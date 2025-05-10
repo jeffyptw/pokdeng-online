@@ -69,38 +69,72 @@ function getCardDisplay(card) {
 }
 function getHandRank(cardsInput) {
   const cards = cardsInput || [];
+
+  // --- 0. ไม่มีไพ่ ---
+  // ตรงตามกฎ: "rank: 9 - ไม่มีไพ่"
   if (cards.length === 0) {
-    return { rank: 8, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards };
+    return { rank: 9, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards };
   }
+
+  // --- ตัวแปรพื้นฐานตามโครงสร้างเดิม ---
   const values = cards.map((c) => c.value);
   const suits = cards.map((c) => c.suit);
-  const score = calculateScore(cards);
-  const isSameSuit = cards.length > 0 && suits.every((s) => s === suits[0]);
-  const valueCounts = {};
+  const score = calculateScore(cards); // สันนิษฐานว่า calculateScore คำนวณแต้มถูกต้อง (เช่น A-2-3 ได้ 6 แต้ม)
+  const isSameSuit = cards.length > 0 && suits.every((s) => s === suits[0]); // ตามตัวแปรเดิม
+
+  const valueCounts = {}; // ตามตัวแปรเดิม
   values.forEach((v) => (valueCounts[v] = (valueCounts[v] || 0) + 1));
-  let isStraight = false;
+
+  let isStraight = false; // ตามตัวแปรเดิม
+  // sortedNumericalValues, isNormalStraight, isAQKStraight จะถูกกำหนดค่าภายใน if (cards.length === 3) ด้านล่าง
+
+  // --- ตรรกะการคำนวณสเตรท (สำหรับไพ่ 3 ใบเท่านั้น) ---
   if (cards.length === 3) {
+    // sortedNumericalValues ตามนิยามเดิมของผู้ใช้
     const sortedNumericalValues = cards
       .map((c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value)))
       .sort((a, b) => a - b);
+
+    // isNormalStraight ตามนิยามเดิมของผู้ใช้
     const isNormalStraight =
       sortedNumericalValues.length === 3 &&
       sortedNumericalValues[1] === sortedNumericalValues[0] + 1 &&
       sortedNumericalValues[2] === sortedNumericalValues[1] + 1;
+
+    // isAQKStraight ตามนิยามเดิมของผู้ใช้
     const isAQKStraight =
       sortedNumericalValues.length === 3 &&
       sortedNumericalValues[0] === 1 &&
       sortedNumericalValues[1] === 12 &&
       sortedNumericalValues[2] === 13;
-    isStraight = isNormalStraight || isAQKStraight;
+
+    // ตรวจสอบว่าเป็น A-2-3 หรือไม่ (ซึ่งจะทำให้ isNormalStraight เป็น true)
+    // A-2-3 คือ [1, 2, 3]
+    const isA23 =
+      isNormalStraight &&
+      sortedNumericalValues[0] === 1 &&
+      sortedNumericalValues[1] === 2 &&
+      sortedNumericalValues[2] === 3;
+
+    if (isNormalStraight && !isA23) {
+      // เป็นสเตรทปกติ และไม่ใช่ A-2-3
+      isStraight = true;
+    }
+    if (isAQKStraight) {
+      // QKA เป็นสเตรท
+      isStraight = true;
+    }
   }
 
-  // Pok (2 cards)
+  // --- ลำดับการตรวจสอบไพ่ ---
+
+  // 1. ป๊อก (สำหรับไพ่ 2 ใบเท่านั้น) (Rank 1)
   if (cards.length === 2) {
-    const isPair = values[0] === values[1];
-    const isTwoCardSameSuit = isSameSuit;
-    const isDoubleDeng = isPair || isTwoCardSameSuit;
-    if (score === 9)
+    const isPair = values[0] === values[1]; // ตัวแปรตามเดิม, scope ท้องถิ่น
+    const isTwoCardSameSuit = isSameSuit; // ตัวแปรตามเดิม, scope ท้องถิ่น
+    const isDoubleDeng = isPair || isTwoCardSameSuit; // ตัวแปรตามเดิม, scope ท้องถิ่น
+
+    if (score === 9) {
       return {
         rank: 1,
         type: isDoubleDeng ? "ป๊อก 9 สองเด้ง" : "ป๊อก 9",
@@ -108,7 +142,8 @@ function getHandRank(cardsInput) {
         multiplier: isDoubleDeng ? 2 : 1,
         cards,
       };
-    if (score === 8)
+    }
+    if (score === 8) {
       return {
         rank: 1,
         type: isDoubleDeng ? "ป๊อก 8 สองเด้ง" : "ป๊อก 8",
@@ -116,34 +151,17 @@ function getHandRank(cardsInput) {
         multiplier: isDoubleDeng ? 2 : 1,
         cards,
       };
+    }
+    // หากไม่ใช่ป๊อก ไพ่ 2 ใบจะถูกตรวจสอบสำหรับ สองเด้ง หรือ แต้มธรรมดา ในภายหลัง
   }
 
-  // 3-Card Hands
+  // การตรวจสอบไพ่ 3 ใบ
   if (cards.length === 3) {
-    // *** NEW: Check for 8 หลัง / 9 หลัง first for 3 cards ***
-    if (score === 9)
-      return {
-        rank: 1.5,
-        type: "9 หลัง",
-        score,
-        multiplier: isSameSuit ? 3 : 1,
-        cards,
-      }; // 9 หลัง อาจจะมีเด้งสี
-    if (score === 8)
-      return {
-        rank: 1.5,
-        type: "8 หลัง",
-        score,
-        multiplier: isSameSuit ? 3 : 1,
-        cards,
-      }; // 8 หลัง อาจจะมีเด้งสี
-    // (Rank 1.5 ให้ต่ำกว่าป๊อก 2 ใบ แต่สูงกว่าตองและอื่นๆ)
-    // (Multiplier สำหรับ 8/9 หลัง อาจจะต้องพิจารณาตามกฎ เช่น ถ้ามีสีด้วยอาจจะได้ 3 เด้ง)
-
+    // 2. ตอง (Rank 2)
+    // valueCounts ถูกคำนวณไว้แล้ว
     if (Object.values(valueCounts).includes(3)) {
-      // Tong
-      let tongValueStrength = 0;
-      const cardValue = values[0];
+      let tongValueStrength = 0; // ตัวแปรตามเดิม
+      const cardValue = values[0]; // ตัวแปรตามเดิมที่ใช้ในส่วนตอง
       if (cardValue === "A") tongValueStrength = 14;
       else if (cardValue === "K") tongValueStrength = 13;
       else if (cardValue === "Q") tongValueStrength = 12;
@@ -158,16 +176,29 @@ function getHandRank(cardsInput) {
         cards,
       };
     }
+
+    // 3. สเตรทฟลัช (Rank 3)
+    // isStraight (คำนวณถูกต้องแล้ว) และ isSameSuit
     if (isStraight && isSameSuit) {
       return { rank: 3, type: "สเตรทฟลัช", score, multiplier: 5, cards };
     }
+
+    // 4. เซียน (สามเหลือง) (Rank 4)
+    // isThreeFaceCards ตามนิยามเดิมของผู้ใช้
     const isThreeFaceCards = values.every((v) => ["J", "Q", "K"].includes(v));
     if (isThreeFaceCards) {
-      return { rank: 4, type: "เซียน (JQK)", score: 0, multiplier: 3, cards };
+      // ตรวจสอบหลัง ตอง และ สเตรทฟลัช
+      return { rank: 4, type: "เซียน (JQK)", score: 0, multiplier: 3, cards }; // score: 0 ตามโค้ดเดิมส่วนเซียน
     }
+
+    // 5. เรียง (สเตรท) (Rank 5)
+    // isStraight (คำนวณถูกต้องแล้ว). ไม่ใช่สเตรทฟลัช (ตรวจสอบแล้ว). ไม่ใช่เซียน (JQK ที่เป็นเซียนถูกจัดการแล้ว).
     if (isStraight) {
       return { rank: 5, type: "เรียง", score, multiplier: 3, cards };
     }
+
+    // 6. สี (สามเด้ง) (Rank 6)
+    // isSameSuit. ไม่ใช่สเตรทฟลัช (ตรวจสอบแล้ว).
     if (isSameSuit) {
       return {
         rank: 6,
@@ -176,40 +207,69 @@ function getHandRank(cardsInput) {
         multiplier: 3,
         cards,
       };
-    } // สีธรรมดา 3 ใบ
+    }
+
+    // 8. แต้มธรรมดาสำหรับไพ่ 3 ใบ (รวม "8 หลัง" / "9 หลัง" ที่ถูกย้ายมาตำแหน่งที่ถูกต้อง) (Rank 8)
+    // ส่วนนี้จะทำงานเมื่อไพ่ 3 ใบ ไม่ใช่ ตอง, สเตรทฟลัช, เซียน, เรียง, หรือ สี
+    if (score === 9) {
+      return { rank: 8, type: "9 หลัง", score, multiplier: 1, cards };
+    }
+    if (score === 8) {
+      return { rank: 8, type: "8 หลัง", score, multiplier: 1, cards };
+    }
+    // แต้มธรรมดาอื่นๆ ของไพ่ 3 ใบ (เช่น A-2-3 ซึ่ง isStraight เป็น false และ score ควรเป็น 6)
+    return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
   }
 
-  // 2-Card Hands (Non-Pok)
+  // การตรวจสอบไพ่ 2 ใบ (ที่ไม่ใช่ป๊อก)
   if (cards.length === 2) {
-    const isPair = values[0] === values[1];
-    const isTwoCardSameSuit = isSameSuit;
-    if (isPair && isTwoCardSameSuit)
+    // 7. สองเด้ง (Rank 7)
+    const isPair = values[0] === values[1]; // ตัวแปรตามเดิม, scope ท้องถิ่น
+    const isTwoCardSameSuit = isSameSuit; // ตัวแปรตามเดิม, scope ท้องถิ่น
+
+    if (isPair && isTwoCardSameSuit) {
+      // ทั้งคู่และสีเดียวกัน
       return {
-        rank: 7.1,
+        rank: 7,
         type: `สองเด้ง (คู่และสี ${score} แต้ม)`,
         score,
         multiplier: 2,
         cards,
       };
-    if (isPair)
+    }
+    if (isPair) {
+      // คู่เท่านั้น
       return {
-        rank: 7.2,
+        rank: 7,
         type: `สองเด้ง (คู่ ${score} แต้ม)`,
         score,
         multiplier: 2,
         cards,
       };
-    if (isTwoCardSameSuit)
+    }
+    if (isTwoCardSameSuit) {
+      // สีเดียวกันเท่านั้น
       return {
-        rank: 7.3,
+        rank: 7,
         type: `สองเด้ง (สี ${score} แต้ม)`,
         score,
         multiplier: 2,
         cards,
       };
+    }
+
+    // 8. แต้มธรรมดาสำหรับไพ่ 2 ใบ (ถ้าไม่ใช่ป๊อก และไม่ใช่สองเด้ง) (Rank 8)
+    return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
   }
-  return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards }; // แต้มธรรมดา
+
+  // กรณีอื่นๆ ที่ไม่เข้าเงื่อนไข (เช่น ไพ่ 1 ใบ)
+  // หรือหากตรรกะสำหรับ 0,2,3 ใบมีการตกหล่น (ซึ่งไม่ควรเกิดขึ้น)
+  // ตามโค้ดเดิมของผู้ใช้ จะมี return สุดท้ายสำหรับแต้มธรรมดา
+  return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
 }
+
+// หมายเหตุ: ฟังก์ชัน calculateScore(cards) ต้องถูกกำหนดและทำงานอย่างถูกต้อง
+// โดยเฉพาะอย่างยิ่งการคำนวณแต้ม A-2-3 ให้ได้ 6 แต้ม และการนับแต้มอื่นๆ ตามกติกาป๊อกเด้ง
 // --- End Game Logic ---
 
 // --- Global Helper/Utility & Core Game Flow Functions ---
