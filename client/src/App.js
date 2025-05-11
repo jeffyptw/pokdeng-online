@@ -1060,14 +1060,16 @@ function App() {
         myCards.length > 0 &&
         (!result || result.length === 0) && (
           <div className="my-cards-area">
-            <h3>
+            <h2>
               ไพ่ของคุณ:{" "}
               {myCards.map((card, idx) => (
                 <span key={idx}>{getCardDisplay(card)} </span>
               ))}
-            </h3>
+            </h2>
             <p>
-              แต้ม: {myHandScore}, ประเภท: {myHandType}
+              <h2>
+                แต้ม: {myHandScore}, ประเภท: {myHandType}
+              </h2>
             </p>
             {isMyTurn && myCards.length >= 2 && !hasStayed && (
               <div className="player-actions">
