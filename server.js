@@ -732,7 +732,7 @@ io.on("connection", (socket) => {
         (p) => p.id === player.id
       );
       io.to(roomId).emit("message", {
-        text: `${joinedPlayerDisplay} ${playerName} ได้เข้าร่วมห้อง.`,
+        text: `${playerName} ได้เข้าร่วมห้อง.`,
       });
       console.log(
         `[Server] ${playerName} (${socket.id}) joined room ${roomId}`
