@@ -668,7 +668,7 @@ io.on("connection", (socket) => {
         dealerId: socket.id,
         dealerName: playerName,
         players: [dealer],
-        betAmount: 0,
+        betAmount: DEFAULT_BET_AMOUNT,
         isLocked: false,
         gameStarted: false,
         currentTurnPlayerId: null,
@@ -684,7 +684,7 @@ io.on("connection", (socket) => {
       socket.emit("roomCreated", {
         roomId: roomId,
         dealerName: playerName,
-        betAmount: 0,
+        betAmount: DEFAULT_BET_AMOUNT,
       });
       io.to(roomId).emit("playersData", getRoomPlayerData(rooms[roomId]));
       io.to(roomId).emit("message", {
