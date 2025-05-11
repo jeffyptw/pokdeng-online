@@ -39,6 +39,10 @@ const DEFAULT_BET_AMOUNT = 5;
 const rooms = {}; // Global rooms object
 
 // --- Game Logic Functions ---
+// server.js
+// ... (ส่วน import และตัวแปร SUITS, VALUES, etc. ด้านบนคงเดิม) ...
+
+// --- Game Logic Functions ---
 function createDeck() {
   return SUITS.flatMap((suit) => VALUES.map((value) => ({ suit, value })));
 }
@@ -72,11 +76,28 @@ function getCardDisplay(card) {
   return "?";
 }
 
+// ฟังก์ชัน helper สำหรับหาค่าตัวเลขของไพ่เพื่อใช้ใน subRank (A สูง)
+function getCardNumericValue(value) {
+  if (value === "A") return 14; // A สูง
+  if (value === "K") return 13;
+  if (value === "Q") return 12;
+  if (value === "J") return 11;
+  if (value === "10") return 10;
+  return parseInt(value) || 0; // สำหรับ 2-9, และ fallback เป็น 0
+}
+
 function getHandRank(cardsInput) {
   const cards = cardsInput || [];
 
   if (cards.length === 0) {
-    return { rank: 9, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards };
+    return {
+      rank: 9,
+      type: "ไม่มีไพ่",
+      score: 0,
+      subRank: 0,
+      multiplier: 1,
+      cards,
+    };
   }
 
   const values = cards.map((c) => c.value);
@@ -88,24 +109,30 @@ function getHandRank(cardsInput) {
   values.forEach((v) => (valueCounts[v] = (valueCounts[v] || 0) + 1));
 
   let isStraight = false;
+  let sortedNumericalValuesForStraight = []; // สำหรับเก็บค่าตัวเลขของไพ่เรียง
+
   if (cards.length === 3) {
-    const sortedNumericalValues = cards
+    // ค่าตัวเลขสำหรับตรวจสอบสเตรท (A=1 สำหรับ A23 หรือ A=1 สำหรับ AKQ)
+    const localSortedNumericalValues = cards
       .map((c) => ({ A: 1, J: 11, Q: 12, K: 13 }[c.value] || parseInt(c.value)))
       .sort((a, b) => a - b);
+    sortedNumericalValuesForStraight = localSortedNumericalValues; // เก็บไว้ใช้คำนวณ subRank ของสเตรท
+
     const isNormalStraight =
-      sortedNumericalValues.length === 3 &&
-      sortedNumericalValues[1] === sortedNumericalValues[0] + 1 &&
-      sortedNumericalValues[2] === sortedNumericalValues[1] + 1;
+      localSortedNumericalValues.length === 3 &&
+      localSortedNumericalValues[1] === localSortedNumericalValues[0] + 1 &&
+      localSortedNumericalValues[2] === localSortedNumericalValues[1] + 1;
     const isAQKStraight =
-      sortedNumericalValues.length === 3 &&
-      sortedNumericalValues[0] === 1 &&
-      sortedNumericalValues[1] === 12 &&
-      sortedNumericalValues[2] === 13;
+      localSortedNumericalValues.length === 3 &&
+      localSortedNumericalValues[0] === 1 &&
+      localSortedNumericalValues[1] === 12 &&
+      localSortedNumericalValues[2] === 13;
     const isA23 =
       isNormalStraight &&
-      sortedNumericalValues[0] === 1 &&
-      sortedNumericalValues[1] === 2 &&
-      sortedNumericalValues[2] === 3;
+      localSortedNumericalValues[0] === 1 &&
+      localSortedNumericalValues[1] === 2 &&
+      localSortedNumericalValues[2] === 3;
+
     if (isNormalStraight && !isA23) {
       isStraight = true;
     }
@@ -125,6 +152,7 @@ function getHandRank(cardsInput) {
         rank: 1,
         type: isDoubleDeng ? "ป๊อก 9 สองเด้ง" : "ป๊อก 9",
         score,
+        subRank: 9,
         multiplier: isDoubleDeng ? 2 : 1,
         cards,
       };
@@ -134,6 +162,7 @@ function getHandRank(cardsInput) {
         rank: 1,
         type: isDoubleDeng ? "ป๊อก 8 สองเด้ง" : "ป๊อก 8",
         score,
+        subRank: 8,
         multiplier: isDoubleDeng ? 2 : 1,
         cards,
       };
@@ -146,11 +175,8 @@ function getHandRank(cardsInput) {
     if (Object.values(valueCounts).includes(3)) {
       let tongValueStrength = 0;
       const cardValue = values[0];
-      if (cardValue === "A") tongValueStrength = 14;
-      else if (cardValue === "K") tongValueStrength = 13;
-      else if (cardValue === "Q") tongValueStrength = 12;
-      else if (cardValue === "J") tongValueStrength = 11;
-      else tongValueStrength = parseInt(cardValue);
+      // ใช้ getCardNumericValue เพื่อให้ A เป็น 14 สำหรับ subRank ของตอง
+      tongValueStrength = getCardNumericValue(cardValue);
       return {
         rank: 2,
         subRank: tongValueStrength,
@@ -162,26 +188,110 @@ function getHandRank(cardsInput) {
     }
     // 3. สเตรทฟลัช (Rank 3)
     if (isStraight && isSameSuit) {
-      return { rank: 3, type: "สเตรทฟลัช", score, multiplier: 5, cards };
+      let straightHighCardValue = getCardNumericValue(
+        cards.find(
+          (c) => c.value === sortedNumericalValuesForStraight[2].toString()
+        )?.value ||
+          (sortedNumericalValuesForStraight[2] === 13
+            ? "K"
+            : sortedNumericalValuesForStraight[2] === 12
+            ? "Q"
+            : sortedNumericalValuesForStraight[2] === 11
+            ? "J"
+            : sortedNumericalValuesForStraight[2] === 1
+            ? "A"
+            : sortedNumericalValuesForStraight[2].toString())
+      );
+      if (
+        sortedNumericalValuesForStraight[0] === 1 &&
+        sortedNumericalValuesForStraight[1] === 12 &&
+        sortedNumericalValuesForStraight[2] === 13
+      ) {
+        // A-K-Q (A=1, Q=12, K=13)
+        straightHighCardValue = 14; // ให้ A ใน AKQ มีค่าสูงสุดสำหรับ subRank
+      }
+      return {
+        rank: 3,
+        type: "สเตรทฟลัช",
+        score,
+        subRank: straightHighCardValue,
+        multiplier: 5,
+        cards,
+      };
     }
     // 4. เซียน (Rank 4)
     const isThreeFaceCards = values.every((v) => ["J", "Q", "K"].includes(v));
     if (isThreeFaceCards) {
-      return { rank: 4, type: "เซียน", score: 0, multiplier: 3, cards };
+      // subRank สำหรับเซียน อาจเป็นผลรวมค่า J=1, Q=2, K=3 หรือค่าสูงสุด
+      const faceCardValues = values
+        .map((v) => ({ J: 11, Q: 12, K: 13 }[v]))
+        .sort((a, b) => b - a);
+      const sianSubRank =
+        faceCardValues[0] * 100 + faceCardValues[1] * 10 + faceCardValues[2]; // สร้าง subRank ที่ไม่ซ้ำ
+      return {
+        rank: 4,
+        type: "เซียน",
+        score: 0,
+        subRank: sianSubRank,
+        multiplier: 3,
+        cards,
+      };
     }
     // 5. เรียง (Rank 5)
     if (isStraight) {
-      return { rank: 5, type: "เรียง", score, multiplier: 3, cards };
+      let straightHighCardValue = getCardNumericValue(
+        cards.find(
+          (c) => c.value === sortedNumericalValuesForStraight[2].toString()
+        )?.value ||
+          (sortedNumericalValuesForStraight[2] === 13
+            ? "K"
+            : sortedNumericalValuesForStraight[2] === 12
+            ? "Q"
+            : sortedNumericalValuesForStraight[2] === 11
+            ? "J"
+            : sortedNumericalValuesForStraight[2] === 1
+            ? "A"
+            : sortedNumericalValuesForStraight[2].toString())
+      );
+      if (
+        sortedNumericalValuesForStraight[0] === 1 &&
+        sortedNumericalValuesForStraight[1] === 12 &&
+        sortedNumericalValuesForStraight[2] === 13
+      ) {
+        // A-K-Q
+        straightHighCardValue = 14;
+      }
+      return {
+        rank: 5,
+        type: "เรียง",
+        score,
+        subRank: straightHighCardValue,
+        multiplier: 3,
+        cards,
+      };
     }
     // 6. สี (สามเด้ง) (Rank 8 หรือ Rank 9 ถ้าบอด)
     if (isSameSuit) {
+      const numericValuesForFlush = values.map((v) => getCardNumericValue(v));
+      const flushSubRank = Math.max(...numericValuesForFlush); // ไพ่สูงสุดในสี
+      // อาจจะซับซ้อนกว่านี้ถ้าต้องเทียบไพ่ใบที่ 2, 3 ในกรณีที่ใบสูงสุดเท่ากัน
+      // เพื่อความง่าย อาจจะใช้ผลรวมค่าตัวเลข หรือค่าสูงสุด * 10000 + ค่ากลาง * 100 + ค่าน้อยสุด
+
       if (score === 0) {
-        return { rank: 9, type: "บอด", score: 0, multiplier: 3, cards }; // คง multiplier เดิม
+        return {
+          rank: 9,
+          type: "บอด",
+          score: 0,
+          subRank: flushSubRank,
+          multiplier: 3,
+          cards,
+        };
       } else {
         return {
-          rank: 8, // ปรับ Rank เพื่อให้เทียบแต้มกับ Rank 8 อื่นๆ
+          rank: 8,
           type: `${score} แต้มสามเด้ง`,
           score,
+          subRank: flushSubRank,
           multiplier: 3,
           cards,
         };
@@ -189,16 +299,44 @@ function getHandRank(cardsInput) {
     }
     // 8. แต้มธรรมดาสำหรับไพ่ 3 ใบ (Rank 8 หรือ Rank 9 ถ้าบอด)
     if (score === 9) {
-      return { rank: 8, type: "9 หลัง", score, multiplier: 1, cards };
+      return {
+        rank: 8,
+        type: "9 หลัง",
+        score,
+        subRank: score,
+        multiplier: 1,
+        cards,
+      };
     }
     if (score === 8) {
-      return { rank: 8, type: "8 หลัง", score, multiplier: 1, cards };
+      return {
+        rank: 8,
+        type: "8 หลัง",
+        score,
+        subRank: score,
+        multiplier: 1,
+        cards,
+      };
     }
     // แต้มธรรมดาอื่นๆ ของไพ่ 3 ใบ
     if (score === 0) {
-      return { rank: 9, type: "บอด", score: 0, multiplier: 1, cards };
+      return {
+        rank: 9,
+        type: "บอด",
+        score: 0,
+        subRank: 0,
+        multiplier: 1,
+        cards,
+      };
     } else {
-      return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
+      return {
+        rank: 8,
+        type: `${score} แต้ม`,
+        score,
+        subRank: score,
+        multiplier: 1,
+        cards,
+      };
     }
   }
 
@@ -206,16 +344,31 @@ function getHandRank(cardsInput) {
   if (cards.length === 2) {
     const isPair = values[0] === values[1];
     const isTwoCardSameSuit = isSameSuit;
+    let twoCardSubRank = score; // ค่าเริ่มต้น subRank สำหรับไพ่ 2 ใบคือแต้ม
+    if (isPair) {
+      // ถ้าเป็นคู่ ให้ subRank มีค่าสูงกว่าแต้มปกติเล็กน้อยเพื่อชนะแต้มเท่ากันที่ไม่มีคู่
+      twoCardSubRank = getCardNumericValue(values[0]) * 100; // เช่น คู่ A (1400) > คู่ K (1300) > 7 แต้ม (7)
+    }
 
     // สองเด้ง (Rank 8 หรือ Rank 9 ถ้าบอด)
     if (isPair || isTwoCardSameSuit) {
       if (score === 0) {
-        return { rank: 9, type: "บอด", score: 0, multiplier: 2, cards }; // คง multiplier เดิม
+        // สำหรับ "บอดสองเด้ง" ถ้าต้องการเทียบกับ "บอดธรรมดา" อาจจะต้องมี subRank ที่แตกต่าง
+        // แต่ถ้า "บอด" แพ้ทุกอย่าง ยกเว้น "บอด" ด้วยกันที่อาจจะเสมอ subRank ที่นี่อาจไม่สำคัญมาก
+        return {
+          rank: 9,
+          type: "บอด",
+          score: 0,
+          subRank: isPair ? getCardNumericValue(values[0]) * 100 : 0,
+          multiplier: 2,
+          cards,
+        };
       } else {
         return {
-          rank: 8, // ปรับ Rank เพื่อให้เทียบแต้ม
+          rank: 8,
           type: `${score} แต้มสองเด้ง`,
           score,
+          subRank: twoCardSubRank,
           multiplier: 2,
           cards,
         };
@@ -223,17 +376,38 @@ function getHandRank(cardsInput) {
     }
     // แต้มธรรมดาสำหรับไพ่ 2 ใบ (Rank 8 หรือ Rank 9 ถ้าบอด)
     if (score === 0) {
-      return { rank: 9, type: "บอด", score: 0, multiplier: 1, cards };
+      return {
+        rank: 9,
+        type: "บอด",
+        score: 0,
+        subRank: 0,
+        multiplier: 1,
+        cards,
+      };
     } else {
-      return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
+      return {
+        rank: 8,
+        type: `${score} แต้ม`,
+        score,
+        subRank: score,
+        multiplier: 1,
+        cards,
+      };
     }
   }
 
   // กรณีอื่นๆ ที่ไม่เข้าเงื่อนไข (เช่น ไพ่ 1 ใบ)
   if (score === 0) {
-    return { rank: 9, type: "บอด", score: 0, multiplier: 1, cards };
+    return { rank: 9, type: "บอด", score: 0, subRank: 0, multiplier: 1, cards };
   } else {
-    return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
+    return {
+      rank: 8,
+      type: `${score} แต้ม`,
+      score,
+      subRank: score,
+      multiplier: 1,
+      cards,
+    };
   }
 }
 // --- End Game Logic ---
@@ -292,32 +466,16 @@ function clearTurnTimer(room) {
   }
 }
 
+// ... (ภายใน server.js) ...
+
 function performResultCalculation(room) {
   const dealer = room.players.find((p) => p.isDealer);
   if (!dealer) {
-    console.error(
-      `[Server] CRITICAL: Dealer not found in performResultCalculation for room: ${room.id}`
-    );
-    if (io && room && room.id) {
-      // ตรวจสอบ io, room, room.id ก่อนใช้งาน
-      io.to(room.id).emit("errorMessage", {
-        text: "เกิดข้อผิดพลาด: ไม่พบเจ้ามือขณะคำนวณผล",
-      });
-    }
-    return null;
+    /* ... (จัดการ error เหมือนเดิม) ... */ return null;
   }
   dealer.handDetails = getHandRank(dealer.cards);
   if (!dealer.handDetails) {
-    console.error(
-      `[Server] CRITICAL: Failed to get hand details for dealer in room: ${room.id}`
-    );
-    if (io && room && room.id) {
-      // ตรวจสอบ io, room, room.id ก่อนใช้งาน
-      io.to(room.id).emit("errorMessage", {
-        text: "เกิดข้อผิดพลาด: ไม่สามารถคำนวณไพ่เจ้ามือ",
-      });
-    }
-    return null;
+    /* ... (จัดการ error เหมือนเดิม) ... */ return null;
   }
 
   const roundResults = [];
@@ -330,12 +488,12 @@ function performResultCalculation(room) {
     if (!player.disconnectedMidGame) {
       player.handDetails = getHandRank(player.cards);
     }
-    // กำหนด handDetails เริ่มต้นหากยังไม่มี (เช่น disconnected ก่อนได้ไพ่ หรือ error)
     if (!player.handDetails) {
       player.handDetails = {
-        score: 0,
+        rank: 9,
         type: player.disconnectedMidGame ? "ขาดการเชื่อมต่อ" : "ไม่มีไพ่",
-        rank: 9, // ให้ rank อ่อนสุดถ้าไม่มีไพ่หรือขาดการเชื่อมต่อ
+        score: 0,
+        subRank: 0,
         multiplier: 1,
         cards: player.cards || [],
       };
@@ -343,147 +501,112 @@ function performResultCalculation(room) {
 
     let outcome = "แพ้"; // กำหนดค่าเริ่มต้น
     let moneyChange = 0;
+    let effectiveDealerMultiplier = dealer.handDetails.multiplier; // ตัวคูณของเจ้ามือที่จะใช้
+    let effectivePlayerMultiplier = player.handDetails.multiplier; // ตัวคูณของผู้เล่นที่จะใช้
 
     if (player.disconnectedMidGame) {
       outcome = "ขาดการเชื่อมต่อ";
       moneyChange = player.balance >= betAmount ? -betAmount : -player.balance;
-      // player.balance += moneyChange; // การปรับ balance ควรทำทีเดียวหลังคำนวณเสร็จสิ้น
-      // dealerNetChangeTotal -= moneyChange;
     } else {
       const playerHand = player.handDetails;
       const dealerHand = dealer.handDetails;
 
       if (!playerHand || !dealerHand) {
-        console.error(
-          `[Server] Hand details missing for comparison. Player: ${player.id}, Dealer: ${dealer.id} in room ${room.id}`
-        );
-        outcome = "Error/แพ้"; // ถือว่าแพ้ถ้ามี error
-        moneyChange = -(betAmount * dealerHand.multiplier); // เจ้ามือชนะ ควรได้ตาม multiplier ของเจ้ามือ
-      } else if (playerHand.rank === 1 && dealerHand.rank === 1) {
-        // ป๊อกชนป๊อก
-        if (playerHand.score > dealerHand.score) {
-          outcome = "ชนะ";
-          moneyChange = betAmount * playerHand.multiplier;
-        } else if (playerHand.score < dealerHand.score) {
-          outcome = "แพ้";
-          moneyChange = -(betAmount * dealerHand.multiplier);
-        } else {
-          // แต้มป๊อกเท่ากัน
-          outcome = "เสมอ"; // <<<< แก้ไข: ป๊อกแต้มเท่ากันคือเสมอ ไม่ดูเด้ง
+        outcome = "Error/แพ้";
+        moneyChange = -(betAmount * effectiveDealerMultiplier);
+      } else if (playerHand.rank < dealerHand.rank) {
+        // ผู้เล่น Rank ดีกว่า
+        outcome = "ชนะ";
+        moneyChange = betAmount * effectivePlayerMultiplier;
+      } else if (playerHand.rank > dealerHand.rank) {
+        // ผู้เล่น Rank แย่กว่า
+        outcome = "แพ้";
+        moneyChange = -(betAmount * effectiveDealerMultiplier);
+      } else {
+        // playerHand.rank === dealerHand.rank (Rank เท่ากัน)
+        // กรณีป๊อกชนป๊อก และแต้มเท่ากัน -> เสมอ
+        if (
+          playerHand.rank === 1 &&
+          dealerHand.rank === 1 &&
+          playerHand.score === dealerHand.score
+        ) {
+          outcome = "เสมอ";
           moneyChange = 0;
         }
-      } else if (playerHand.rank === 1 && dealerHand.rank !== 1) {
-        // ผู้เล่นป๊อก เจ้ามือไม่ป๊อก
-        outcome = "ชนะ";
-        moneyChange = betAmount * playerHand.multiplier;
-      } else if (dealerHand.rank === 1 && playerHand.rank !== 1) {
-        // เจ้ามือป๊อก ผู้เล่นไม่ป๊อก
-        outcome = "แพ้";
-        moneyChange = -(betAmount * dealerHand.multiplier);
-      } else {
-        // ไม่ใช่ป๊อกทั้งคู่ หรือมีฝ่ายใดฝ่ายหนึ่งไม่ใช่ป๊อก (กรณีนี้คือไม่ใช่ป๊อกทั้งคู่แล้ว)
-        if (playerHand.rank < dealerHand.rank) {
-          // ผู้เล่น Rank ดีกว่า (เช่น ตอง ชนะ สี)
-          outcome = "ชนะ";
-          moneyChange = betAmount * playerHand.multiplier;
-        } else if (playerHand.rank > dealerHand.rank) {
-          // ผู้เล่น Rank แย่กว่า (เช่น แต้มธรรมดา แพ้ สี)
-          outcome = "แพ้";
-          moneyChange = -(betAmount * dealerHand.multiplier);
-        } else {
-          // playerHand.rank === dealerHand.rank (Rank เท่ากัน, ให้เทียบแต้ม)
-          let pScore = playerHand.score;
-          let dScore = dealerHand.score;
-
-          // กรณีพิเศษ: ตองชนตอง (Rank 2) ให้ใช้ subRank (ความใหญ่ของหน้าไพ่ตอง)
-          if (playerHand.rank === 2 && dealerHand.rank === 2) {
-            pScore = playerHand.subRank || pScore; // ใช้ subRank ถ้ามี
-            dScore = dealerHand.subRank || dScore; // ใช้ subRank ถ้ามี
-          }
-          // กรณีพิเศษ: สเตรทฟลัชชนสเตรทฟลัช (Rank 3) หรือ เรียงชนเรียง (Rank 5)
-          // อาจจะต้องมี subRank สำหรับความสูงของไพ่เรียง หากต้องการตัดสิน (ตอนนี้จะไปเทียบแต้ม %10)
-          // หากไม่ต้องการเทียบความสูงของไพ่เรียง สามารถข้ามไปเทียบแต้ม %10 ได้เลย
-
-          if (pScore > dScore) {
-            // ผู้เล่นแต้มสูงกว่า
+        // กรณีตองชนตอง (Rank 2), สเตรทฟลัชชนสเตรทฟลัช (Rank 3), เซียนชนเซียน (Rank 4), เรียงชนเรียง (Rank 5)
+        // หรือ สีชนสี (Rank 8 ที่ multiplier=3), สองเด้งชนสองเด้ง (Rank 8 ที่ multiplier=2)
+        // ให้ใช้ subRank เปรียบเทียบก่อน ถ้ามี
+        else if (
+          playerHand.subRank !== undefined &&
+          dealerHand.subRank !== undefined &&
+          playerHand.subRank !== dealerHand.subRank
+        ) {
+          if (playerHand.subRank > dealerHand.subRank) {
             outcome = "ชนะ";
-            moneyChange = betAmount * playerHand.multiplier;
-          } else if (pScore < dScore) {
-            // ผู้เล่นแต้มน้อยกว่า
-            outcome = "แพ้";
-            moneyChange = -(betAmount * dealerHand.multiplier);
+            moneyChange = betAmount * effectivePlayerMultiplier;
           } else {
-            // แต้มเท่ากัน, ให้เทียบ Multiplier (เด้ง)
-            if (playerHand.multiplier > dealerHand.multiplier) {
+            // playerHand.subRank < dealerHand.subRank
+            outcome = "แพ้";
+            moneyChange = -(betAmount * effectiveDealerMultiplier);
+          }
+        }
+        // ถ้า subRank เท่ากัน หรือไม่มี subRank ให้เทียบแต้ม (score % 10)
+        // (subRank ของแต้มธรรมดาคือ score % 10 อยู่แล้ว)
+        else if (playerHand.score > dealerHand.score) {
+          outcome = "ชนะ";
+          moneyChange = betAmount * effectivePlayerMultiplier;
+        } else if (playerHand.score < dealerHand.score) {
+          outcome = "แพ้";
+          moneyChange = -(betAmount * effectiveDealerMultiplier);
+        } else {
+          // แต้มก็ยังเท่ากันอีก, ให้เทียบ Multiplier (เด้ง)
+          // *** ยกเว้นกรณีป๊อกชนป๊อกแต้มเท่า ซึ่งจัดการไปแล้วว่าเสมอ ***
+          // ดังนั้นเงื่อนไขนี้จะใช้สำหรับ Rank อื่นๆ ที่ไม่ใช่ป๊อกแล้วแต้มเท่ากัน
+          if (playerHand.rank !== 1) {
+            // ตรวจสอบอีกครั้งว่าไม่ใช่ป๊อก (ควรจะไม่ใช่แล้วจากเงื่อนไขบนๆ)
+            if (effectivePlayerMultiplier > effectiveDealerMultiplier) {
               outcome = "ชนะ";
-              moneyChange = betAmount * playerHand.multiplier;
-            } else if (playerHand.multiplier < dealerHand.multiplier) {
+              moneyChange = betAmount * effectivePlayerMultiplier;
+            } else if (effectivePlayerMultiplier < effectiveDealerMultiplier) {
               outcome = "แพ้";
-              moneyChange = -(betAmount * dealerHand.multiplier);
+              moneyChange = -(betAmount * effectiveDealerMultiplier);
             } else {
               // Multiplier ก็เท่ากัน
               outcome = "เสมอ";
               moneyChange = 0;
             }
+          } else {
+            // ควรจะเป็นกรณีป๊อกชนป๊อกแต้มเท่า และ multiplier เท่ากัน (ซึ่งก็คือเสมอ)
+            outcome = "เสมอ";
+            moneyChange = 0;
           }
         }
       }
     }
-
-    // ตรวจสอบว่าผู้เล่นมีเงินพอจ่ายหรือไม่
+    // การปรับปรุงเงิน
     if (moneyChange < 0 && Math.abs(moneyChange) > player.balance) {
-      moneyChange = -player.balance; // ถ้าเงินไม่พอ จ่ายเท่าที่มี
+      moneyChange = -player.balance;
     }
     player.balance += moneyChange;
-    dealerNetChangeTotal -= moneyChange; // dealerNetChangeTotal จะเป็น + ถ้าผู้เล่นเสีย, - ถ้าผู้เล่นได้
+    dealerNetChangeTotal -= moneyChange;
 
     roundResults.push({
-      id: player.id,
-      name: player.name,
-      role: player.role,
-      cardsDisplay: (player.handDetails.cards || [])
-        .map(getCardDisplay)
-        .join(" "),
-      score: player.handDetails.score,
-      specialType: player.handDetails.type,
-      outcome: outcome,
-      moneyChange: moneyChange,
-      balance: player.balance,
-      disconnectedMidGame: player.disconnectedMidGame, // เพิ่มสถานะนี้เข้าไปด้วย
+      /* ... (เหมือนเดิม) ... */
     });
   });
 
   dealer.balance += dealerNetChangeTotal;
   roundResults.push({
-    id: dealer.id,
-    name: dealer.name,
-    role: dealer.role,
-    cardsDisplay: (dealer.handDetails.cards || [])
-      .map(getCardDisplay)
-      .join(" "),
-    score: dealer.handDetails.score,
-    specialType: dealer.handDetails.type,
-    outcome: "เจ้ามือ",
-    moneyChange: dealerNetChangeTotal,
-    balance: dealer.balance,
-    disconnectedMidGame: dealer.disconnectedMidGame,
+    /* ... (เหมือนเดิม) ... */
   });
 
-  // ส่วนการ sort ผลลัพธ์ (ควรปรับปรุงให้เรียงตาม role ที่กำหนดไว้ตอนเริ่มเกม)
-  // การ sort เดิมของคุณอาจจะซับซ้อนและมีส่วนที่ซ้ำซ้อน
-  // นี่คือตัวอย่างการ sort ที่ง่ายกว่า:
   const finalSortedResults = [...roundResults].sort((a, b) => {
-    const getRoleOrder = (role) => {
-      if (role === "เจ้ามือ") return 0;
-      const match = role.match(/ขาที่ (\d+)/);
-      if (match) return parseInt(match[1]);
-      return Infinity; // หรือเลขมากๆ สำหรับ role ที่ไม่รู้จัก
-    };
-    return getRoleOrder(a.role) - getRoleOrder(b.role);
+    /* ... (เหมือนเดิม) ... */
   });
-
   return finalSortedResults;
 }
+
+// ... (ส่วนที่เหลือของ server.js เช่น calculateAndEmitResults, Socket.IO handlers, etc. คงเดิม) ...
 
 function calculateAndEmitResults(roomId) {
   const room = rooms[roomId];
