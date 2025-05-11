@@ -70,19 +70,15 @@ function getCardDisplay(card) {
 function getHandRank(cardsInput) {
   const cards = cardsInput || [];
 
-  // --- 0. ไม่มีไพ่ ---
   if (cards.length === 0) {
     return { rank: 9, type: "ไม่มีไพ่", score: 0, multiplier: 1, cards };
   }
 
-  // --- ส่วนที่ 1: การเตรียมข้อมูล (เทียบเท่ากับการเตรียม input ให้ calculateHandRankAmended) ---
   const values = cards.map((c) => c.value);
   const suits = cards.map((c) => c.suit);
-  const score = calculateScore(cards); // คุณต้องมีฟังก์ชัน calculateScore นี้
+  const score = calculateScore(cards);
   const isSameSuit = cards.length > 0 && suits.every((s) => s === suits[0]);
 
-  // --- ส่วนที่ 2: ตรรกะหลักในการคำนวณ Rank (นี่คือเนื้อหาของ calculateHandRankAmended) ---
-  // เริ่มตั้งแต่ส่วนนี้เป็นต้นไป:
   const valueCounts = {};
   values.forEach((v) => (valueCounts[v] = (valueCounts[v] || 0) + 1));
 
@@ -113,9 +109,7 @@ function getHandRank(cardsInput) {
     }
   }
 
-  // --- ลำดับการตรวจสอบไพ่ ---
-
-  // 1. ป๊อก (สำหรับไพ่ 2 ใบเท่านั้น) (Rank 1)
+  // 1. ป๊อก (Rank 1)
   if (cards.length === 2) {
     const isPair = values[0] === values[1];
     const isTwoCardSameSuit = isSameSuit;
@@ -156,7 +150,7 @@ function getHandRank(cardsInput) {
         rank: 2,
         subRank: tongValueStrength,
         type: `ตอง ${values[0]}`,
-        score, // score ของตองมักไม่ใช้เทียบโดยตรง แต่มีไว้ได้
+        score,
         multiplier: 5,
         cards,
       };
@@ -165,7 +159,7 @@ function getHandRank(cardsInput) {
     if (isStraight && isSameSuit) {
       return { rank: 3, type: "สเตรทฟลัช", score, multiplier: 5, cards };
     }
-    // 4. เซียน (Rank 4) - ไม่เป็น "บอด" แม้ score เป็น 0
+    // 4. เซียน (Rank 4)
     const isThreeFaceCards = values.every((v) => ["J", "Q", "K"].includes(v));
     if (isThreeFaceCards) {
       return { rank: 4, type: "เซียน", score: 0, multiplier: 3, cards };
@@ -174,13 +168,13 @@ function getHandRank(cardsInput) {
     if (isStraight) {
       return { rank: 5, type: "เรียง", score, multiplier: 3, cards };
     }
-    // 6. สี (สามเด้ง) (Rank 6 หรือ Rank 9 ถ้าบอด)
+    // 6. สี (สามเด้ง) (Rank 8 หรือ Rank 9 ถ้าบอด) <<<< ปรับ Rank ตามที่เราคุยกันล่าสุด
     if (isSameSuit) {
       if (score === 0) {
         return { rank: 9, type: "บอด", score: 0, multiplier: 3, cards };
       } else {
         return {
-          rank: 6,
+          rank: 8,
           type: `${score} แต้มสามเด้ง`,
           score,
           multiplier: 3,
@@ -190,11 +184,9 @@ function getHandRank(cardsInput) {
     }
     // 8. แต้มธรรมดาสำหรับไพ่ 3 ใบ (Rank 8 หรือ Rank 9 ถ้าบอด)
     if (score === 9) {
-      // 9 หลัง (Rank 8)
       return { rank: 8, type: "9 หลัง", score, multiplier: 1, cards };
     }
     if (score === 8) {
-      // 8 หลัง (Rank 8)
       return { rank: 8, type: "8 หลัง", score, multiplier: 1, cards };
     }
     // แต้มธรรมดาอื่นๆ ของไพ่ 3 ใบ
@@ -232,60 +224,12 @@ function getHandRank(cardsInput) {
     }
   }
 
-  // กรณีอื่นๆ ที่ไม่เข้าเงื่อนไข (เช่น ไพ่ 0 หรือ 1 ใบ ซึ่งไม่ควรเกิดในการเล่นปกติ)
-  // หรือหากตรรกะสำหรับ 2,3 ใบมีการตกหล่น (ซึ่งไม่ควรเกิดขึ้นแล้ว)
+  // กรณีอื่นๆ ที่ไม่เข้าเงื่อนไข (เช่น ไพ่ 1 ใบ)
   if (score === 0) {
     return { rank: 9, type: "บอด", score: 0, multiplier: 1, cards };
   } else {
-    // กรณีนี้อาจไม่ควรเกิดขึ้นบ่อยนัก ให้เป็นแต้มธรรมดา Rank 8 ไปก่อน
     return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
   }
-
-  // การตรวจสอบไพ่ 2 ใบ (ที่ไม่ใช่ป๊อก)
-  if (cards.length === 2) {
-    // 7. สองเด้ง (Rank 7)
-    const isPair = values[0] === values[1]; // ตัวแปรตามเดิม, scope ท้องถิ่น
-    const isTwoCardSameSuit = isSameSuit; // ตัวแปรตามเดิม, scope ท้องถิ่น
-
-    if (isPair && isTwoCardSameSuit) {
-      // ทั้งคู่และสีเดียวกัน
-      return {
-        rank: 7,
-        type: `${score} แต้มสองเด้ง)`,
-        score,
-        multiplier: 2,
-        cards,
-      };
-    }
-    if (isPair) {
-      // คู่เท่านั้น
-      return {
-        rank: 7,
-        type: `${score} แต้มสองเด้ง`,
-        score,
-        multiplier: 2,
-        cards,
-      };
-    }
-    if (isTwoCardSameSuit) {
-      // สีเดียวกันเท่านั้น
-      return {
-        rank: 7,
-        type: `${score} แต้มสองเด้ง`,
-        score,
-        multiplier: 2,
-        cards,
-      };
-    }
-
-    // 8. แต้มธรรมดาสำหรับไพ่ 2 ใบ (ถ้าไม่ใช่ป๊อก และไม่ใช่สองเด้ง) (Rank 8)
-    return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
-  }
-
-  // กรณีอื่นๆ ที่ไม่เข้าเงื่อนไข (เช่น ไพ่ 1 ใบ)
-  // หรือหากตรรกะสำหรับ 0,2,3 ใบมีการตกหล่น (ซึ่งไม่ควรเกิดขึ้น)
-  // ตามโค้ดเดิมของผู้ใช้ จะมี return สุดท้ายสำหรับแต้มธรรมดา
-  return { rank: 8, type: `${score} แต้ม`, score, multiplier: 1, cards };
 }
 
 // หมายเหตุ: ฟังก์ชัน calculateScore(cards) ต้องถูกกำหนดและทำงานอย่างถูกต้อง
