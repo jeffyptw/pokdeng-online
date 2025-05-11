@@ -654,7 +654,6 @@ function App() {
     const calculatedScore =
       cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
 
-    // ประเภทเริ่มต้น, จะถูกเขียนทับหากเป็นมือพิเศษ หรือถ้าเป็นแต้มธรรมดาที่ต้องแสดงว่า "บอด"
     let type = `${calculatedScore} แต้ม`;
 
     if (cardsToRank.length === 2) {
@@ -664,42 +663,35 @@ function App() {
         cardsToRank[0].value === cardsToRank[1].value;
 
       if (isPok) {
-        type = `ป๊อก ${calculatedScore}`; // ป๊อก ไม่ใช่ "ไพ่ธรรมดา" สำหรับกฎ "บอด"
+        type = `ป๊อก ${calculatedScore}`;
         if (isDeng) type += " สองเด้ง";
       } else if (isDeng) {
         // กรณี สองเด้ง (ไม่ใช่ป๊อก)
         if (calculatedScore === 0) {
           type = "บอด";
         } else {
-          const isPair_2card = cardsToRank[0].value === cardsToRank[1].value;
-          const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit; // <--- และการใช้ตัวแปรนี้
-
-          if (isPair_2card && isSameSuit_2card) {
-            type = `${calculatedScore} แต้มสองเด้ง`;
-          } else if (isPair_2card) {
-            type = `${calculatedScore} แต้มสองเด้ง`;
-          } else if (isSameSuit_2card) {
-            type = `${calculatedScore} แต้มสองเด้ง`;
-          }
-          // อาจจะต้องมี else ปิดท้ายที่นี่ หาก isDeng เป็น true แต่ไม่เข้าเงื่อนไขย่อยข้างบนเลย
-          // แต่ตามตรรกะของ isDeng อย่างน้อย isPair_2card หรือ isSameSuit_2card ต้องเป็น true
+          // --- START: แก้ไขจุดที่ 1 ---
+          // ลดความซับซ้อน: ถ้าเป็น isDeng และไม่ใช่ป๊อก และแต้มไม่เป็น 0 ก็คือ "X แต้มสองเด้ง" เลย
+          type = `${calculatedScore} แต้มสองเด้ง`;
+          // --- END: แก้ไขจุดที่ 1 ---
         }
       } else {
-        // ไพ่ 2 ใบธรรมดา (เทียบเคียง rank 8)
+        // ไพ่ 2 ใบธรรมดา
         if (calculatedScore === 0) {
           type = "บอด";
         } else {
-          type = `${calculatedScore} แต้ม`; // ยืนยันค่า type สำหรับแต้มที่ไม่ใช่ 0
+          type = `${calculatedScore} แต้ม`;
         }
       }
     } else if (cardsToRank.length === 3) {
       const suits = cardsToRank.map((c) => c.suit);
-      const values = cardsToRank.map((c) => c.value).sort();
+      const values = cardsToRank.map((c) => c.value).sort(); // .sort() ที่นี่อาจจะไม่จำเป็นนักถ้าไม่ได้ใช้ values ที่ sort แล้วในการ so sánh ตองโดยตรง
 
       const isSameSuit = suits.every((s) => s === suits[0]);
-      const isTaong = values[0] === values[1] && values[1] === values[2];
+      const isTaong =
+        cardsToRank[0].value === cardsToRank[1].value &&
+        cardsToRank[1].value === cardsToRank[2].value; // แก้ไขการเช็คตองให้แม่นยำขึ้นโดยไม่ขึ้นกับ values.sort()
 
-      // ตัวแปรเหล่านี้มีอยู่แล้วจากโค้ดก่อนหน้าสำหรับการตรวจสอบสเตรทและเซียน
       const card_raw_values = cardsToRank.map((c) => c.value);
       const n_vals_for_straight = card_raw_values
         .map(
@@ -739,44 +731,37 @@ function App() {
       );
 
       if (isTaong) {
-        // ตอง (ไม่เข้าข่าย "บอด")
-        type = `ตอง ${values[0]}`;
+        type = `ตอง ${cardsToRank[0].value}`; // ใช้ค่าจากไพ่ใบแรกของตองได้เลย
       } else if (is_straight_result && isSameSuit) {
-        // สเตรทฟลัช (ไม่เข้าข่าย "บอด")
         type = "สเตรทฟลัช";
       } else if (is_sian_result) {
-        // เซียน (ไม่เข้าข่าย "บอด")
         type = "เซียน";
       } else if (is_straight_result) {
-        // เรียง (ไม่เข้าข่าย "บอด")
         type = "เรียง";
       } else if (isSameSuit) {
-        // สามเด้ง (Flush - rank 6 context)
+        // สามเด้ง (Flush)
         if (calculatedScore === 0) {
-          type = "บอด"; // เปลี่ยนเมื่อแต้มเป็น 0
-        } else {
-          type = `สามเด้ง (${calculatedScore} แต้ม)`;
-        }
-      } else {
-        // ไพ่ 3 ใบธรรมดา (rank 8 context) หรือ 8 หลัง / 9 หลัง (rank 7 context)
-        if (calculatedScore === 9) {
-          // 9 หลัง (rank 7)
-          type = "9 หลัง"; // แต้มเป็น 9 ไม่ใช่ 0
-        } else if (calculatedScore === 8) {
-          // 8 หลัง (rank 7)
-          type = "8 หลัง"; // แต้มเป็น 8 ไม่ใช่ 0
-        } else if (calculatedScore === 0) {
-          // ไพ่ธรรมดา แต้ม 0 (rank 8 context)
           type = "บอด";
         } else {
-          // ไพ่ธรรมดา แต้ม 1-7 (rank 8 context)
+          // --- START: แก้ไขจุดที่ 2 ---
+          // ปรับรูปแบบข้อความให้เหมือน server
+          type = `${calculatedScore} แต้มสามเด้ง`;
+          // --- END: แก้ไขจุดที่ 2 ---
+        }
+      } else {
+        // ไพ่ 3 ใบธรรมดา
+        if (calculatedScore === 9) {
+          type = "9 หลัง";
+        } else if (calculatedScore === 8) {
+          type = "8 หลัง";
+        } else if (calculatedScore === 0) {
+          type = "บอด";
+        } else {
           type = `${calculatedScore} แต้ม`;
         }
       }
     }
 
-    // ตรวจสอบสุดท้าย: หาก type ยังคงเป็น "0 แต้ม" (เช่น กรณีไพ่ 1 ใบ หรือกรณีที่ไม่ได้จัดการเฉพาะเจาะจง)
-    // ให้เปลี่ยนเป็น "บอด" เพื่อครอบคลุมทุกกรณีของ "ไพ่ธรรมดา" ที่ได้ 0 แต้ม
     if (type === "0 แต้ม") {
       type = "บอด";
     }
