@@ -11,7 +11,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "https://pokdeng-online1.onrender.com", // หรือ origin ของ client ของคุณ
+    origin: "https://pokdeng-online.onrender.com", // หรือ origin ของ client ของคุณ
     // origin: "*", // สำหรับทดสอบ local
     methods: ["GET", "POST"],
   },

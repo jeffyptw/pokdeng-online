@@ -880,7 +880,7 @@ function App() {
             )
           </p>
         )}
-        <button onClick={handleExitGame} style={{ marginTop: "30px" }}>
+        <button className="btn-inroom-endgame" onClick={handleExitGame}>
           ออกจากเกม (เริ่มใหม่)
         </button>
       </div>
