@@ -672,12 +672,12 @@ function App() {
         const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit;
 
         if (isPair_2card && isSameSuit_2card) {
-          type = `สองเด้ง (คู่และสี ${calculatedScore} แต้ม)`;
+          type = `(${calculatedScore} แต้มสองเด้ง)`;
         } else if (isPair_2card) {
-          type = `สองเด้ง (คู่ ${calculatedScore} แต้ม)`;
+          type = `(${calculatedScore} แต้มสองเด้ง)`;
         } else if (isSameSuit_2card) {
           // isDeng เป็น true และไม่ใช่สองกรณีบน แสดงว่าเป็นสีอย่างเดียว
-          type = `สองเด้ง (สี ${calculatedScore} แต้ม)`;
+          type = `(${calculatedScore} แต้มสองเด้ง)`;
         }
       }
       // หากไม่ใช่ป๊อก และไม่ใช่เด้ง (isDeng=false) type จะเป็น `${calculatedScore} แต้ม` ตามค่าเริ่มต้น
@@ -752,7 +752,7 @@ function App() {
       } else if (is_straight_result) {
         type = "เรียง";
       } else if (isSameSuit) {
-        type = `สามเด้ง (${calculatedScore} แต้ม)`; // หรือ "สี"
+        type = `(${calculatedScore} แต้มสามเด้ง)`; // หรือ "สี"
       } else {
         // แต้มธรรมดา รวมถึง 8 หลัง / 9 หลัง
         // type เริ่มต้นคือ `${calculatedScore} แต้ม`
