@@ -1020,7 +1020,7 @@ io.on("connection", (socket) => {
       room.resultsCache = null;
       io.to(roomId).emit("resetGame");
       io.to(roomId).emit("playersData", getRoomPlayerData(room));
-      io.to(roomId).emit("message", { text: "เจ้ามือรีเซ็ตเกม." });
+      io.to(roomId).emit("message", { text: "เจ้ามือรีเซ็ตเกม&สับไพ่ใหม่" });
       io.to(roomId).emit("enableShowResult", false);
     } catch (error) {
       console.error("[Server] Error resetting game:", error);

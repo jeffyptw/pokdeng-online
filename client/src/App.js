@@ -1072,15 +1072,17 @@ function App() {
               </h2>
             </p>
             {isMyTurn && myCards.length >= 2 && !hasStayed && (
-              <div className="my-cards-area">
+              <div className="player-actions">
                 <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
                 {myCards.length < 3 && (
-                  <button
-                    onClick={handleDrawCard}
-                    disabled={hasStayed || myCards.length >= 3}
-                  >
-                    จั่ว
-                  </button>
+                  <center>
+                    <button
+                      onClick={handleDrawCard}
+                      disabled={hasStayed || myCards.length >= 3}
+                    >
+                      จั่ว
+                    </button>
+                  </center>
                 )}
                 <button onClick={handleStay} disabled={hasStayed}>
                   อยู่
