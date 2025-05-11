@@ -188,7 +188,7 @@ function getHandRank(cardsInput) {
     const isThreeFaceCards = values.every((v) => ["J", "Q", "K"].includes(v));
     if (isThreeFaceCards) {
       // ตรวจสอบหลัง ตอง และ สเตรทฟลัช
-      return { rank: 4, type: "เซียน (JQK)", score: 0, multiplier: 3, cards }; // score: 0 ตามโค้ดเดิมส่วนเซียน
+      return { rank: 4, type: "เซียน", score: 0, multiplier: 3, cards }; // score: 0 ตามโค้ดเดิมส่วนเซียน
     }
 
     // 5. เรียง (สเตรท) (Rank 5)
@@ -202,7 +202,7 @@ function getHandRank(cardsInput) {
     if (isSameSuit) {
       return {
         rank: 6,
-        type: `สามเด้ง (${score} แต้ม)`,
+        type: `(${score} แต้มสามเด้ง`,
         score,
         multiplier: 3,
         cards,
@@ -231,7 +231,7 @@ function getHandRank(cardsInput) {
       // ทั้งคู่และสีเดียวกัน
       return {
         rank: 7,
-        type: `สองเด้ง (คู่และสี ${score} แต้ม)`,
+        type: `${score} แต้มสองเด้ง)`,
         score,
         multiplier: 2,
         cards,
@@ -241,7 +241,7 @@ function getHandRank(cardsInput) {
       // คู่เท่านั้น
       return {
         rank: 7,
-        type: `สองเด้ง (คู่ ${score} แต้ม)`,
+        type: `${score} แต้มสองเด้ง`,
         score,
         multiplier: 2,
         cards,
@@ -251,7 +251,7 @@ function getHandRank(cardsInput) {
       // สีเดียวกันเท่านั้น
       return {
         rank: 7,
-        type: `สองเด้ง (สี ${score} แต้ม)`,
+        type: `${score} แต้มสองเด้ง`,
         score,
         multiplier: 2,
         cards,

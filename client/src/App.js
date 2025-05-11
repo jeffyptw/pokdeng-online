@@ -678,7 +678,6 @@ function App() {
         } else if (isSameSuit_2card) {
           type = `${calculatedScore} แต้มสองเด้ง`;
         }
-        // กรณีแต้มเป็น 0 เช่น "สองเด้ง (สี 0 แต้ม)" จะไม่เปลี่ยนเป็น "บอด"
       } else {
         // ไพ่ 2 ใบธรรมดา (เทียบเคียง rank 8)
         if (calculatedScore === 0) {
