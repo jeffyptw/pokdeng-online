@@ -337,7 +337,7 @@ button:disabled,
   margin-bottom: 10px;
   font-weight: bold;
   font-size: 1.1em; /* ทำให้เด่นขึ้นเล็กน้อย */
-  color: #337ab7; /* สีเดียวกับ header */
+  color: #ff1e00; /* สีเดียวกับ header */
 }
 
 .action-buttons {

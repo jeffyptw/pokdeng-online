@@ -1071,7 +1071,6 @@ function App() {
                 แต้ม: {myHandScore}, ประเภท: {myHandType}
               </h2>
             </p>
-            // ภายใน Component App ของคุณ
             {isMyTurn && myCards.length >= 2 && !hasStayed && (
               <div className="player-actions">
                 {" "}
