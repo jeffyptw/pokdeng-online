@@ -1072,7 +1072,7 @@ function App() {
               </h2>
             </p>
             {isMyTurn && myCards.length >= 2 && !hasStayed && (
-              <div className="player-actions">
+              <div className="my-cards-area">
                 <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
                 {myCards.length < 3 && (
                   <button
@@ -1211,7 +1211,7 @@ function App() {
               className="btn-inroom-restart"
               onClick={handleResetGameHandler}
             >
-              รีเซ็ตตา
+              รีเซ็ตตา&สับไพ่
             </button>
             <button className="btn-inroom-result" onClick={handleEndGame}>
               จบเกม&ดูสรุปยอด
