@@ -53,7 +53,7 @@ function App() {
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    //messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const addMessage = (text, type = "info") => {
