@@ -672,11 +672,11 @@ function App() {
         const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit;
 
         if (isPair_2card && isSameSuit_2card) {
-          type = `${calculatedScore} แต้มสองเด้ง)`;
+          type = `${calculatedScore} แต้มสองเด้ง`;
         } else if (isPair_2card) {
-          type = `${calculatedScore} แต้มสองเด้ง)`;
+          type = `${calculatedScore} แต้มสองเด้ง`;
         } else if (isSameSuit_2card) {
-          type = `${calculatedScore} แต้มสองเด้ง)`;
+          type = `${calculatedScore} แต้มสองเด้ง`;
         }
         // กรณีแต้มเป็น 0 เช่น "สองเด้ง (สี 0 แต้ม)" จะไม่เปลี่ยนเป็น "บอด"
       } else {
