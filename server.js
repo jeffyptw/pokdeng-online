@@ -416,53 +416,56 @@ function performResultCalculation(room) {
           moneyChange = betAmount * playerHand.multiplier;
         } else if (playerHand.score < dealerHand.score) {
           outcome = "แพ้";
-          moneyChange = -betAmount;
+          moneyChange = -(betAmount * dealerHand.multiplier);
         } else {
           if (playerHand.multiplier > dealerHand.multiplier) {
             outcome = "ชนะ";
             moneyChange = betAmount * playerHand.multiplier;
           } else if (playerHand.multiplier < dealerHand.multiplier) {
             outcome = "แพ้";
-            moneyChange = -betAmount;
+            moneyChange = -(betAmount * dealerHand.multiplier);
           } else {
             outcome = "เสมอ";
             moneyChange = 0;
           }
         }
-      } else if (playerHand.rank === 1 && dealerHand.rank !== 1) {
-        outcome = "ชนะ";
-        moneyChange = betAmount * playerHand.multiplier;
-      } else if (dealerHand.rank === 1 && playerHand.rank !== 1) {
-        outcome = "แพ้";
-        moneyChange = -betAmount;
       } else {
+        // playerHand.rank !== 1 และ dealerHand.rank !== 1 (คือไม่ใช่ป๊อกทั้งคู่)
         if (playerHand.rank < dealerHand.rank) {
+          // ผู้เล่นชนะด้วย Rank ที่ดีกว่า
           outcome = "ชนะ";
           moneyChange = betAmount * playerHand.multiplier;
         } else if (playerHand.rank > dealerHand.rank) {
+          // ผู้เล่นแพ้ด้วย Rank ที่แย่กว่า
           outcome = "แพ้";
-          moneyChange = -betAmount;
+          moneyChange = -(betAmount * dealerHand.multiplier); // ใช้ multiplier เจ้ามือ
         } else {
+          // playerHand.rank === dealerHand.rank (Rank เท่ากัน ให้เทียบแต้ม)
           let pScore = playerHand.score;
           let dScore = dealerHand.score;
           if (playerHand.rank === 2 && dealerHand.rank === 2) {
+            // กรณีตองชนตอง
             pScore = playerHand.subRank || pScore;
             dScore = dealerHand.subRank || dScore;
           }
           if (pScore > dScore) {
+            // ผู้เล่นแต้มสูงกว่า
             outcome = "ชนะ";
             moneyChange = betAmount * playerHand.multiplier;
           } else if (pScore < dScore) {
+            // ผู้เล่นแต้มน้อยกว่า
             outcome = "แพ้";
-            moneyChange = -betAmount;
+            moneyChange = -(betAmount * dealerHand.multiplier); // ใช้ multiplier เจ้ามือ
           } else {
+            // แต้มเท่ากัน ให้เทียบ Multiplier (เด้ง)
             if (playerHand.multiplier > dealerHand.multiplier) {
               outcome = "ชนะ";
               moneyChange = betAmount * playerHand.multiplier;
             } else if (playerHand.multiplier < dealerHand.multiplier) {
               outcome = "แพ้";
-              moneyChange = -betAmount;
+              moneyChange = -(betAmount * dealerHand.multiplier); // ใช้ multiplier เจ้ามือ
             } else {
+              // Multiplier ก็เท่ากันอีก
               outcome = "เสมอ";
               moneyChange = 0;
             }
