@@ -38,7 +38,6 @@ const DEFAULT_BET_AMOUNT = 5;
 
 const rooms = {}; // Global rooms object
 
-// --- Game Logic Functions ---
 // server.js
 // ... (ส่วน import และตัวแปร SUITS, VALUES, etc. ด้านบนคงเดิม) ...
 
@@ -471,11 +470,27 @@ function clearTurnTimer(room) {
 function performResultCalculation(room) {
   const dealer = room.players.find((p) => p.isDealer);
   if (!dealer) {
-    /* ... (จัดการ error เหมือนเดิม) ... */ return null;
+    console.error(
+      `[Server] CRITICAL: Dealer not found in performResultCalculation for room: ${room.id}`
+    );
+    if (io && room && room.id) {
+      io.to(room.id).emit("errorMessage", {
+        text: "เกิดข้อผิดพลาด: ไม่พบเจ้ามือขณะคำนวณผล",
+      });
+    }
+    return null;
   }
   dealer.handDetails = getHandRank(dealer.cards);
   if (!dealer.handDetails) {
-    /* ... (จัดการ error เหมือนเดิม) ... */ return null;
+    console.error(
+      `[Server] CRITICAL: Failed to get hand details for dealer in room: ${room.id}`
+    );
+    if (io && room && room.id) {
+      io.to(room.id).emit("errorMessage", {
+        text: "เกิดข้อผิดพลาด: ไม่สามารถคำนวณไพ่เจ้ามือ",
+      });
+    }
+    return null;
   }
 
   const roundResults = [];
@@ -591,18 +606,50 @@ function performResultCalculation(room) {
     dealerNetChangeTotal -= moneyChange;
 
     roundResults.push({
-      /* ... (เหมือนเดิม) ... */
+      id: player.id,
+      name: player.name,
+      role: player.role,
+      cardsDisplay: (player.handDetails.cards || [])
+        .map(getCardDisplay)
+        .join(" "),
+      score: player.handDetails.score,
+      specialType: player.handDetails.type,
+      outcome: outcome,
+      moneyChange: moneyChange,
+      balance: player.balance,
+      disconnectedMidGame: player.disconnectedMidGame, // เพิ่มสถานะนี้เข้าไปด้วย
     });
   });
 
   dealer.balance += dealerNetChangeTotal;
   roundResults.push({
-    /* ... (เหมือนเดิม) ... */
+    id: dealer.id,
+    name: dealer.name,
+    role: dealer.role,
+    cardsDisplay: (dealer.handDetails.cards || [])
+      .map(getCardDisplay)
+      .join(" "),
+    score: dealer.handDetails.score,
+    specialType: dealer.handDetails.type,
+    outcome: "เจ้ามือ",
+    moneyChange: dealerNetChangeTotal,
+    balance: dealer.balance,
+    disconnectedMidGame: dealer.disconnectedMidGame,
   });
 
+  // ส่วนการ sort ผลลัพธ์ (ควรปรับปรุงให้เรียงตาม role ที่กำหนดไว้ตอนเริ่มเกม)
+  // การ sort เดิมของคุณอาจจะซับซ้อนและมีส่วนที่ซ้ำซ้อน
+  // นี่คือตัวอย่างการ sort ที่ง่ายกว่า:
   const finalSortedResults = [...roundResults].sort((a, b) => {
-    /* ... (เหมือนเดิม) ... */
+    const getRoleOrder = (role) => {
+      if (role === "เจ้ามือ") return 0;
+      const match = role.match(/ขาที่ (\d+)/);
+      if (match) return parseInt(match[1]);
+      return Infinity; // หรือเลขมากๆ สำหรับ role ที่ไม่รู้จัก
+    };
+    return getRoleOrder(a.role) - getRoleOrder(b.role);
   });
+
   return finalSortedResults;
 }
 
