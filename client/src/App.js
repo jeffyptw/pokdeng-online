@@ -654,118 +654,127 @@ function App() {
     const calculatedScore =
       cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
 
-    let type = `${calculatedScore} แต้ม`; // ประเภทเริ่มต้น
+    // ประเภทเริ่มต้น, จะถูกเขียนทับหากเป็นมือพิเศษ หรือถ้าเป็นแต้มธรรมดาที่ต้องแสดงว่า "บอด"
+    let type = `${calculatedScore} แต้ม`;
 
     if (cardsToRank.length === 2) {
       const isPok = calculatedScore === 8 || calculatedScore === 9;
-      // isDeng เดิม: ไพ่สีเดียวกัน หรือค่าเหมือนกัน (เด้งสำหรับป๊อก หรือเป็นสองเด้งธรรมดา)
       const isDeng =
         cardsToRank[0].suit === cardsToRank[1].suit ||
         cardsToRank[0].value === cardsToRank[1].value;
 
       if (isPok) {
-        type = `ป๊อก ${calculatedScore}`;
+        type = `ป๊อก ${calculatedScore}`; // ป๊อก ไม่ใช่ "ไพ่ธรรมดา" สำหรับกฎ "บอด"
         if (isDeng) type += " สองเด้ง";
       } else if (isDeng) {
-        // ปรับปรุงการแสดงผลสำหรับ "สองเด้ง" ให้ละเอียดขึ้น โดยไม่เพิ่มตัวแปรใหม่
+        // สองเด้ง ไม่ใช่ "ไพ่ธรรมดา" สำหรับกฎ "บอด"
         const isPair_2card = cardsToRank[0].value === cardsToRank[1].value;
         const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit;
 
         if (isPair_2card && isSameSuit_2card) {
-          type = `(${calculatedScore} แต้มสองเด้ง)`;
+          type = `${calculatedScore} แต้มสองเด้ง)`;
         } else if (isPair_2card) {
-          type = `(${calculatedScore} แต้มสองเด้ง)`;
+          type = `${calculatedScore} แต้มสองเด้ง)`;
         } else if (isSameSuit_2card) {
-          // isDeng เป็น true และไม่ใช่สองกรณีบน แสดงว่าเป็นสีอย่างเดียว
-          type = `(${calculatedScore} แต้มสองเด้ง)`;
+          type = `${calculatedScore} แต้มสองเด้ง)`;
+        }
+        // กรณีแต้มเป็น 0 เช่น "สองเด้ง (สี 0 แต้ม)" จะไม่เปลี่ยนเป็น "บอด"
+      } else {
+        // ไพ่ 2 ใบธรรมดา (เทียบเคียง rank 8)
+        if (calculatedScore === 0) {
+          type = "บอด";
+        } else {
+          type = `${calculatedScore} แต้ม`; // ยืนยันค่า type สำหรับแต้มที่ไม่ใช่ 0
         }
       }
-      // หากไม่ใช่ป๊อก และไม่ใช่เด้ง (isDeng=false) type จะเป็น `${calculatedScore} แต้ม` ตามค่าเริ่มต้น
     } else if (cardsToRank.length === 3) {
-      // ตัวแปรเดิมจากโค้ดของคุณ
       const suits = cardsToRank.map((c) => c.suit);
-      const values = cardsToRank.map((c) => c.value).sort(); // ค่าหน้าไพ่เรียงตามตัวอักษร เช่น ["10", "2", "A"] ใช้สำหรับ isTaong
+      const values = cardsToRank.map((c) => c.value).sort();
 
       const isSameSuit = suits.every((s) => s === suits[0]);
-      const isTaong = values[0] === values[1] && values[1] === values[2]; // ตรวจตองจาก values ที่เรียงตามอักษร
+      const isTaong = values[0] === values[1] && values[1] === values[2];
 
-      // --- ส่วนตรรกะใหม่สำหรับ สเตรท, เซียน และการเรียงลำดับที่ถูกต้อง ---
-      // ตัวแปรชั่วคราวสำหรับตรรกะใหม่ (พยายามใช้ชื่อที่ไม่ซ้ำกับของเดิม และจำเป็นจริงๆ)
-      const card_face_values = cardsToRank.map((c) => c.value); // ค่าหน้าไพ่แบบดิบ เช่น ["A", "K", "2"]
-
-      // ค่าตัวเลขของไพ่สำหรับตรวจสอบสเตรท เรียงจากน้อยไปมาก เช่น [1, 12, 13] สำหรับ A,Q,K
-      const numeric_values_for_straight_check = card_face_values
+      // ตัวแปรเหล่านี้มีอยู่แล้วจากโค้ดก่อนหน้าสำหรับการตรวจสอบสเตรทและเซียน
+      const card_raw_values = cardsToRank.map((c) => c.value);
+      const n_vals_for_straight = card_raw_values
         .map(
           (v_str) => ({ A: 1, J: 11, Q: 12, K: 13 }[v_str] || parseInt(v_str))
         )
         .sort((a, b) => a - b);
 
-      let is_straight_result = false; // ผลลัพธ์การตรวจสอบสเตรท
-      // ตรวจสอบว่ามี 3 ตัวเลขที่ถูกต้องก่อนเข้าถึง index
+      let is_straight_result = false;
       if (
-        numeric_values_for_straight_check.length === 3 &&
-        numeric_values_for_straight_check.every(
-          (n) => typeof n === "number" && !isNaN(n)
-        )
+        n_vals_for_straight.length === 3 &&
+        n_vals_for_straight.every((n) => typeof n === "number" && !isNaN(n))
       ) {
-        // สเตรทปกติ (เช่น 2-3-4, 10-J-Q) แต่ไม่รวม A-2-3
         if (
-          numeric_values_for_straight_check[1] ===
-            numeric_values_for_straight_check[0] + 1 &&
-          numeric_values_for_straight_check[2] ===
-            numeric_values_for_straight_check[1] + 1
+          n_vals_for_straight[1] === n_vals_for_straight[0] + 1 &&
+          n_vals_for_straight[2] === n_vals_for_straight[1] + 1
         ) {
           if (
             !(
-              numeric_values_for_straight_check[0] === 1 &&
-              numeric_values_for_straight_check[1] === 2 &&
-              numeric_values_for_straight_check[2] === 3
+              n_vals_for_straight[0] === 1 &&
+              n_vals_for_straight[1] === 2 &&
+              n_vals_for_straight[2] === 3
             )
           ) {
-            // ไม่ใช่ A-2-3
             is_straight_result = true;
           }
         }
-        // สเตรท QKA (เรียงเป็น A,Q,K -> 1,12,13)
         if (
-          numeric_values_for_straight_check[0] === 1 &&
-          numeric_values_for_straight_check[1] === 12 &&
-          numeric_values_for_straight_check[2] === 13
+          n_vals_for_straight[0] === 1 &&
+          n_vals_for_straight[1] === 12 &&
+          n_vals_for_straight[2] === 13
         ) {
           is_straight_result = true;
         }
       }
-
-      // ตรวจสอบเซียน (J, Q, K สามใบ)
-      const is_sian_result = card_face_values.every((v_str) =>
+      const is_sian_result = card_raw_values.every((v_str) =>
         ["J", "Q", "K"].includes(v_str)
       );
-      // --- สิ้นสุดส่วนตรรกะใหม่ ---
 
-      // ลำดับการตัดสินประเภทไพ่ 3 ใบ
       if (isTaong) {
-        type = `ตอง ${values[0]}`; // values[0] จากที่เรียงตามอักษรใช้แสดงค่าตองได้ถูกต้อง
+        // ตอง (ไม่เข้าข่าย "บอด")
+        type = `ตอง ${values[0]}`;
       } else if (is_straight_result && isSameSuit) {
+        // สเตรทฟลัช (ไม่เข้าข่าย "บอด")
         type = "สเตรทฟลัช";
       } else if (is_sian_result) {
-        type = "เซียน"; // JQK ที่ไม่ใช่สีเดียวกัน และไม่ใช่ตอง
+        // เซียน (ไม่เข้าข่าย "บอด")
+        type = "เซียน";
       } else if (is_straight_result) {
+        // เรียง (ไม่เข้าข่าย "บอด")
         type = "เรียง";
       } else if (isSameSuit) {
-        type = `(${calculatedScore} แต้มสามเด้ง)`; // หรือ "สี"
-      } else {
-        // แต้มธรรมดา รวมถึง 8 หลัง / 9 หลัง
-        // type เริ่มต้นคือ `${calculatedScore} แต้ม`
-        // จะถูกเปลี่ยนเป็น "8 หลัง" หรือ "9 หลัง" ถ้าเข้าเงื่อนไข
-        if (calculatedScore === 9) {
-          type = "9 หลัง";
-        } else if (calculatedScore === 8) {
-          type = "8 หลัง";
+        // สามเด้ง (Flush - rank 6 context)
+        if (calculatedScore === 0) {
+          type = "บอด"; // เปลี่ยนเมื่อแต้มเป็น 0
+        } else {
+          type = `สามเด้ง (${calculatedScore} แต้ม)`;
         }
-        // หากไม่ใช่ 8 หรือ 9 หลัง type จะคงเป็น `${calculatedScore} แต้ม` ตามเดิม
+      } else {
+        // ไพ่ 3 ใบธรรมดา (rank 8 context) หรือ 8 หลัง / 9 หลัง (rank 7 context)
+        if (calculatedScore === 9) {
+          // 9 หลัง (rank 7)
+          type = "9 หลัง"; // แต้มเป็น 9 ไม่ใช่ 0
+        } else if (calculatedScore === 8) {
+          // 8 หลัง (rank 7)
+          type = "8 หลัง"; // แต้มเป็น 8 ไม่ใช่ 0
+        } else if (calculatedScore === 0) {
+          // ไพ่ธรรมดา แต้ม 0 (rank 8 context)
+          type = "บอด";
+        } else {
+          // ไพ่ธรรมดา แต้ม 1-7 (rank 8 context)
+          type = `${calculatedScore} แต้ม`;
+        }
       }
     }
-    // หากจำนวนไพ่ไม่ใช่ 0, 2, หรือ 3 (เช่น ไพ่ 1 ใบ) type จะเป็นค่าเริ่มต้น `${calculatedScore} แต้ม`
+
+    // ตรวจสอบสุดท้าย: หาก type ยังคงเป็น "0 แต้ม" (เช่น กรณีไพ่ 1 ใบ หรือกรณีที่ไม่ได้จัดการเฉพาะเจาะจง)
+    // ให้เปลี่ยนเป็น "บอด" เพื่อครอบคลุมทุกกรณีของ "ไพ่ธรรมดา" ที่ได้ 0 แต้ม
+    if (type === "0 แต้ม") {
+      type = "บอด";
+    }
 
     return { score: calculatedScore, type };
   };
