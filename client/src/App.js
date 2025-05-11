@@ -655,36 +655,34 @@ function App() {
     const calculatedScore =
       cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
 
-    let type = `${calculatedScore} แต้ม`; // ประเภทเริ่มต้น
+    let type = `${calculatedScore} แต้ม`;
 
     if (cardsToRank.length === 2) {
       const isPok = calculatedScore === 8 || calculatedScore === 9;
+
       const isDeng =
         cardsToRank[0].suit === cardsToRank[1].suit ||
         cardsToRank[0].value === cardsToRank[1].value;
 
       if (isPok) {
         type = `ป๊อก ${calculatedScore}`;
+
         if (isDeng) type += " สองเด้ง";
       } else if (isDeng) {
+        // กรณี สองเด้ง (ไม่ใช่ป๊อก)
+
         if (calculatedScore === 0) {
           type = "บอด";
         } else {
-          // ปรับปรุงการแสดงผล สองเด้ง ให้ละเอียดขึ้น (ถ้าต้องการ)
-          const isPair_2card = cardsToRank[0].value === cardsToRank[1].value;
-          const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit;
-          if (isPair_2card && isSameSuit_2card) {
-            type = `สองเด้ง (คู่และสี ${calculatedScore} แต้ม)`; // หรือจะใช้แบบเดิม `${calculatedScore} แต้มสองเด้ง` ก็ได้
-          } else if (isPair_2card) {
-            type = `สองเด้ง (คู่ ${calculatedScore} แต้ม)`; // หรือ `${calculatedScore} แต้มสองเด้ง`
-          } else if (isSameSuit_2card) {
-            type = `สองเด้ง (สี ${calculatedScore} แต้ม)`; // หรือ `${calculatedScore} แต้มสองเด้ง`
-          }
-          // หรือถ้าต้องการแบบง่ายๆ ที่คุณมีล่าสุด:
-          // type = `${calculatedScore} แต้มสองเด้ง`;
+          // --- START: แก้ไขจุดที่ 1 ---
+
+          // ลดความซับซ้อน: ถ้าเป็น isDeng และไม่ใช่ป๊อก และแต้มไม่เป็น 0 ก็คือ "X แต้มสองเด้ง" เลย
+
+          type = `${calculatedScore} แต้มสองเด้ง`; // --- END: แก้ไขจุดที่ 1 ---
         }
       } else {
         // ไพ่ 2 ใบธรรมดา
+
         if (calculatedScore === 0) {
           type = "บอด";
         } else {
@@ -693,45 +691,47 @@ function App() {
       }
     } else if (cardsToRank.length === 3) {
       const suits = cardsToRank.map((c) => c.suit);
-      const card_raw_values = cardsToRank.map((c) => c.value); // ใช้ค่าดิบในการตรวจสอบบางอย่าง
+
+      const values = cardsToRank.map((c) => c.value).sort(); // .sort() ที่นี่อาจจะไม่จำเป็นนักถ้าไม่ได้ใช้ values ที่ sort แล้วในการ so sánh ตองโดยตรง
 
       const isSameSuit = suits.every((s) => s === suits[0]);
-      // การตรวจสอบตอง ควรใช้ค่าดิบเพื่อความแม่นยำ ไม่ต้อง sort ก่อน
-      const isTaong = card_raw_values.every(
-        (val) => val === card_raw_values[0]
-      );
 
-      const n_vals_for_straight = [...card_raw_values] // สร้างสำเนาเพื่อ sort โดยไม่กระทบ card_raw_values
+      const isTaong =
+        cardsToRank[0].value === cardsToRank[1].value &&
+        cardsToRank[1].value === cardsToRank[2].value; // แก้ไขการเช็คตองให้แม่นยำขึ้นโดยไม่ขึ้นกับ values.sort()
+
+      const card_raw_values = cardsToRank.map((c) => c.value);
+
+      const n_vals_for_straight = card_raw_values
+
         .map(
           (v_str) => ({ A: 1, J: 11, Q: 12, K: 13 }[v_str] || parseInt(v_str))
         )
+
         .sort((a, b) => a - b);
 
       let is_straight_result = false;
+
       if (
         n_vals_for_straight.length === 3 &&
         n_vals_for_straight.every((n) => typeof n === "number" && !isNaN(n))
       ) {
         if (
-          // สเตรทปกติ (ไม่รวม A23)
           n_vals_for_straight[1] === n_vals_for_straight[0] + 1 &&
           n_vals_for_straight[2] === n_vals_for_straight[1] + 1
         ) {
           if (
             !(
-              // ไม่ใช่ A23
-              (
-                n_vals_for_straight[0] === 1 &&
-                n_vals_for_straight[1] === 2 &&
-                n_vals_for_straight[2] === 3
-              )
+              n_vals_for_straight[0] === 1 &&
+              n_vals_for_straight[1] === 2 &&
+              n_vals_for_straight[2] === 3
             )
           ) {
             is_straight_result = true;
           }
         }
+
         if (
-          // สเตรท QKA (A=1, Q=12, K=13)
           n_vals_for_straight[0] === 1 &&
           n_vals_for_straight[1] === 12 &&
           n_vals_for_straight[2] === 13
@@ -739,13 +739,13 @@ function App() {
           is_straight_result = true;
         }
       }
+
       const is_sian_result = card_raw_values.every((v_str) =>
         ["J", "Q", "K"].includes(v_str)
       );
 
-      // ลำดับการตรวจสอบสำคัญมาก
       if (isTaong) {
-        type = `ตอง ${card_raw_values[0]}`; // แสดงค่าตอง
+        type = `ตอง ${cardsToRank[0].value}`; // ใช้ค่าจากไพ่ใบแรกของตองได้เลย
       } else if (is_straight_result && isSameSuit) {
         type = "สเตรทฟลัช";
       } else if (is_sian_result) {
@@ -754,13 +754,19 @@ function App() {
         type = "เรียง";
       } else if (isSameSuit) {
         // สามเด้ง (Flush)
+
         if (calculatedScore === 0) {
-          type = "บอด"; // หรือ "สามเด้ง (บอด)" ถ้าต้องการคงข้อมูลว่าเป็นสามเด้ง
+          type = "บอด";
         } else {
-          type = `สามเด้ง (${calculatedScore} แต้ม)`; // หรือ `${calculatedScore} แต้มสามเด้ง` ให้ตรงกับ Server
+          // --- START: แก้ไขจุดที่ 2 ---
+
+          // ปรับรูปแบบข้อความให้เหมือน server
+
+          type = `${calculatedScore} แต้มสามเด้ง`; // --- END: แก้ไขจุดที่ 2 ---
         }
       } else {
         // ไพ่ 3 ใบธรรมดา
+
         if (calculatedScore === 9) {
           type = "9 หลัง";
         } else if (calculatedScore === 8) {
@@ -773,7 +779,6 @@ function App() {
       }
     }
 
-    // ตรวจสอบสุดท้าย: หาก type ยังคงเป็น "0 แต้ม" (เช่น กรณีไพ่ 1 ใบ)
     if (type === "0 แต้ม") {
       type = "บอด";
     }
