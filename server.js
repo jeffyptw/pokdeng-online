@@ -299,7 +299,7 @@ function getRoomPlayerData(room) {
   return activePlayersForRoleAssignment.map((p) => {
     let displayRole = p.baseRole;
     if (!p.isDealer) {
-      displayRole = `ผู้เล่นที่ ${playerNumber}`;
+      displayRole = `ขาที่ ${playerNumber}`;
       playerNumber++;
     }
     p.role = displayRole;
