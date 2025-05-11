@@ -283,8 +283,8 @@ function initializePlayer(id, name, initialBalance, isDealer = false) {
     handDetails: null,
     hasStayed: false,
     isDealer,
-    baseRole: isDealer ? "เจ้ามือ" : "ผู้เล่น",
-    role: isDealer ? "เจ้ามือ" : "ผู้เล่น",
+    baseRole: isDealer ? "เจ้ามือ" : "ขา",
+    role: isDealer ? "เจ้ามือ" : "ขา",
     actionTakenThisTurn: false,
     disconnectedMidGame: false,
   };
@@ -643,7 +643,7 @@ function advanceTurn(roomId) {
     });
     if (room.dealerId) io.to(room.dealerId).emit("enableShowResult", true);
     io.to(roomId).emit("message", {
-      text: "ผู้เล่น/เจ้ามือดำเนินการครบแล้ว เจ้ามือสามารถแสดงผลได้",
+      text: "ขาไพ่/เจ้ามือจั่วครบแล้ว เจ้ามือสามารถเปิดไพ่ได้",
     });
   }
 }
@@ -655,7 +655,7 @@ io.on("connection", (socket) => {
   socket.on("createRoom", ({ playerName, initialBalance }) => {
     try {
       if (!playerName || playerName.trim() === "")
-        return socket.emit("errorMessage", { text: "กรุณาใส่ชื่อผู้เล่น" });
+        return socket.emit("errorMessage", { text: "กรุณาใส่ชื่อขาไพ่" });
       const bal = parseInt(initialBalance);
       if (isNaN(bal) || bal < 10 || (bal % 10 !== 0 && bal % 5 !== 0))
         return socket.emit("errorMessage", {
@@ -712,7 +712,7 @@ io.on("connection", (socket) => {
       if (room.players.find((p) => p.id === socket.id))
         return socket.emit("errorMessage", { text: "คุณอยู่ในห้องนี้แล้ว" });
       if (!playerName || playerName.trim() === "")
-        return socket.emit("errorMessage", { text: "กรุณาใส่ชื่อผู้เล่น" });
+        return socket.emit("errorMessage", { text: "กรุณาใส่ชื่อขาไพ่" });
       const bal = parseInt(initialBalance);
       if (isNaN(bal) || bal < 10 || (bal % 10 !== 0 && bal % 5 !== 0))
         return socket.emit("errorMessage", {
@@ -796,7 +796,7 @@ io.on("connection", (socket) => {
       ).length;
       if (activePlayersCount < 2)
         return socket.emit("errorMessage", {
-          text: "ต้องมีผู้เล่นอย่างน้อย 2 คน",
+          text: "ต้องมีขาไพ่อย่างน้อย 2 คน",
         });
       for (const player of room.players) {
         if (
@@ -805,7 +805,7 @@ io.on("connection", (socket) => {
           player.balance < room.betAmount
         ) {
           return io.to(roomId).emit("errorMessage", {
-            text: `ผู้เล่น ${player.name} มีเงินไม่พอ`,
+            text: `ขาไพ่ ${player.name} มีเงินไม่พอ`,
           });
         }
       }
@@ -991,7 +991,7 @@ io.on("connection", (socket) => {
           .every((p) => p.hasStayed);
         if (!allDone) {
           return socket.emit("errorMessage", {
-            text: "ผู้เล่น/เจ้ามือยังดำเนินการไม่ครบ",
+            text: "ขาไพ่/เจ้ามือยังดำเนินการไม่ครบ",
           });
         }
       }

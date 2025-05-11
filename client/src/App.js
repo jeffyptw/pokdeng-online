@@ -1126,8 +1126,8 @@ function App() {
         (!result || result.length === 0) && (
           <p className="turn-indicator">
             {" "}
-            ขาที่ ({currentTurnInfo.role}) {currentTurnInfo.name} กำลังตัดสินใจ
-            ({currentTurnInfo.timeLeft} วิ)...{" "}
+            ขาไพ่ที่ ({currentTurnInfo.role}) {currentTurnInfo.name}{" "}
+            กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...{" "}
           </p>
         )}
       {isDealer &&
