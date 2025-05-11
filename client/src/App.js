@@ -1067,9 +1067,7 @@ function App() {
               ))}
             </h2>
             <p>
-              <h2>
-                แต้ม: {myHandScore}, ประเภท: {myHandType}
-              </h2>
+              <h2>{myHandType}</h2>
             </p>
             {isMyTurn && myCards.length >= 2 && !hasStayed && (
               <div className="player-actions">
