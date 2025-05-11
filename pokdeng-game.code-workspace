@@ -1,7 +1,13 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	]
+  "folders": [
+    {
+      "path": "."
+    },
+    {
+      "path": "../API Pokdeng"
+    },
+    {
+      "path": "../pokdeng-api"
+    }
+  ]
 }
