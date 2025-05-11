@@ -674,11 +674,11 @@ function App() {
           const isPair_2card = cardsToRank[0].value === cardsToRank[1].value;
           const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit;
           if (isPair_2card && isSameSuit_2card) {
-            type = `สองเด้ง (คู่และสี ${calculatedScore} แต้ม)`; // หรือจะใช้แบบเดิม `${calculatedScore} แต้มสองเด้ง` ก็ได้
+            type = `${calculatedScore} แต้มสองเด้ง`; // หรือจะใช้แบบเดิม `${calculatedScore} แต้มสองเด้ง` ก็ได้
           } else if (isPair_2card) {
-            type = `สองเด้ง (คู่ ${calculatedScore} แต้ม)`; // หรือ `${calculatedScore} แต้มสองเด้ง`
+            type = `${calculatedScore} แต้มสองเด้ง`; // หรือ `${calculatedScore} แต้มสองเด้ง`
           } else if (isSameSuit_2card) {
-            type = `สองเด้ง (สี ${calculatedScore} แต้ม)`; // หรือ `${calculatedScore} แต้มสองเด้ง`
+            type = `${calculatedScore} แต้มสองเด้ง`; // หรือ `${calculatedScore} แต้มสองเด้ง`
           }
           // หรือถ้าต้องการแบบง่ายๆ ที่คุณมีล่าสุด:
           // type = `${calculatedScore} แต้มสองเด้ง`;
@@ -757,7 +757,7 @@ function App() {
         if (calculatedScore === 0) {
           type = "บอด"; // หรือ "สามเด้ง (บอด)" ถ้าต้องการคงข้อมูลว่าเป็นสามเด้ง
         } else {
-          type = `สามเด้ง (${calculatedScore} แต้ม)`; // หรือ `${calculatedScore} แต้มสามเด้ง` ให้ตรงกับ Server
+          type = ` (${calculatedScore} แต้มสามเด้ง`; // หรือ `${calculatedScore} แต้มสามเด้ง` ให้ตรงกับ Server
         }
       } else {
         // ไพ่ 3 ใบธรรมดา
