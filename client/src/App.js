@@ -256,7 +256,7 @@ function App() {
       setCurrentTurnId(null);
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
       setShowResultBtn(false);
-      setRevealedPokPlayers({}); // รีเซ็ตไพ่ป๊อกที่เปิดของผู้เล่นอื่น
+      setRevealedPokPlayers({}); // รีเซ็ตไพ่ป๊อกที่เปิดของขาไพ่อื่น
     });
 
     // *** NEW: Listener for player_revealed_pok ***
@@ -264,7 +264,7 @@ function App() {
       console.log("[Client] Player revealed Pok:", data);
       if (data && data.playerId && data.cards && data.handDetails) {
         addMessage(
-          `${data.role || "ผู้เล่น"} (${data.name}) ป๊อก! แสดงไพ่: ${data.cards
+          `${data.role || "ขาไพ่"} (${data.name}) ป๊อก! แสดงไพ่: ${data.cards
             .map(getCardDisplay)
             .join(" ")} (${data.handDetails.type})`,
           "highlight" // ใช้ type ใหม่ หรือ 'info'
@@ -795,14 +795,14 @@ function App() {
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
   // JSX
   if (showSummary) {
-    const me = summaryData.find((p) => p.id === myPlayerId); // หาข้อมูลผู้เล่นปัจจุบัน
+    const me = summaryData.find((p) => p.id === myPlayerId); // หาข้อมูลขาไพ่ปัจจุบัน
 
     return (
       <div className="App-summary">
         <h2>สรุปยอดต้องโอนให้และต้องได้ (ห้อง: {roomId})</h2>
         <h3>
-          ชื่อผู้เล่น: {me?.name || name} (
-          {me?.role || (isDealer ? "เจ้ามือ" : "ผู้เล่น")})
+          ชื่อขาไพ่: {me?.name || name} (
+          {me?.role || (isDealer ? "เจ้ามือ" : "ขาไพ่")})
         </h3>
         <hr />
 
@@ -959,9 +959,7 @@ function App() {
         </h1>
         <p>
           คุณ: {name}{" "}
-          {isDealer
-            ? "(เจ้ามือ)"
-            : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}{" "}
+          {isDealer ? "(เจ้ามือ)" : `(${myCurrentPlayerData?.role || "ขาไพ่"})`}{" "}
           | เงินคงเหลือ:{" "}
           {myCurrentPlayerData?.balance?.toLocaleString() || money} |
           ห้อง:&nbsp;
@@ -1033,7 +1031,7 @@ function App() {
             ? `${betAmount.toLocaleString()} บาท`
             : "รอเจ้ามือกำหนด"}
         </h4>
-        <h4>ผู้เล่นในห้อง: ({playerData.length} คน)</h4>
+        <h4>ขาไพ่ในห้อง: ({playerData.length} คน)</h4>
         <ul>
           {playerData.map((user) => (
             <li
@@ -1123,8 +1121,8 @@ function App() {
         (!result || result.length === 0) && (
           <p className="turn-indicator">
             {" "}
-            ผู้เล่น ({currentTurnInfo.role}) {currentTurnInfo.name}{" "}
-            กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...{" "}
+            ขาที่ ({currentTurnInfo.role}) {currentTurnInfo.name} กำลังตัดสินใจ
+            ({currentTurnInfo.timeLeft} วิ)...{" "}
           </p>
         )}
       {isDealer &&
@@ -1144,7 +1142,7 @@ function App() {
         gameStarted &&
         !showResultBtn &&
         (!result || result.length === 0) && (
-          <p className="turn-indicator">รอผู้เล่นทุกคนตัดสินใจ...</p>
+          <p className="turn-indicator">รอขาไพ่ทุกคนตัดสินใจ...</p>
         )}
 
       {result && result.length > 0 && (
@@ -1156,7 +1154,7 @@ function App() {
           <table>
             <thead>
               <tr>
-                <th>ผู้เล่น (บทบาท)</th>
+                <th>ชื่อขาไพ่</th>
                 <th>ไพ่</th>
                 <th>แต้ม</th>
                 <th>ประเภท</th>
