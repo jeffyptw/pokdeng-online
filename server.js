@@ -707,7 +707,7 @@ io.on("connection", (socket) => {
         return socket.emit("errorMessage", { text: "ห้องถูกล็อค" });
       if (room.gameStarted)
         return socket.emit("errorMessage", { text: "เกมเริ่มไปแล้ว" });
-      if (room.players.length >= 7)
+      if (room.players.length >= 17)
         return socket.emit("errorMessage", { text: "ห้องเต็ม" });
       if (room.players.find((p) => p.id === socket.id))
         return socket.emit("errorMessage", { text: "คุณอยู่ในห้องนี้แล้ว" });
