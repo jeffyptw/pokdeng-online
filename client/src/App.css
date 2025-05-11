@@ -51,6 +51,7 @@ body {
 .btn-inroom-setting,
 .btn-inroom-restart,
 .btn-inroom-endgame,
+.btn-inroom-endgame2,
 .btn-inroom-result,
 .btn-inroom-startgame:hover, /* อาจต้องแยก :hover, :active, :disabled ไปอยู่ท้ายๆ เพื่อ specificity */
 .btn-inroom-startgame:active,
@@ -78,6 +79,7 @@ body {
 .btn-inroom-setting,
 .btn-inroom-restart,
 .btn-inroom-endgame,
+.btn-inroom-endgame2
 .btn-inroom-result,
 .btn-inroom-start1, /* เพิ่มปุ่มที่ควรมี cursor pointer */
 .btn-inroom-lockgame {
@@ -164,6 +166,20 @@ body {
 .show-result-btn:hover,
 .post-round-controls button[onClick*="EndGame"]:hover {
   background-color: #c9302c;
+}
+
+.btn-inroom-endgame2, /* ปุ่ม "จบเกม&ดูสรุปยอด" และ "ออกจากห้อง" */
+.show-result-btn, /* ถ้ายังใช้อยู่ */
+.post-round-controls button[onClick*="EndGame"] {
+  /* ปุ่ม "จบเกม" ใน post-round */
+  background-color: #d97b4f; /* Red */
+  border-color: #d3622e;
+  color: #fff;
+}
+.btn-inroom-endgame2:hover,
+.show-result-btn:hover,
+.post-round-controls button[onClick*="EndGame"]:hover {
+  background-color: #d84c0b;
 }
 
 .btn-inroom-result {

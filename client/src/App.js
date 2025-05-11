@@ -1124,7 +1124,7 @@ function App() {
         showResultBtn &&
         (!result || result.length === 0) && (
           <div className="turn-indicator">
-            <button className="show-result-btn" onClick={handleShowResult}>
+            <button className="btn-inroom-endgame2" onClick={handleShowResult}>
               {" "}
               เปิดไพ่ดวล{" "}
             </button>
