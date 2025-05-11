@@ -667,16 +667,22 @@ function App() {
         type = `ป๊อก ${calculatedScore}`; // ป๊อก ไม่ใช่ "ไพ่ธรรมดา" สำหรับกฎ "บอด"
         if (isDeng) type += " สองเด้ง";
       } else if (isDeng) {
-        // สองเด้ง ไม่ใช่ "ไพ่ธรรมดา" สำหรับกฎ "บอด"
-        const isPair_2card = cardsToRank[0].value === cardsToRank[1].value;
-        const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit;
+        // กรณี สองเด้ง (ไม่ใช่ป๊อก)
+        if (calculatedScore === 0) {
+          type = "บอด";
+        } else {
+          const isPair_2card = cardsToRank[0].value === cardsToRank[1].value;
+          const isSameSuit_2card = cardsToRank[0].suit === cardsToRank[1].suit; // <--- และการใช้ตัวแปรนี้
 
-        if (isPair_2card && isSameSuit_2card) {
-          type = `${calculatedScore} แต้มสองเด้ง`;
-        } else if (isPair_2card) {
-          type = `${calculatedScore} แต้มสองเด้ง`;
-        } else if (isSameSuit_2card) {
-          type = `${calculatedScore} แต้มสองเด้ง`;
+          if (isPair_2card && isSameSuit_2card) {
+            type = `${calculatedScore} แต้มสองเด้ง`;
+          } else if (isPair_2card) {
+            type = `${calculatedScore} แต้มสองเด้ง`;
+          } else if (isSameSuit_2card) {
+            type = `${calculatedScore} แต้มสองเด้ง`;
+          }
+          // อาจจะต้องมี else ปิดท้ายที่นี่ หาก isDeng เป็น true แต่ไม่เข้าเงื่อนไขย่อยข้างบนเลย
+          // แต่ตามตรรกะของ isDeng อย่างน้อย isPair_2card หรือ isSameSuit_2card ต้องเป็น true
         }
       } else {
         // ไพ่ 2 ใบธรรมดา (เทียบเคียง rank 8)
