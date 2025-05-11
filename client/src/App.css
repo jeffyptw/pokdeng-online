@@ -1,14 +1,18 @@
 /* App.css */
+
+/* === Global Styles === */
 body {
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
   background-color: #eef2f3;
   color: #333;
 }
-/* Lobby */
+
+/* === Main App Containers === */
 .App-lobby,
 .App-summary,
 .App {
+  /* .App คือ container หลักเมื่ออยู่ในห้องเกม */
   max-width: 900px;
   margin: 20px auto;
   padding: 20px;
@@ -16,6 +20,7 @@ body {
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
+
 .App-lobby h2,
 .App-summary h2,
 .App h2 {
@@ -23,11 +28,23 @@ body {
   text-align: center;
   margin-bottom: 20px;
 }
+
+.App header {
+  border-bottom: 2px solid #337ab7;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+}
+
+.App header p {
+  margin: 5px 0;
+}
+
+/* === General Input and Button Styling === */
 .App-lobby input,
 .App-lobby button,
 .dealer-controls input,
 .dealer-controls button,
-.player-actions button,
+.player-actions button, /* สไตล์พื้นฐานสำหรับปุ่มใน player-actions */
 .show-result-btn,
 .post-round-controls button,
 .exit-button,
@@ -35,56 +52,69 @@ body {
 .btn-inroom-restart,
 .btn-inroom-endgame,
 .btn-inroom-result,
-.btn-inroom-startgame:hover,
+.btn-inroom-startgame:hover, /* อาจต้องแยก :hover, :active, :disabled ไปอยู่ท้ายๆ เพื่อ specificity */
 .btn-inroom-startgame:active,
 .btn-inroom-startgame:disabled,
 .btn-inroom-lockgame,
 .btn-inroom-lockgame.locked,
 .btn-inroom-lockgame.unlocked,
-.btn-inroom-waitinggame,
+.btn-inroom-waitinggame, /* .btn-inroom-waitinggame ถูกประกาศซ้ำด้านล่าง, รวมไว้ตรงนี้ */
 .btn-inroom-start1 {
   padding: 10px 15px;
   margin: 5px;
   border-radius: 5px;
   border: 1px solid #ccc;
   font-size: 1em;
+  box-sizing: border-box; /* เพิ่มเพื่อให้ padding และ border ไม่ทำให้ขนาดเกิน */
 }
 
-.btn-inroom-waitinggame {
-  padding: 10px 15px;
-  margin: 5px;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-  font-size: 1em;
-}
-
+/* Cursor for clickable buttons */
 .App-lobby button,
 .dealer-controls button,
-.player-actions button,
+.player-actions button, /* สไตล์พื้นฐานสำหรับปุ่มใน player-actions */
 .show-result-btn,
 .post-round-controls button,
-.exit-button {
+.exit-button,
+.btn-inroom-setting,
+.btn-inroom-restart,
+.btn-inroom-endgame,
+.btn-inroom-result,
+.btn-inroom-start1, /* เพิ่มปุ่มที่ควรมี cursor pointer */
+.btn-inroom-lockgame {
+  /* ปุ่ม lock/unlock ก็ควรมี cursor pointer */
   cursor: pointer;
-  color: rgb(0, 0, 0);
+  color: rgb(0, 0, 0); /* สีตัวอักษรเริ่มต้นสำหรับปุ่มส่วนใหญ่ */
 }
-.App-lobby button,
+
+/* === Specific Button Colors & Styles === */
+
+/* Green Buttons (Start, Reset) */
+.App-lobby button, /* ปุ่มใน lobby (เช่น สร้างห้อง, เข้าร่วม) */
 .dealer-controls button[onClick*="StartGame"],
 .post-round-controls button[onClick*="StartGame"],
-.post-round-controls button[onClick*="ResetGame"] {
+.post-round-controls button[onClick*="ResetGame"],
+.btn-inroom-start1 {
+  /* ปุ่มเริ่มเกม */
   background-color: #5cb85c;
   border-color: #4cae4c;
+  color: #fff; /* ทำให้ตัวอักษรเป็นสีขาวสำหรับพื้นหลังเข้ม */
 }
 .App-lobby button:hover,
 .dealer-controls button[onClick*="StartGame"]:hover,
-.post-round-controls button[onClick*="StartGame"]:hover {
+.post-round-controls button[onClick*="StartGame"]:hover,
+.post-round-controls button[onClick*="ResetGame"]:hover,
+.btn-inroom-start1:hover {
   background-color: #4cae4c;
 }
 
+/* Orange/Yellow Buttons (SetBet, ToggleLockRoom, Stay) */
 .dealer-controls button[onClick*="SetBet"],
 .dealer-controls button[onClick*="ToggleLockRoom"],
 .player-actions button[onClick*="Stay"] {
+  /* ปุ่ม "อยู่" */
   background-color: #f0ad4e;
   border-color: #eea236;
+  color: #fff; /* ทำให้ตัวอักษรเป็นสีขาว */
 }
 .dealer-controls button[onClick*="SetBet"]:hover,
 .dealer-controls button[onClick*="ToggleLockRoom"]:hover,
@@ -92,55 +122,132 @@ body {
   background-color: #ec971f;
 }
 
+/* Blue/Cyan Buttons (DrawCard) */
 .player-actions button[onClick*="DrawCard"] {
+  /* ปุ่ม "จั่ว" */
   background-color: #5bc0de;
   border-color: #46b8da;
+  color: #fff; /* ทำให้ตัวอักษรเป็นสีขาว */
 }
 .player-actions button[onClick*="DrawCard"]:hover {
   background-color: #31b0d5;
 }
 
-.show-result-btn,
-.post-round-controls button[onClick*="EndGame"] {
-  background-color: #98e441;
-  border-color: #000000;
+/* Other Specific In-Room Buttons */
+.btn-inroom-setting {
+  background-color: #ff7b00; /* Orange */
+  border-color: #cc6200;
+  color: #fff;
 }
+.btn-inroom-setting:hover {
+  background-color: #e66e00;
+}
+
+.btn-inroom-restart {
+  background-color: #3d8df7; /* Blue */
+  border-color: #2870c8;
+  color: #fff;
+}
+.btn-inroom-restart:hover {
+  background-color: #2a7de8;
+}
+
+.btn-inroom-endgame, /* ปุ่ม "จบเกม&ดูสรุปยอด" และ "ออกจากห้อง" */
+.show-result-btn, /* ถ้ายังใช้อยู่ */
+.post-round-controls button[onClick*="EndGame"] {
+  /* ปุ่ม "จบเกม" ใน post-round */
+  background-color: #d9534f; /* Red */
+  border-color: #d43f3a;
+  color: #fff;
+}
+.btn-inroom-endgame:hover,
 .show-result-btn:hover,
 .post-round-controls button[onClick*="EndGame"]:hover {
   background-color: #c9302c;
 }
 
+.btn-inroom-result {
+  /* ปุ่ม "ดูผลลัพธ์" (ถ้าแยกต่างหาก) */
+  background-color: #8743e0; /* Purple */
+  border-color: #6d2cb3;
+  color: #fff;
+}
+.btn-inroom-result:hover {
+  background-color: #763ccd;
+}
+
+.btn-inroom-waitinggame {
+  /* Paragraph style for waiting message */
+  background-color: #0cd1a0; /* Teal/Greenish */
+  border: 1px solid #0a9a78;
+  color: #fff;
+  padding: 10px 15px; /* ใช้ padding จาก rule ทั่วไปได้ ถ้าต้องการให้เหมือนปุ่ม */
+  text-align: center; /* สำหรับจัด <center> tag ที่อาจจะยังมีอยู่ข้างใน */
+  border-radius: 5px;
+}
+
+.btn-inroom-lockgame {
+  color: white;
+  /* padding, border, font-size, etc. from general button style */
+}
+.btn-inroom-lockgame.locked {
+  background-color: #d9534f; /* สีแดง */
+}
+.btn-inroom-lockgame.unlocked {
+  background-color: #5bc0de; /* สีฟ้า (เพื่อให้สื่อว่าปลดล็อค/ตั้งค่าได้) หรือสีเทา (#d6d6d6) ถ้าต้องการ */
+  color: #fff; /* ถ้าพื้นหลังเป็นสีฟ้า */
+  /* color: #333; */ /* ถ้าพื้นหลังเป็นสีเทา */
+}
+.btn-inroom-lockgame.unlocked:hover {
+  background-color: #31b0d5; /* Darker blue */
+}
+
+/* Exit Button (if styled differently from other red buttons) */
 .exit-button {
-  background-color: #777;
+  background-color: #777; /* Grey */
   border-color: #666;
-  display: block;
-  margin: 30px auto 10px auto;
+  color: #fff;
+  display: block; /* ถ้าต้องการให้เป็น block และจัดกลางด้วย margin auto */
+  margin: 30px auto 10px auto; /* ถ้ายังต้องการให้อยู่ตรงกลางแบบนี้ */
 }
 .exit-button:hover {
   background-color: #5e5e5e;
 }
 
-button:disabled {
-  background-color: #ccc;
-  border-color: #ccc;
-  color: #000000;
-  cursor: not-allowed;
+/* Disabled Button State */
+button:disabled,
+.btn-inroom-startgame:disabled {
+  /* Specific for start game if needed */
+  background-color: #ccc !important; /* ใช้ !important หากมีสีอื่น override */
+  border-color: #bbb !important;
+  color: #666 !important;
+  cursor: not-allowed !important;
 }
+
+/* === Message Styling === */
 .success-message {
+  /* General success message */
   color: #3c763d;
   background-color: #dff0d8;
-  padding: 3px 6px;
-  margin: 2px 0;
-  border-radius: 3px;
+  padding: 10px; /* เพิ่ม padding ให้สม่ำเสมอ */
+  margin: 10px 0;
+  border: 1px solid #d6e9c6;
+  border-radius: 4px;
+  text-align: center;
 }
+
 .error-message {
-  color: #000000;
-  background-color: #fdd;
+  /* General error message */
+  color: #a94442; /* สีแดงเข้มสำหรับตัวอักษร */
+  background-color: #f2dede; /* สีชมพูอ่อนสำหรับพื้นหลัง */
   padding: 10px;
+  border: 1px solid #ebccd1;
   border-radius: 4px;
   margin: 10px 0;
   text-align: center;
 }
+
+/* Message types in messages-log */
 .message-type-info {
   color: #31708f;
   background-color: #d9edf7;
@@ -149,6 +256,7 @@ button:disabled {
   border-radius: 3px;
 }
 .message-type-success {
+  /* Re-styling for log, more subtle */
   color: #3c763d;
   background-color: #dff0d8;
   padding: 3px 6px;
@@ -156,13 +264,13 @@ button:disabled {
   border-radius: 3px;
 }
 .message-type-error {
+  /* Re-styling for log, more subtle */
   color: #a94442;
   background-color: #f2dede;
   padding: 3px 6px;
   margin: 2px 0;
   border-radius: 3px;
 }
-/* เพิ่ม CSS สำหรับ message-type-highlight */
 .message-type-highlight {
   color: #8a6d3b; /* Dark yellow / brown */
   background-color: #fcf8e3; /* Light yellow */
@@ -172,15 +280,7 @@ button:disabled {
   border-radius: 3px;
 }
 
-.App header {
-  border-bottom: 2px solid #337ab7;
-  margin-bottom: 20px;
-  padding-bottom: 10px;
-}
-.App header p {
-  margin: 5px 0;
-}
-
+/* === Section Specific Styling === */
 .dealer-controls,
 .players-list,
 .my-cards-area,
@@ -193,13 +293,16 @@ button:disabled {
   border: 1px solid #eee;
   border-radius: 5px;
 }
+
 .dealer-controls {
   background-color: #f9f9f9;
 }
+
 .my-cards-area {
-  background-color: #e6ffed;
-  border-color: #5cb85c;
+  background-color: #e6ffed; /* พื้นหลังสีเขียวอ่อน */
+  border-color: #b6e7c0; /* เส้นขอบสีเขียวที่เข้ากัน */
 }
+
 .players-list ul {
   list-style-type: none;
   padding: 0;
@@ -213,22 +316,61 @@ button:disabled {
 }
 .current-turn-player {
   font-weight: bold;
-  color: #d9534f;
-  background-color: #fcf8e3;
+  color: #d9534f; /* สีแดงเข้ม */
+  background-color: #fcf8e3; /* สีเหลืองอ่อน */
   padding: 2px 5px;
   border-radius: 3px;
 }
 
+/* Player Actions (ส่วนจั่ว/อยู่) - โค้ดใหม่ที่รวมเข้ามา */
+.player-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 15px;
+  margin-bottom: 15px;
+  /* padding, border, background-color สามารถรับมาจาก .my-cards-area ได้ถ้า .player-actions อยู่ภายใน */
+  /* หรือถ้าเป็น section แยก ก็สามารถเพิ่มสไตล์ที่นี่ได้ */
+}
+
+.player-actions .turn-info {
+  margin-bottom: 10px;
+  font-weight: bold;
+  font-size: 1.1em; /* ทำให้เด่นขึ้นเล็กน้อย */
+  color: #337ab7; /* สีเดียวกับ header */
+}
+
+.action-buttons {
+  /* Container สำหรับปุ่ม จั่ว/อยู่ */
+  display: flex;
+  justify-content: center;
+  gap: 15px; /* เพิ่มระยะห่างระหว่างปุ่มเล็กน้อย */
+}
+/* สไตล์ของปุ่มใน .action-buttons (เช่น จั่ว, อยู่) จะถูกควบคุมโดย:
+   1. .player-actions button (สำหรับ padding, margin พื้นฐาน)
+   2. .player-actions button[onClick*="Stay"] (สำหรับสีปุ่ม "อยู่")
+   3. .player-actions button[onClick*="DrawCard"] (สำหรับสีปุ่ม "จั่ว")
+   ไม่จำเป็นต้องมี rule `.action-buttons button { ... }` แยกต่างหาก
+   เว้นแต่ต้องการ override padding หรือ font-size เฉพาะสำหรับปุ่มกลุ่มนี้
+*/
+
 .turn-indicator {
+  /* สำหรับข้อความ/ปุ่ม "ตาของคุณ", "รอเจ้ามือ", "ออกจากห้อง" */
   font-style: italic;
   color: #555;
   margin-top: 15px;
   padding: 10px;
-  background-color: #f0f8ff;
+  background-color: #f0f8ff; /* AliceBlue */
   border-radius: 4px;
   text-align: center;
 }
+/* ถ้า turn-indicator มีปุ่มอยู่ข้างใน และต้องการให้ปุ่มนั้นมีสไตล์เฉพาะ */
+.turn-indicator button {
+  margin-left: 5px;
+  margin-right: 5px;
+}
 
+/* === Table Styling (Results, Summary) === */
 table {
   width: 100%;
   border-collapse: collapse;
@@ -243,11 +385,11 @@ td {
 }
 th {
   background-color: #f5f5f5;
-  color: #337ab7;
+  color: #337ab7; /* สีเดียวกับ header */
 }
 .my-result-row td {
-  background-color: #dff0d8 !important;
-} /* Highlight player's own result */
+  background-color: #dff0d8 !important; /* Highlight player's own result */
+}
 .disconnected-result-row td {
   background-color: #fff8e1 !important;
   color: #8a6d3b;
@@ -269,152 +411,90 @@ th {
   font-style: italic;
 }
 
+/* === Messages Log === */
 .messages-log h4 {
   margin-top: 0;
+  color: #337ab7; /* สีเดียวกับ header */
 }
 .messages-box {
-  max-height: 150px;
+  max-height: 200px; /* เพิ่มความสูงเล็กน้อย */
   overflow-y: auto;
   border: 1px solid #ddd;
   padding: 10px;
   background-color: #fdfdfd;
-  font-size: 0.85em;
+  font-size: 0.9em; /* ปรับขนาด font เล็กน้อย */
 }
 .messages-box p {
-  margin: 3px 0;
+  margin: 4px 0; /* ปรับระยะห่างระหว่างข้อความ */
+  line-height: 1.4;
 }
 .messages-box p i {
+  /* ถ้ามีการใช้ <i> tag ใน message log */
   color: #999;
   margin-right: 5px;
 }
+
+/* === Utility & Misc === */
 .debug-message.error {
   color: red;
   border: 1px dashed red;
   padding: 5px;
   margin-top: 10px;
 }
-/* ---------- in room ---------- */
-.btn-inroom-setting {
-  background-color: #ff7b00;
-  border-color: #000000;
-  color: #fff;
-}
-.btn-inroom-restart {
-  background-color: #3d8df7;
-  border-color: #000000;
-  color: #fff;
-}
-.btn-inroom-endgame {
-  background-color: #ac2c2c;
-  border-color: #000000;
-  color: #fff;
-}
-.btn-inroom-result {
-  background-color: #8743e0;
-  border-color: #000000;
-  color: #fff;
-}
 
-.btn-inroom-waitinggame {
-  background-color: #0cd1a0;
-  border-color: #000000;
-  color: #fff;
-}
-
-.btn-inroom-startgame:hover {
-  background-color: #4cae4c;
-}
-
-.btn-inroom-startgame:active {
-  background-color: #449d44;
-}
-
-.btn-inroom-startgame:disabled {
-  background-color: #4cae4c;
-  border-color: #000000;
-  cursor: not-allowed;
-}
-.btn-inroom-lockgame {
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 4px;
-  font-size: 16px;
-  cursor: pointer;
-}
-
-.btn-inroom-lockgame.locked {
-  background-color: #d9534f; /* สีแดง */
-}
-.btn-inroom-start1 {
-  background-color: #5cb85c;
-  border-color: #4cae4c;
-  color: #000000;
-}
-.btn-inroom-lockgame.unlocked {
-  background-color: #d6d6d6; /* สีเทา */
-  color: #333;
-}
-
-/* App.css */
-/* … โค้ดข้างบน … */
-
-/* สถานะเชื่อมต่อ */
 .App-lobby .status-connected {
   color: green;
+  font-weight: bold;
+}
+.App-lobby .status-connecting {
+  color: orange; /* เปลี่ยนเป็นสีส้มให้เด่นขึ้น */
+  font-weight: bold;
 }
 
-/* สถานะกำลังเชื่อมต่อ */
-.App-lobby .status-connecting {
-  color: black;
-}
-/* ปุ่มคัดลอกแบบเล็กๆ */
 .btn-copy-room {
-  font-size: 0.75rem; /* ขนาดตัวอักษรเล็กลง */
-  padding: 4px 8px; /* ระยะขอบเล็กลง */
-  border-radius: 4px; /* มุมโค้งนิดหน่อย */
-  background-color: #337ab7; /* สีน้ำเงินตามธีม header */
-  color: #fff; /* ตัวอักษรเป็นสีขาว */
+  font-size: 0.8rem; /* ปรับขนาดให้สอดคล้อง */
+  padding: 5px 10px;
+  border-radius: 4px;
+  background-color: #337ab7;
+  color: #fff;
   border: none;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin-left: 10px; /* เพิ่มระยะห่างจาก input/text ข้างหน้า */
+}
+.btn-copy-room:hover {
+  background-color: #285e8e;
 }
 
-.btn-copy-room:hover {
-  background-color: #285e8e; /* สีเข้มขึ้นเมื่อโฮเวอร์ */
+.text-button,
+.text-button2 {
+  /* รวม class ที่คล้ายกัน */
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none; /* เอา underline เริ่มต้นออก */
 }
-/* App.css */
 .text-button {
-  background: none; /* ยกเลิกพื้นหลัง */
-  border: none; /* ยกเลิกเส้นขอบ */
-  padding: 0; /* ไม่มี padding */
-  font: inherit; /* ให้ใช้ฟอนต์เหมือนข้อความรอบๆ */
-  color: #333; /* สีข้อความตามธีม (ปรับได้) */
-  cursor: pointer; /* ชี้แล้วเป็น pointer */
-}
-.text-button:hover {
-  text-decoration: underline; /* เน้นเมื่อ hover */
+  color: #333; /* สีเข้มกว่าสำหรับ action ทั่วไป */
 }
 .text-button2 {
-  background: none; /* ยกเลิกพื้นหลัง */
-  border: none; /* ยกเลิกเส้นขอบ */
-  padding: 0; /* ไม่มี padding */
-  font: inherit; /* ให้ใช้ฟอนต์เหมือนข้อความรอบๆ */
-  color: #337ab7; /* สีข้อความตามธีม (ปรับได้) */
-  cursor: pointer; /* ชี้แล้วเป็น pointer */
+  color: #337ab7; /* สีน้ำเงินสำหรับ link หรือ action ที่เด่นกว่า */
 }
+.text-button:hover,
 .text-button2:hover {
-  text-decoration: underline; /* เน้นเมื่อ hover */
+  text-decoration: underline;
 }
 
-/* ส่วนแสดงไพ่ของผู้เล่นที่ป๊อก (เพิ่มเติม) */
+/* Revealed Pok Cards */
 .revealed-pok-cards {
   font-size: 0.9em;
   color: navy;
   margin-top: 5px;
-  padding: 5px;
-  background-color: #fffacd; /* LemonChiffon like */
-  border: 1px solid #f0e68c; /* Khaki like */
+  padding: 8px; /* เพิ่ม padding */
+  background-color: #fffacd; /* LemonChiffon */
+  border: 1px solid #f0e68c; /* Khaki */
   border-radius: 4px;
 }
 .revealed-pok-cards strong {
@@ -423,9 +503,10 @@ th {
 .revealed-pok-cards .card-display {
   display: inline-block;
   border: 1px solid #ccc;
-  padding: 2px 5px;
-  margin-right: 3px;
+  padding: 3px 6px; /* ปรับ padding */
+  margin: 2px; /* ปรับ margin */
   background-color: white;
   border-radius: 3px;
   font-weight: bold;
+  box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); /* เพิ่มเงาเล็กน้อย */
 }

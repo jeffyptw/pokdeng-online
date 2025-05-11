@@ -1071,22 +1071,30 @@ function App() {
                 แต้ม: {myHandScore}, ประเภท: {myHandType}
               </h2>
             </p>
+            // ภายใน Component App ของคุณ
             {isMyTurn && myCards.length >= 2 && !hasStayed && (
               <div className="player-actions">
-                <p>ตาของคุณ! เวลา: {countdown} วินาที</p>
-                {myCards.length < 3 && (
-                  <center>
+                {" "}
+                {/* คลาสนี้สำหรับจัดกึ่งกลางเนื้อหาทั้งหมดในส่วนนี้ */}
+                <p className="turn-info">
+                  ตาของคุณ! เวลา: {countdown} วินาที
+                </p>{" "}
+                {/* คลาสสำหรับข้อความตา */}
+                <div className="action-buttons">
+                  {" "}
+                  {/* Div ใหม่สำหรับครอบปุ่ม */}
+                  {myCards.length < 3 && (
                     <button
                       onClick={handleDrawCard}
                       disabled={hasStayed || myCards.length >= 3}
                     >
                       จั่ว
                     </button>
-                  </center>
-                )}
-                <button onClick={handleStay} disabled={hasStayed}>
-                  อยู่
-                </button>
+                  )}
+                  <button onClick={handleStay} disabled={hasStayed}>
+                    อยู่
+                  </button>
+                </div>
               </div>
             )}
           </div>
