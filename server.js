@@ -956,16 +956,19 @@ io.on("connection", (socket) => {
         if (room.deck.length > 0) player.cards.push(room.deck.pop());
       });
 
+      // ใน startGame หลัง deal ไพ่และคำนวณ handDetails
       room.players.forEach((player) => {
         if (!player.disconnectedMidGame) {
           if (player.cards.length === 2) {
             player.handDetails = getHandRank(player.cards);
+            if (player.handDetails) {
+              // เพิ่มการตรวจสอบว่า handDetails ไม่ใช่ null
+              player.hasPok = player.handDetails.isPok; // <--- อัปเดต player.hasPok ตรงนี้
+            }
           } else {
-            console.error(
-              `[Server] Player ${player.name} in room ${room.id} did not receive 2 cards. Cards:`,
-              player.cards
-            );
+            // ... (error handling)
             player.handDetails = getHandRank([]);
+            player.hasPok = false; // <--- หรือกำหนดเป็น false ถ้าไม่มีไพ่
           }
           io.to(player.id).emit("yourCards", player.cards);
         }
@@ -979,16 +982,20 @@ io.on("connection", (socket) => {
       });
 
       const dealer = room.players.find((p) => p.isDealer);
-      if (dealer && dealer.handDetails && dealer.handDetails.rank === 1) {
+      if (dealer && dealer.handDetails && dealer.handDetails.isPok) {
+        // ใช้ .isPok ซึ่งครอบคลุมทั้งป๊อก 8 และ 9
         io.to(roomId).emit("message", {
-          text: `${dealer.role} (${dealer.name}) ได้ ${dealer.handDetails.type}! เปิดไพ่ทันที!`,
+          text: `<span class="math-inline">\{dealer\.role\} \(</span>{dealer.name}) ได้ ${dealer.handDetails.name}! เปิดไพ่ทันที!`, // ชื่อมือจะบอกเองว่าเป็นป๊อกอะไร
         });
         room.players.forEach((p) => {
-          if (!p.isDealer && !p.disconnectedMidGame) p.hasStayed = true;
+          if (!p.isDealer && !p.disconnectedMidGame) {
+            p.hasStayed = true; // ผู้เล่นอื่นทุกคนถือว่า "อยู่" เพราะเจ้ามือป๊อก
+            p.actionTakenThisTurn = true;
+          }
         });
-        io.to(roomId).emit("playersData", getRoomPlayerData(room));
-        calculateAndEmitResults(roomId); // Global function, io is accessible
-        return;
+        io.to(roomId).emit("playersData", getRoomPlayerData(room)); // อัปเดตสถานะผู้เล่น
+        calculateAndEmitResults(roomId); // คำนวณและแสดงผลทันที
+        return; // จบการทำงานของ startGame เพราะเกมตัดสินแล้ว
       }
 
       let playerPokMessageSent = false;
@@ -997,18 +1004,22 @@ io.on("connection", (socket) => {
           !player.isDealer && // เช็คว่าเป็นผู้เล่น (ไม่ใช่เจ้ามือ)
           !player.disconnectedMidGame &&
           player.handDetails &&
-          (player.handDetails.rank === 1 || player.handDetails.rank === 2) // เช็คว่า handDetails คือ ป๊อก (rank === 1และ2)
+          player.handDetails.isPok // ใช้ .isPok จะสั้นและตรงประเด็นกว่า (rank 1 คือ ป๊อก9, rank 2 คือ ป๊อก8)
         ) {
-          player.hasStayed = true; // <<< --- จุดสำคัญ: ตั้งค่าให้ผู้เล่นคนนี้ "อยู่" (Stay) ทันที
-          player.actionTakenThisTurn = true; // ระบุว่าผู้เล่นได้ทำการตัดสินใจในเทิร์นนี้แล้ว (คือการอยู่เพราะป๊อก)
+          player.hasStayed = true; // ถูกต้อง: ตั้งค่าให้ผู้เล่นคนนี้ "อยู่" (Stay) ทันที
+          player.actionTakenThisTurn = true; // ถูกต้อง: ระบุว่าผู้เล่นได้ทำการตัดสินใจในเทิร์นนี้แล้ว
+          // player.hasPok = true; // ถ้าคุณมีการใช้ player.hasPok แยกต่างหาก ก็ตั้งค่าตรงนี้ด้วย (แต่ player.handDetails.isPok ก็พอ)
+
           io.to(roomId).emit("message", {
-            text: `<span class="math-inline">\{player\.role\} \(</span>{player.name}) ได้ ${player.handDetails.type}! (ข้ามตา)`,
+            // ใช้ player.handDetails.name เพื่อแสดงชื่อเต็มของไพ่ป๊อก เช่น "ป๊อก9เด้ง", "ป๊อก8"
+            text: `${player.role || player.name} ได้ ${
+              player.handDetails.name
+            }! (ข้ามตา)`,
           });
           io.to(roomId).emit("player_revealed_pok", {
-            // ส่ง event ให้ client แสดงไพ่ป๊อกของผู้เล่น
             playerId: player.id,
             name: player.name,
-            role: player.role,
+            role: player.role, // ควรดึง role ที่อัปเดตล่าสุดมาแสดง
             cards: player.cards,
             handDetails: player.handDetails,
           });
@@ -1018,14 +1029,15 @@ io.on("connection", (socket) => {
       if (playerPokMessageSent) {
         io.to(roomId).emit("playersData", getRoomPlayerData(room)); // อัปเดตข้อมูลผู้เล่นถ้ามีใครป๊อก
       }
-
-      room.playerActionOrder = activePlayersForDeal
-        .filter((p) => !p.isDealer)
+      // ส่วนที่เหลือ: การกำหนด playerActionOrder และเรียก advanceTurn
+      room.playerActionOrder = activePlayersForDeal // ควรใช้ activePlayersForDeal ที่กรองผู้เล่นที่ยังเชื่อมต่ออยู่
+        .filter((p) => !p.isDealer) // ขาเท่านั้นก่อน
         .map((p) => p.id);
       if (dealerForDeal) {
-        room.playerActionOrder.push(dealerForDeal.id);
+        // dealerForDeal คือ dealer ที่ยัง active
+        room.playerActionOrder.push(dealerForDeal.id); // เจ้ามือเป็นคนสุดท้ายในลำดับการตัดสินใจ (ถ้าต้องจั่ว)
       }
-      room.currentPlayerIndexInOrder = -1;
+      room.currentPlayerIndexInOrder = -1; // Reset index สำหรับการวนรอบใหม่ใน advanceTurn
       advanceTurn(roomId); // Global function, io is accessible
     } catch (error) {
       console.error("[Server] Error starting game:", error);
