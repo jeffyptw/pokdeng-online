@@ -246,16 +246,24 @@ function getHandRank(cardsInput) {
   handDetails.rank = 7;
   if (numCards === 3) {
     const isAllSameSuitForThreeCards = new Set(cardSuits).size === 1;
+    // (ต้องไม่เป็น Straight Flush ซึ่งถูกตรวจสอบและ return ไปแล้ว)
     if (isAllSameSuitForThreeCards) {
-      // Sam Deng (and not SF)
       handDetails.name = `${score} สามเด้ง`;
       handDetails.multiplier = 3;
       handDetails.isDeng = true;
       handDetails.dengType = "สามเด้ง";
     } else {
-      // Normal 3 cards
-      handDetails.name = `${score} แต้ม`;
+      // ไพ่ 3 ใบธรรมดา (ไม่เด้งดอก)
+      if (score === 9) {
+        handDetails.name = "9 หลัง"; // "9 หลัง"
+      } else if (score === 8) {
+        handDetails.name = "8 หลัง"; // "8 หลัง"
+      } else {
+        handDetails.name = `${score} แต้ม`;
+      }
       handDetails.multiplier = 1;
+      handDetails.isDeng = false;
+      handDetails.dengType = null;
     }
   } else if (numCards === 2) {
     // Normal 2 cards (not Pok)
@@ -272,7 +280,7 @@ function getHandRank(cardsInput) {
       handDetails.name = `${score} สองเด้ง`;
       handDetails.multiplier = 2;
       handDetails.isDeng = true;
-      handDetails.dengType = "sสองเด้ง";
+      handDetails.dengType = "สองเด้ง";
     } else {
       // Normal 2 cards
       handDetails.name = `${score} แต้ม`;
