@@ -1057,6 +1057,7 @@ function App() {
                         {getCardDisplay(card)}
                       </span>
                     ))}
+                    <em> {revealedPokPlayers[user.id].handDetails.type}</em>
                   </div>
                 )}
             </li>
