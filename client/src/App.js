@@ -976,7 +976,7 @@ function App() {
           สถานะห้อง:{" "}
           <button
             className="text-button2"
-            onClick={handleCopyRoomId}
+            onClick={handleToggleLockRoom}
             title="คลิกเพื่อคัดลอกรหัสห้อง"
           >
             {roomLocked ? "ล็อค" : "เปิด"}
@@ -1012,7 +1012,6 @@ function App() {
               ตั้งค่า
             </button>
           </div>
-
           <button
             className="btn-inroom-start1"
             onClick={handleStartGame}
