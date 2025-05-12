@@ -807,11 +807,9 @@ function startNewRoundAndDealInitialCards(roomId) {
       });
     }
   }
-
+  console.log(`[Server] User connected: ${socket.id}`);
   // --- Socket.IO Connection Handler ---
   io.on("connection", (socket) => {
-    console.log(`[Server] User connected: ${socket.id}`);
-
     socket.on("createRoom", ({ playerName, initialBalance }) => {
       try {
         if (!playerName || playerName.trim() === "")
