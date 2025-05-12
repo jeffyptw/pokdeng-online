@@ -255,7 +255,7 @@ button:disabled,
 .error-message {
   /* General error message */
   color: #005e0c; /* สีแดงเข้มสำหรับตัวอักษร */
-  background-color: #a4e988; /* สีชมพูอ่อนสำหรับพื้นหลัง */
+  background-color: #d2ebc9; /* สีชมพูอ่อนสำหรับพื้นหลัง */
   padding: 10px;
   border: 1px solid #3c763d;
   border-radius: 4px;

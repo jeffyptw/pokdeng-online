@@ -1146,6 +1146,14 @@ io.on("connection", (socket) => {
       if (!playerName || playerName.trim() === "")
         return socket.emit("errorMessage", { text: "กรุณาใส่ชื่อขาไพ่" });
 
+      // --- เพิ่มโค้ดเช็คชื่อซ้ำ ---
+      if (room.players.find((p) => p.name === playerName.trim())) {
+        return socket.emit("errorMessage", {
+          text: "มีผู้เล่นอื่นใช้ชื่อนี้แล้ว กรุณาเปลี่ยนชื่อ",
+        });
+      }
+      // --- สิ้นสุดโค้ดเช็คชื่อซ้ำ ---
+
       const bal = parseInt(initialBalance);
 
       if (isNaN(bal) || bal < 10 || (bal % 10 !== 0 && bal % 5 !== 0))
@@ -1153,7 +1161,7 @@ io.on("connection", (socket) => {
           text: "เงินเริ่มต้นไม่ถูกต้อง (ขั้นต่ำ 10, ลงท้าย 0 หรือ 5)",
         });
 
-      const player = initializePlayer(socket.id, playerName, bal, false);
+      const player = initializePlayer(socket.id, playerName.trim(), bal, false); // .trim() เพื่อป้องกันชื่อที่มีช่องว่างนำหน้า/ตามหลัง
 
       room.players.push(player);
 
@@ -1161,14 +1169,11 @@ io.on("connection", (socket) => {
 
       socket.emit("joinedRoom", {
         roomId: room.id,
-
         dealerName: room.dealerName,
-
         betAmount: room.betAmount,
       });
 
       const currentPlayersData = getRoomPlayerData(room);
-
       io.to(roomId).emit("playersData", currentPlayersData);
 
       const joinedPlayerDisplay = currentPlayersData.find(
@@ -1176,15 +1181,14 @@ io.on("connection", (socket) => {
       );
 
       io.to(roomId).emit("message", {
-        text: `${playerName} ได้เข้าร่วมห้อง.`,
+        text: `${player.name} ได้เข้าร่วมห้อง.`, // ใช้ player.name ที่ผ่านการ trim แล้ว
       });
 
       console.log(
-        `[Server] ${playerName} (${socket.id}) joined room ${roomId}`
+        `[Server] ${player.name} (${socket.id}) joined room ${roomId}` // ใช้ player.name ที่ผ่านการ trim แล้ว
       );
     } catch (error) {
       console.error("[Server] Error joining room:", error);
-
       socket.emit("errorMessage", { text: "เกิดข้อผิดพลาดในการเข้าร่วมห้อง" });
     }
   });

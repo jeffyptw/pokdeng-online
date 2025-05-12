@@ -1248,7 +1248,7 @@ function App() {
 
             padding: "5px",
 
-            backgroundColor: "#dff0d8",
+            backgroundColor: " #dff0d8",
 
             whiteSpace: "pre-wrap",
           }}
