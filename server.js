@@ -1071,21 +1071,79 @@ io.on("connection", (socket) => {
   socket.on("stay", (roomId) => {
     try {
       const room = rooms[roomId];
-      if (!room || !room.gameStarted) return;
-      if (!player || player.id !== room.currentTurnPlayerId || player.hasStayed)
-        // <<<--- ถ้า hasStayed แล้ว (ซึ่งควรจะเป็น true อยู่แล้ว) การ stay อีกครั้งก็ไม่มีผล
+      if (!room) {
+        console.error(`[Server] Room ${roomId} not found for 'stay' action.`);
+        socket.emit("gameError", { message: `Room ${roomId} not found.` });
         return;
-      clearTurnTimer(room);
+      }
+
+      const actingPlayerId = room.currentTurnPlayerId;
+      if (!actingPlayerId) {
+        console.error(
+          `[Server] No current turn player ID in room ${roomId} for 'stay' action.`
+        );
+        socket.emit("gameError", {
+          message: "No current player identified for this action.",
+        });
+        return;
+      }
+
+      // ตรวจสอบว่าผู้ที่ส่ง action 'stay' คือผู้เล่นที่ถึงตาจริงๆ
+      if (socket.id !== actingPlayerId) {
+        console.warn(
+          `[Server] Socket ${socket.id} attempted 'stay' out of turn in room ${roomId}. Current player is ${actingPlayerId}.`
+        );
+        socket.emit("gameError", { message: "It's not your turn." }); // แจ้งเตือนไปยัง client ที่พยายามทำผิดตา
+        return;
+      }
+
+      // ค้นหา object ของผู้เล่นจาก actingPlayerId
+      const player = room.players.find((p) => p.id === actingPlayerId);
+
+      if (!player) {
+        console.error(
+          `[Server] Player object for ID ${actingPlayerId} not found in room ${roomId} players list.`
+        );
+        socket.emit("gameError", {
+          message: "Error finding player data. Please try again.",
+        });
+        return;
+      }
+
+      // ตรวจสอบว่าผู้เล่นได้ stay ไปแล้วหรือยัง
+      if (player.hasStayed) {
+        console.log(
+          `[Server] Player ${player.name} (${player.id}) in room ${roomId} tried to stay again.`
+        );
+        socket.emit("gameError", { message: "You have already stayed." });
+        return;
+      }
+
+      console.log(
+        `[Server] Player ${player.name} (${player.id}) in room ${roomId} chose to stay.`
+      );
       player.hasStayed = true;
-      player.actionTakenThisTurn = true;
-      io.to(roomId).emit("playersData", getRoomPlayerData(room));
-      io.to(roomId).emit("message", {
-        text: `${player.role} (${player.name}) หมอบ (Stay).`,
-      });
+      player.actionTakenThisTurn = true; // ระบุว่าผู้เล่นได้กระทำการในเทิร์นนี้แล้ว
+
+      // เคลียร์ turn timer ของผู้เล่นนี้ เพราะได้ทำการ action แล้ว
+      if (room.turnTimer) {
+        clearTimeout(room.turnTimer);
+        room.turnTimer = null;
+        // console.log(`[Server] Cleared turn timer for player ${player.name} in room ${roomId}.`);
+      }
+
+      // console.log(`[Server] Before advanceTurn in stay: Room ${roomId}, Player: ${player.name}, HasStayed: ${player.hasStayed}, ActionTaken: ${player.actionTakenThisTurn}`);
       advanceTurn(roomId);
     } catch (error) {
-      console.error("[Server] Error staying:", error);
-      socket.emit("errorMessage", { text: "เกิดข้อผิดพลาดในการหมอบ" });
+      console.error(
+        `[Server] Critical error in 'stay' handler for room ${roomId}, socket ${socket.id}:`,
+        error
+      );
+      // แจ้ง client ว่าเกิด error ฝั่ง server แต่ไม่ต้องส่งรายละเอียด error ทั้งหมดไป
+      socket.emit("gameError", {
+        message:
+          "An internal server error occurred while processing your 'stay' action. Please try again.",
+      });
     }
   });
 
