@@ -883,7 +883,7 @@ function App() {
     <div className="App">
       <header>
         <h1>
-          ห้อง:{" "}
+          ห้อง:&nbsp;
           <button
             className="text-button2"
             onClick={handleCopyRoomId}
@@ -894,42 +894,42 @@ function App() {
         </h1>
         <p>
           คุณ: {name}{" "}
-          {isDealer
-            ? "(เจ้ามือ)"
-            : `(${myCurrentPlayerData?.role || "ผู้เล่น"})`}{" "}
-          | เงิน: {myCurrentPlayerData?.balance?.toLocaleString() || money} |
+          {isDealer ? "(เจ้ามือ)" : `(${myCurrentPlayerData?.role || "ขาไพ่"})`}{" "}
+          | เงินคงเหลือ:{" "}
+          {myCurrentPlayerData?.balance?.toLocaleString() || money} |
+          ห้อง:&nbsp;
+          <button
+            className="text-button"
+            onClick={handleCopyRoomId}
+            title="คลิกเพื่อคัดลอกรหัสห้อง"
+          >
+            {roomId}
+          </button>
+        </p>
+        <p style={{ color: roomLocked ? "red" : "green" }}>
           สถานะห้อง:{" "}
           <button
             className="text-button2"
             onClick={handleToggleLockRoom}
-            disabled={!isDealer || gameStarted}
-            title={
-              isDealer
-                ? "คลิกเพื่อล็อค/ปลดล็อคห้อง"
-                : "เฉพาะเจ้ามือที่ล็อคห้องได้"
-            }
+            title="คลิกเพื่อคัดลอกรหัสห้อง"
           >
             {roomLocked ? "ล็อค" : "เปิด"}
           </button>
         </p>
       </header>
-
-      {errorMsg &&
-        !showSummary && ( // Don't show general errorMsg if summary is shown
-          <p
-            className="error-message"
-            style={{
-              border: "1px solid rgb(9, 112, 0)",
-              padding: "5px",
-              backgroundColor: " #c1ebc6",
-              color: "rgb(6, 75, 14)",
-              whiteSpace: "pre-wrap",
-            }}
-          >
-            {errorMsg}
-          </p>
-        )}
-
+      {errorMsg && (
+        <p
+          className="error-message"
+          style={{
+            border: "1px solid #3c763d",
+            padding: "5px",
+            backgroundColor: "#dff0d8",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {errorMsg}
+        </p>
+      )}
       {!gameStarted && isDealer && (!result || result.length === 0) && (
         <div className="dealer-controls pre-game">
           <h4>ตั้งค่าเกม (เจ้ามือ): ขั้นต่ำ 5 บาท</h4>
@@ -948,7 +948,6 @@ function App() {
           </div>
         </div>
       )}
-
       <div className="players-list">
         <h4>
           ราคาเดิมพันต่อรอบ:{" "}
@@ -956,44 +955,37 @@ function App() {
             ? `${betAmount.toLocaleString()} บาท`
             : "รอเจ้ามือกำหนด"}
         </h4>
-        <h4>ผู้เล่นในห้อง: ({playerData.length} คน)</h4>
+        <h4>ขาไพ่ในห้อง: ({playerData.length} คน)</h4>
         <ul>
           {playerData.map((user) => (
             <li
               key={user.id}
               className={user.id === currentTurnId ? "current-turn-player" : ""}
             >
-              {user.role} ({user.name}) - เงิน: {user.balance?.toLocaleString()}{" "}
+              {user.name} ({user.role}) - เงิน: {user.balance?.toLocaleString()}{" "}
               บาท
               {user.id === currentTurnId &&
                 currentTurnInfo.timeLeft > 0 &&
                 gameStarted &&
-                ` (ตาคุณ... ${currentTurnInfo.timeLeft}วิ)`}
-              {user.hasPok &&
-                gameStarted &&
-                (!result || result.length === 0) &&
-                user.id !== myPlayerId && ( // Show Pok status if game started and no results yet
-                  <span className="pok-indicator"> ✨ป๊อกแล้ว!</span>
-                )}
+                ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}
               {revealedPokPlayers[user.id] &&
                 user.id !== myPlayerId &&
                 gameStarted &&
                 (!result || result.length === 0) && (
                   <div className="revealed-pok-cards">
-                    <strong>ไพ่:</strong>{" "}
+                    <strong>ไพ่ที่ป๊อก:</strong>{" "}
                     {revealedPokPlayers[user.id].cards.map((card, cIdx) => (
                       <span key={cIdx} className="card-display">
                         {getCardDisplay(card)}
                       </span>
                     ))}
-                    <em> ({revealedPokPlayers[user.id].handDetails.name})</em>
+                    <em>{revealedPokPlayers[user.id].handDetails.type}</em>
                   </div>
                 )}
             </li>
           ))}
         </ul>
       </div>
-
       {gameStarted &&
         myCards &&
         myCards.length > 0 &&
@@ -1002,43 +994,61 @@ function App() {
             <h2>
               ไพ่ของคุณ:{" "}
               {myCards.map((card, idx) => (
-                <span key={idx} className="card-display">
-                  {getCardDisplay(card)}{" "}
-                </span>
+                <span key={idx}>{getCardDisplay(card)} </span>
               ))}
             </h2>
             <p>
               <h2>{myHandType}</h2>
             </p>
-            {isMyTurn &&
-              myCards.length >= 2 &&
-              !hasStayed &&
-              !(myCurrentPlayerData && myCurrentPlayerData.hasPok) && (
-                <div className="player-actions">
-                  <p className="turn-info">
-                    ตาของคุณ! เวลา: {countdown} วินาที
-                  </p>
-                  <div className="action-buttons">
-                    {myCards.length < 3 && (
-                      <button onClick={handleDrawCard}>จั่ว</button>
-                    )}
-                    <button onClick={handleStay}>อยู่</button>
-                  </div>
+            {isMyTurn && myCards.length >= 2 && !hasStayed && (
+              <div className="player-actions">
+                {" "}
+                {/* คลาสนี้สำหรับจัดกึ่งกลางเนื้อหาทั้งหมดในส่วนนี้ */}
+                <p className="turn-info">
+                  ตาของคุณ! เวลา: {countdown} วินาที
+                </p>{" "}
+                {/* คลาสสำหรับข้อความตา */}
+                <div className="action-buttons">
+                  {" "}
+                  {/* Div ใหม่สำหรับครอบปุ่ม */}
+                  {myCards.length < 3 && (
+                    <button
+                      onClick={handleDrawCard}
+                      disabled={hasStayed || myCards.length >= 3}
+                    >
+                      จั่ว
+                    </button>
+                  )}
+                  <button onClick={handleStay} disabled={hasStayed}>
+                    อยู่
+                  </button>
                 </div>
-              )}
+              </div>
+            )}
           </div>
         )}
-
-      {!isMyTurn &&
+      {!isDealer &&
         currentTurnId &&
+        currentTurnId !== myPlayerId &&
         gameStarted &&
         (!result || result.length === 0) && (
           <p className="turn-indicator">
+            {" "}
             รอ... ({currentTurnInfo.role}) {currentTurnInfo.name} (
-            {currentTurnInfo.timeLeft} วิ) ⌛
+            {currentTurnInfo.timeLeft} วิ) ⌛{" "}
           </p>
         )}
-
+      {isDealer &&
+        currentTurnId &&
+        currentTurnId !== myPlayerId &&
+        gameStarted &&
+        (!result || result.length === 0) && (
+          <p className="turn-indicator">
+            {" "}
+            ขาไพ่ที่ ({currentTurnInfo.role}) {currentTurnInfo.name}{" "}
+            กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...{" "}
+          </p>
+        )}
       {isDealer &&
         !currentTurnId &&
         gameStarted &&
@@ -1046,7 +1056,8 @@ function App() {
         (!result || result.length === 0) && (
           <div className="turn-indicator">
             <button className="btn-inroom-endgame2" onClick={handleShowResult}>
-              เปิดไพ่ทั้งหมด
+              {" "}
+              เปิดไพ่ดวล{" "}
             </button>
           </div>
         )}
@@ -1055,10 +1066,10 @@ function App() {
         gameStarted &&
         !showResultBtn &&
         (!result || result.length === 0) && (
-          <p className="turn-indicator">รอผู้เล่นทุกคนตัดสินใจ...</p>
+          <p className="turn-indicator">รอขาไพ่ทุกคนตัดสินใจ...</p>
         )}
 
-      {result && result.length > 0 && !showSummary && (
+      {result && result.length > 0 && (
         <div className="results-display">
           <h3>
             ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
@@ -1067,7 +1078,7 @@ function App() {
           <table>
             <thead>
               <tr>
-                <th>ชื่อ (ตำแหน่ง)</th>
+                <th>ชื่อขาไพ่</th>
                 <th>ไพ่</th>
                 <th>แต้ม</th>
                 <th>ประเภท</th>
@@ -1098,8 +1109,8 @@ function App() {
                     {r.outcome === "ชนะ" && "✅ ชนะ"}
                     {r.outcome === "แพ้" && "❌ แพ้"}
                     {r.outcome === "เสมอ" && "🤝 เสมอ"}
-                    {r.outcome === "เจ้ามือ" && "👑 เจ้ามือ"}
-                    {r.outcome === "ขาดการเชื่อมต่อ" && "🔌 ขาดการเชื่อมต่อ"}
+                    {r.outcome === "เจ้ามือ" && "เจ้ามือ"}
+                    {r.outcome === "ขาดการเชื่อมต่อ" && "ขาดการเชื่อมต่อ"}
                     {![
                       "ชนะ",
                       "แพ้",
@@ -1130,29 +1141,30 @@ function App() {
           </table>
         </div>
       )}
-
       {isDealer &&
         (!gameStarted || (result && result.length > 0)) &&
         !showSummary && (
-          <div className="dealer-actions-after-round">
+          <div className="turn-indicator">
             <button
               className="btn-inroom-start1"
               onClick={handleStartGame}
-              disabled={betAmount <= 0 || playerData.length < 2}
+              disabled={betAmount <= 0}
             >
+              {" "}
+              &nbsp;&nbsp; &nbsp;
               {gameRound > 0 || (result && result.length > 0)
                 ? "เริ่มเกมรอบใหม่"
                 : "เริ่มเกม"}
+              &nbsp;&nbsp;&nbsp;{" "}
             </button>
             <button
               className="btn-inroom-restart"
               onClick={handleResetGameHandler}
-              disabled={gameStarted}
             >
-              รีเซ็ตตา & สับไพ่ใหม่
+              รีเซ็ตตา&สับไพ่
             </button>
             <button className="btn-inroom-result" onClick={handleEndGame}>
-              จบเกม & ดูสรุปยอด
+              จบเกม&ดูสรุปยอด
             </button>
           </div>
         )}
@@ -1161,27 +1173,28 @@ function App() {
         result.length > 0 &&
         !gameStarted &&
         !showSummary && (
-          <p className="waiting-message">
+          <p className="btn-inroom-waitinggame">
             <center>--- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---</center>
           </p>
         )}
-
       <div className="turn-indicator">
         <button className="btn-inroom-endgame" onClick={handleExitGame}>
           {" "}
           ออกจากห้อง
         </button>
       </div>
-
       <div className="messages-log">
-        <h4>ประวัติข้อความ/เหตุการณ์:</h4>
+        {" "}
+        <h4>ประวัติข้อความ/เหตุการณ์:</h4>{" "}
         <div className="messages-box" ref={messagesEndRef}>
+          {" "}
           {messages.map((msg, index) => (
             <p key={index} className={`message-type-${msg.type}`}>
-              {msg.text}
+              {" "}
+              {msg.text}{" "}
             </p>
-          ))}
-        </div>
+          ))}{" "}
+        </div>{" "}
       </div>
     </div>
   );
