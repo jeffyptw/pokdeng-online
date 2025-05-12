@@ -254,10 +254,10 @@ button:disabled,
 
 .error-message {
   /* General error message */
-  color: #a94442; /* สีแดงเข้มสำหรับตัวอักษร */
-  background-color: #f2dede; /* สีชมพูอ่อนสำหรับพื้นหลัง */
+  color: #005e0c; /* สีแดงเข้มสำหรับตัวอักษร */
+  background-color: #a4e988; /* สีชมพูอ่อนสำหรับพื้นหลัง */
   padding: 10px;
-  border: 1px solid #ebccd1;
+  border: 1px solid #3c763d;
   border-radius: 4px;
   margin: 10px 0;
   text-align: center;

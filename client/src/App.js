@@ -923,7 +923,7 @@ function App() {
           style={{
             border: "1px solid #3c763d",
             padding: "5px",
-            backgroundColor: "#dff0d8",
+            backgroundColor: " #a4e988",
             whiteSpace: "pre-wrap",
           }}
         >
