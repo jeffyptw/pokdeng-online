@@ -1047,19 +1047,17 @@ function App() {
                 gameStarted &&
                 ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}
               {revealedPokPlayers[user.id] &&
-                user.id !== myPlayerId && // ไม่แสดงไพ่ป๊อกของตัวเองซ้ำในส่วนนี้ (เพราะมี my-cards-area)
+                user.id !== myPlayerId &&
                 gameStarted &&
-                (!result || result.length === 0) && ( // แสดงเฉพาะตอนเกมกำลังเล่นและยังไม่มีผลลัพธ์
+                (!result || result.length === 0) && (
                   <div className="revealed-pok-cards">
-                          <strong>ไพ่ที่ป๊อก:</strong>      {" "}
+                    <strong>ไพ่ที่ป๊อก:</strong>{" "}
                     {revealedPokPlayers[user.id].cards.map((card, cIdx) => (
                       <span key={cIdx} className="card-display">
-                                  {getCardDisplay(card)}       {" "}
+                        {getCardDisplay(card)}
                       </span>
                     ))}
-                         {" "}
                     <em> ({revealedPokPlayers[user.id].handDetails.type})</em>
-                    {/* หรือ .name ถ้า server ส่ง .name ที่ละเอียดกว่า */}   {" "}
                   </div>
                 )}
             </li>
