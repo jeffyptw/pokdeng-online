@@ -1217,9 +1217,11 @@ function App() {
               disabled={betAmount <= 0}
             >
               {" "}
+              &nbsp;&nbsp; &nbsp;
               {gameRound > 0 || (result && result.length > 0)
                 ? "เริ่มเกมรอบใหม่"
-                : "เริ่มเกม"}{" "}
+                : "เริ่มเกม"}
+              &nbsp;&nbsp;&nbsp;{" "}
             </button>
             <button
               className="btn-inroom-restart"
