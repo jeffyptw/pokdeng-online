@@ -1216,9 +1216,10 @@ function App() {
               onClick={handleStartGame}
               disabled={betAmount <= 0}
             >
+              {" "}
               {gameRound > 0 || (result && result.length > 0)
                 ? "เริ่มเกมรอบใหม่"
-                : "เริ่มเกม"}
+                : "เริ่มเกม"}{" "}
             </button>
             <button
               className="btn-inroom-restart"
