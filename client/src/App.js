@@ -973,7 +973,14 @@ function App() {
           </button>
         </p>
         <p style={{ color: roomLocked ? "red" : "green" }}>
-          สถานะห้อง: {roomLocked ? "ล็อค" : "เปิด"}
+          สถานะห้อง:{" "}
+          <button
+            className="text-button2"
+            onClick={handleCopyRoomId}
+            title="คลิกเพื่อคัดลอกรหัสห้อง"
+          >
+            {roomLocked ? "ปลดล็อคห้อง" : "ล็อคห้อง"}
+          </button>
         </p>
       </header>
       {errorMsg && (
