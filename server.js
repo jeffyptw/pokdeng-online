@@ -985,12 +985,9 @@ io.on("connection", (socket) => {
       if (dealer && dealer.handDetails && dealer.handDetails.isPok) {
         // ใช้ .isPok ซึ่งครอบคลุมทั้งป๊อก 8 และ 9
         io.to(roomId).emit("message", {
-          text: (
-            <span class="math-inline">
-              ${dealer.role} {dealer.name} ได้ ${dealer.handDetails.name}!
-              เปิดไพ่ทันที!
-            </span>
-          ), // ชื่อมือจะบอกเองว่าเป็นป๊อกอะไร
+          text: `${player.role || player.name} ได้ ${
+            dealer.handDetails.name
+          }! เปิดไพ่ทันที!`, // ชื่อมือจะบอกเองว่าเป็นป๊อกอะไร
         });
         room.players.forEach((p) => {
           if (!p.isDealer && !p.disconnectedMidGame) {
