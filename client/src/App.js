@@ -756,7 +756,7 @@ function App() {
         if (calculatedScore === 0) {
           type = "บอด"; // หรือ "สามเด้ง (บอด)" ถ้าต้องการคงข้อมูลว่าเป็นสามเด้ง
         } else {
-          type = ` (${calculatedScore} แต้มสามเด้ง`; // หรือ `${calculatedScore} แต้มสามเด้ง` ให้ตรงกับ Server
+          type = `${calculatedScore} แต้มสามเด้ง`; // หรือ `${calculatedScore} แต้มสามเด้ง` ให้ตรงกับ Server
         }
       } else {
         // ไพ่ 3 ใบธรรมดา
