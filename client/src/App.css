@@ -172,14 +172,14 @@ body {
 .show-result-btn, /* ถ้ายังใช้อยู่ */
 .post-round-controls button[onClick*="EndGame"] {
   /* ปุ่ม "จบเกม" ใน post-round */
-  background-color: #d97b4f; /* Red */
-  border-color: #d3622e;
+  background-color: #2797d8;
+  border-color: #1893da;
   color: #fff;
 }
 .btn-inroom-endgame2:hover,
 .show-result-btn:hover,
 .post-round-controls button[onClick*="EndGame"]:hover {
-  background-color: #d84c0b;
+  background-color: #0083cf;
 }
 
 .btn-inroom-result {
