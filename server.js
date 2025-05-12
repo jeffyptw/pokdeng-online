@@ -997,7 +997,7 @@ io.on("connection", (socket) => {
           !player.isDealer && // เช็คว่าเป็นผู้เล่น (ไม่ใช่เจ้ามือ)
           !player.disconnectedMidGame &&
           player.handDetails &&
-          player.handDetails.rank === 1 // เช็คว่า handDetails คือ ป๊อก (rank === 1)
+          (player.handDetails.rank === 1 || player.handDetails.rank === 2) // เช็คว่า handDetails คือ ป๊อก (rank === 1และ2)
         ) {
           player.hasStayed = true; // <<< --- จุดสำคัญ: ตั้งค่าให้ผู้เล่นคนนี้ "อยู่" (Stay) ทันที
           player.actionTakenThisTurn = true; // ระบุว่าผู้เล่นได้ทำการตัดสินใจในเทิร์นนี้แล้ว (คือการอยู่เพราะป๊อก)
