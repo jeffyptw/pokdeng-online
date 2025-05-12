@@ -741,20 +741,19 @@ function advanceTurn(roomId) {
     });
 
     // ตรวจสอบว่าเจ้ามือได้เล่นหรือยัง (ถ้าเจ้ามือไม่ใช่คนสุดท้ายใน playerActionOrder และยังไม่ hasStayed/hasPok)
-    const dealer = room.players.find(
-      (p) => p.isDealer && !p.disconnectedMidGame
-    );
-    if (dealer && !dealer.hasStayed && !dealer.hasPok) {
-      // ถ้าเจ้ามือยังไม่ได้เล่น ให้เป็นตาเจ้ามือ
-      room.currentTurnPlayerId = dealer.id;
-      // ถ้าเจ้ามือเป็นคนเดียวที่เหลือใน playerActionOrder และยังไม่เล่น จะเข้า loop นี้
-      // แต่ถ้าเจ้ามือถูกรวมใน playerActionOrder แล้ว จะถูกจัดการใน loop ด้านบน
-      // ส่วนนี้อาจจะต้องปรับให้เข้ากับว่า playerActionOrder รวมเจ้ามือหรือไม่ และเจ้ามือเล่นเมื่อไหร่
-      // ถ้า playerActionOrder รวมเจ้ามือ และวนมาถึงเจ้ามือแล้วเจ้ามือยังไม่ HasStayed/HasPok/Disconnected -> จะเข้า startPlayerTurn ด้านบน
-      // ถ้าเจ้ามือไม่ได้อยู่ใน playerActionOrder หรือเป็นกรณีพิเศษ:
-      // startPlayerTurn(roomId); // ให้ตาเจ้ามือเล่น
-      // return;
-      // --> ลอจิกนี้ซับซ้อน ดูที่การตั้ง playerActionOrder อีกที
+    const dealer = room.players.find((p) => p.isDealer);
+    if (dealer && dealer.handDetails && dealer.handDetails.rank === 1) {
+      // ตรวจสอบว่าเจ้ามือได้ไพ่ป๊อก (rank === 1)
+      io.to(roomId).emit("message", {
+        text: `${dealer.role} (${dealer.name}) ได้ ${dealer.handDetails.type}! เปิดไพ่ทันที!`, // แจ้งเตือนว่าเจ้ามือป๊อก
+      });
+      room.players.forEach((p) => {
+        // ทำให้ผู้เล่นคนอื่น (ที่ไม่ใช่เจ้ามือ) ทุกคนอยู่ในสถานะ "หมอบ" (hasStayed = true)
+        if (!p.isDealer && !p.disconnectedMidGame) p.hasStayed = true;
+      });
+      io.to(roomId).emit("playersData", getRoomPlayerData(room)); // อัปเดตข้อมูลผู้เล่น
+      calculateAndEmitResults(roomId); // เรียกฟังก์ชันคำนวณและแสดงผลลัพธ์ทันที (นี่คือการ "เปิดไพ่")
+      return; // จบการทำงานของ startGame ทันทีเพราะเกมตัดสินแล้ว
     }
 
     // ถ้าทุกคนเล่นครบแล้วจริงๆ (รวมเจ้ามือถ้าเจ้ามือต้องจั่ว/อยู่)
