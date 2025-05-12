@@ -817,22 +817,9 @@ function App() {
   if (!inRoom) {
     return (
       <div className="App-lobby">
-        <h2>ป๊อกเด้ง ออนไลน์ (V1.1)</h2>
-        {errorMsg && (
-          <p
-            className="error-message"
-            style={{
-              color: "red",
-              border: "1px solid #cc0000",
-              padding: "10px",
-              backgroundColor: "#ffeeee",
-              whiteSpace: "pre-wrap",
-              margin: "10px 0",
-            }}
-          >
-            {errorMsg}
-          </p>
-        )}
+        <h2>ป๊อกเด้ง ออนไลน์ (V1.1 Beta)</h2>
+        <br></br>
+        <br></br>
         ชื่อคุณ:{" "}
         <input
           type="text"
@@ -879,7 +866,7 @@ function App() {
           เข้าร่วมห้อง
         </button>
         <div className="messages-log-lobby">
-          <h4>ประวัติการเชื่อมต่อ:</h4>
+          <h4>Log เหตุการณ์:</h4>
           <div className="messages-box" ref={messagesEndRef}>
             {messages.map((msg, index) => (
               <p key={index} className={`message-type-${msg.type}`}>
@@ -932,10 +919,10 @@ function App() {
           <p
             className="error-message"
             style={{
-              border: "1px solid #cc0000",
+              border: "1px solid rgb(9, 112, 0)",
               padding: "5px",
-              backgroundColor: "#ffeeee",
-              color: "red",
+              backgroundColor: " #c1ebc6",
+              color: "rgb(6, 75, 14)",
               whiteSpace: "pre-wrap",
             }}
           >
@@ -1179,8 +1166,9 @@ function App() {
           </p>
         )}
 
-      <div className="global-actions">
-        <button className="btn-exit-room" onClick={handleExitGame}>
+      <div className="turn-indicator">
+        <button className="btn-inroom-endgame" onClick={handleExitGame}>
+          {" "}
           ออกจากห้อง
         </button>
       </div>
