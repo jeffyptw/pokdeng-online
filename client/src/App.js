@@ -263,10 +263,10 @@ function App() {
       console.log("[Client] Player revealed Pok:", data);
       if (data && data.playerId && data.cards && data.handDetails) {
         addMessage(
-          `${data.role || "ขาไพ่"} (${data.name}) ป๊อก! แสดงไพ่: ${data.cards
-            .map(getCardDisplay)
-            .join(" ")} (${data.handDetails.type})`,
-          "highlight" // ใช้ type ใหม่ หรือ 'info'
+          `${data.role || "ขาไพ่"} (${data.name}) ${
+            data.handDetails.name || "ป๊อก!"
+          } แสดงไพ่: ${data.cards.map(getCardDisplay).join(" ")}`,
+          "highlight"
         );
         setRevealedPokPlayers((prev) => ({
           ...prev,
