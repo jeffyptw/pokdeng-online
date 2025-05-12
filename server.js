@@ -993,17 +993,18 @@ io.on("connection", (socket) => {
       let playerPokMessageSent = false;
       room.players.forEach((player) => {
         if (
-          !player.isDealer &&
+          !player.isDealer && // เช็คว่าเป็นผู้เล่น (ไม่ใช่เจ้ามือ)
           !player.disconnectedMidGame &&
           player.handDetails &&
-          player.handDetails.rank === 1
+          player.handDetails.rank === 1 // เช็คว่า handDetails คือ ป๊อก (rank === 1)
         ) {
-          player.hasStayed = true;
-          player.actionTakenThisTurn = true;
+          player.hasStayed = true; // <<< --- จุดสำคัญ: ตั้งค่าให้ผู้เล่นคนนี้ "อยู่" (Stay) ทันที
+          player.actionTakenThisTurn = true; // ระบุว่าผู้เล่นได้ทำการตัดสินใจในเทิร์นนี้แล้ว (คือการอยู่เพราะป๊อก)
           io.to(roomId).emit("message", {
-            text: `${player.role} (${player.name}) ได้ ${player.handDetails.type}! (ข้ามตา)`,
+            text: `<span class="math-inline">\{player\.role\} \(</span>{player.name}) ได้ ${player.handDetails.type}! (ข้ามตา)`,
           });
           io.to(roomId).emit("player_revealed_pok", {
+            // ส่ง event ให้ client แสดงไพ่ป๊อกของผู้เล่น
             playerId: player.id,
             name: player.name,
             role: player.role,
@@ -1014,7 +1015,7 @@ io.on("connection", (socket) => {
         }
       });
       if (playerPokMessageSent) {
-        io.to(roomId).emit("playersData", getRoomPlayerData(room));
+        io.to(roomId).emit("playersData", getRoomPlayerData(room)); // อัปเดตข้อมูลผู้เล่นถ้ามีใครป๊อก
       }
 
       room.playerActionOrder = activePlayersForDeal
