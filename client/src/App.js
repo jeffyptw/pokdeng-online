@@ -11,7 +11,6 @@ let socketClient = null;
 const DEFAULT_TURN_DURATION = 30;
 
 function App() {
-  const [isGameStarted, setIsGameStarted] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [myPlayerId, setMyPlayerId] = useState(null);
   const [name, setName] = useState("");
@@ -782,7 +781,7 @@ function App() {
   };
 
   const myCurrentPlayerData = playerData.find((p) => p.id === myPlayerId);
-  let myHandScore = "-";
+
   let myHandType = "ยังไม่มีไพ่";
   if (
     myCards &&
@@ -791,7 +790,7 @@ function App() {
     (!result || result.length === 0)
   ) {
     const rankData = calculateRankForDisplay(myCards);
-    myHandScore = rankData.score;
+
     myHandType = rankData.type;
   }
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
