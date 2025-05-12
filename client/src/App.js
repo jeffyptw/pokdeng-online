@@ -1012,15 +1012,6 @@ function App() {
               ตั้งค่า
             </button>
           </div>
-          <button
-            className="btn-inroom-start1"
-            onClick={handleStartGame}
-            disabled={betAmount <= 0}
-          >
-            {gameRound > 0 || (result && result.length > 0)
-              ? "เริ่มเกมรอบใหม่"
-              : "เริ่มเกม"}
-          </button>
         </div>
       )}
       <div className="players-list">
@@ -1220,6 +1211,15 @@ function App() {
         (!gameStarted || (result && result.length > 0)) &&
         !showSummary && (
           <div className="turn-indicator">
+            <button
+              className="btn-inroom-start1"
+              onClick={handleStartGame}
+              disabled={betAmount <= 0}
+            >
+              {gameRound > 0 || (result && result.length > 0)
+                ? "เริ่มเกมรอบใหม่"
+                : "เริ่มเกม"}
+            </button>
             <button
               className="btn-inroom-restart"
               onClick={handleResetGameHandler}
