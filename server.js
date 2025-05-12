@@ -739,7 +739,7 @@ function advanceTurn(roomId) {
 
     // ตรวจสอบว่าเจ้ามือได้เล่นหรือยัง (ถ้าเจ้ามือไม่ใช่คนสุดท้ายใน playerActionOrder และยังไม่ hasStayed/hasPok)
     const dealer = room.players.find((p) => p.isDealer);
-    if (dealer && dealer.handDetails && dealer.handDetails.rank === 1) {
+    if ((dealer && dealer.handDetails && dealer.handDetails.rank === 1, 2)) {
       // ตรวจสอบว่าเจ้ามือได้ไพ่ป๊อก (rank === 1)
       io.to(roomId).emit("message", {
         text: `${dealer.role} (${dealer.name}) ได้ ${dealer.handDetails.type}! เปิดไพ่ทันที!`, // แจ้งเตือนว่าเจ้ามือป๊อก
