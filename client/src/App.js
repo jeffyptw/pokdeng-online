@@ -123,11 +123,39 @@ function App() {
     function onConnect() {
       console.log("[Client] Connected to server with ID:", socketClient.id);
 
-      setMyPlayerId(socketClient.id);
+      // setMyPlayerId(socketClient.id); // <<-- จะยังไม่ตั้ง myPlayerId ทันทีตรงนี้
+      // เพราะถ้าเป็นการ reconnect, server จะส่ง myPlayerId (ใหม่) กลับมาอีกที
+      // หรือถ้าเป็นการ join ใหม่, myPlayerId จะถูกตั้งตอน roomCreated/joinedRoom/reconnected
 
       setIsConnected(true);
+      // addMessage("เชื่อมต่อกับ Server สำเร็จแล้ว!", "success"); // <<-- อาจจะย้าย message นี้ไปแสดงหลัง reconnect สำเร็จ หรือถ้าไม่ใช่การ reconnect
 
-      addMessage("เชื่อมต่อกับ Server สำเร็จแล้ว!", "success");
+      // --- เพิ่มตรงนี้ ---
+      const storedRoomId = localStorage.getItem("pokDengRoomId");
+      const storedOldPlayerId = localStorage.getItem("pokDengPlayerId"); // นี่คือ socket.id เก่า
+
+      if (storedRoomId && storedOldPlayerId) {
+        console.log(
+          `[Client] Found stored session: roomId=${storedRoomId}, oldPlayerId=${storedOldPlayerId}. Attempting to reconnect...`
+        );
+        addMessage("กำลังพยายามเชื่อมต่อกลับเข้าห้อง...", "info");
+
+        socketClient.emit("attemptReconnect", {
+          roomId: storedRoomId,
+          playerId: storedOldPlayerId, // นี่คือ ID เก่าที่ Server จะใช้ค้นหาผู้เล่น
+          oldSocketId: storedOldPlayerId, // ส่ง oldSocketId ไปด้วย (เหมือนกับ playerId ในกรณีนี้)
+          // Server จะใช้ oldSocketId ในการ map ไปหาผู้เล่นเดิม
+          // และจะอัปเดต socket id ของผู้เล่นนั้นเป็น socketClient.id (ใหม่) นี้
+        });
+        // ไม่ต้อง setMyPlayerId หรือ setInRoom ทันที รอการตอบกลับจาก server (reconnected หรือ reconnectFailed)
+      } else {
+        // ไม่มีข้อมูล session เก่า หรือผู้ใช้เคลียร์ localStorage เอง
+        // นี่คือการเชื่อมต่อใหม่ปกติ (ไม่ใช่การ reconnect)
+        setMyPlayerId(socketClient.id); // ตั้ง myPlayerId สำหรับการ join ใหม่
+        addMessage("เชื่อมต่อกับ Server สำเร็จแล้ว! (New session)", "success");
+        console.log("[Client] No stored session found. New connection.");
+        // ณ จุดนี้ ผู้ใช้จะต้อง create หรือ join room ตามปกติ
+      }
     }
 
     function onDisconnect(reason) {
@@ -173,7 +201,7 @@ function App() {
         setInputBetAmount(data.betAmount.toString());
       }
       if (socketClient && socketClient.id) {
-        // ตรวจสอบให้แน่ใจว่า socketClient.id มีค่า
+        setMyPlayerId(socketClient.id);
         localStorage.setItem("pokDengRoomId", data.roomId);
         localStorage.setItem("pokDengPlayerId", socketClient.id); // ใช้ socketClient.id ปัจจุบัน
         console.log(
@@ -203,7 +231,7 @@ function App() {
 
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
       if (socketClient && socketClient.id) {
-        // ตรวจสอบให้แน่ใจว่า socketClient.id มีค่า
+        setMyPlayerId(socketClient.id);
         localStorage.setItem("pokDengRoomId", data.roomId);
         localStorage.setItem("pokDengPlayerId", socketClient.id); // ใช้ socketClient.id ปัจจุบัน
         console.log(
@@ -216,18 +244,89 @@ function App() {
       }
     });
 
+    const handleReconnected = (data) => {
+      console.log("[Client] Reconnected successfully!", data);
+      addMessage("เชื่อมต่อกลับเข้าห้องสำเร็จ!", "success");
+
+      setRoomId(data.roomId);
+      setMyPlayerId(data.myPlayerId); // Server จะส่ง myPlayerId ใหม่มาให้ (ซึ่งก็คือ socketClient.id ปัจจุบัน)
+      setIsDealer(data.isDealer || false);
+      setInRoom(true);
+      setGameStarted(data.gameStarted || false);
+      setBetAmount(data.betAmount || 0);
+      // setInputBetAmount ถ้าจำเป็น (เช่น ถ้าเป็นเจ้ามือและ betAmount เปลี่ยน)
+      if (data.isDealer && typeof data.betAmount === "number") {
+        setInputBetAmount(data.betAmount.toString());
+      }
+
+      // อัปเดต localStorage ด้วย myPlayerId ใหม่ (ซึ่งก็คือ socketClient.id ปัจจุบัน)
+      // roomId ควรจะยังเป็นค่าเดิม
+      if (socketClient && socketClient.id) {
+        localStorage.setItem("pokDengRoomId", data.roomId);
+        localStorage.setItem("pokDengPlayerId", data.myPlayerId); // ใช้ myPlayerId ที่ server ส่งมา (ซึ่งควรจะตรงกับ socketClient.id)
+        console.log(
+          `[Client] Updated localStorage after reconnect: roomId=${data.roomId}, playerId=${data.myPlayerId}`
+        );
+      }
+
+      // Client ควรจะได้รับ 'playersData' และ 'yourCards' (ถ้าเกมกำลังเล่น) จาก server โดยอัตโนมัติ
+      // หลังจาก reconnected ดังนั้นอาจจะไม่ต้อง request ข้อมูลเหล่านั้นอีก
+      // แต่ถ้า server ไม่ได้ส่งมาให้ ก็อาจจะต้องมี logic ขอข้อมูลใหม่
+      // จากโค้ด server.js ที่เราทำ:
+      // - 'playersData' จะถูกส่งมา
+      // - 'yourCards' จะถูกส่งมาถ้าเกมเริ่มแล้วและผู้เล่นมีไพ่
+
+      // รีเซ็ต UI บางส่วนที่อาจจะไม่ sync หลังจากหลุดไป
+      // เช่น currentTurnId, countdown (server ควรส่ง currentTurn มาใหม่ถ้าเป็นตาเรา)
+      // setHasStayed(false); // server ควรส่งสถานะ hasStayed ที่ถูกต้องมากับ playersData หรือข้อมูลผู้เล่น
+    };
+
+    const handleReconnectFailed = (data) => {
+      console.warn("[Client] Reconnect failed:", data.message);
+      addMessage(`ไม่สามารถเชื่อมต่อกลับเข้าห้องได้: ${data.message}`, "error");
+
+      // ล้างข้อมูล session เก่าออกจาก localStorage เพื่อไม่ให้พยายาม reconnect อีก
+      localStorage.removeItem("pokDengRoomId");
+      localStorage.removeItem("pokDengPlayerId");
+      console.log(
+        "[Client] Cleared stored session from localStorage due to reconnect failure."
+      );
+
+      // รีเซ็ต state ที่เกี่ยวกับห้องและเกม (ถ้าต้องการให้ผู้ใช้เริ่มใหม่จาก lobby)
+      setInRoom(false);
+      setRoomId("");
+      // setMyPlayerId(null); // อาจจะไม่ต้อง null ทันที เพราะ onConnect อาจจะตั้งให้ใหม่ถ้าเป็นการเชื่อมต่อสดๆ
+      setIsDealer(false);
+      setGameStarted(false);
+      setMyCards([]);
+      // ... รีเซ็ต state อื่นๆ ตามความเหมาะสม ...
+
+      // แสดงข้อความ "เชื่อมต่อกับ Server สำเร็จแล้ว! (New session)" ถ้ายัง isConnected
+      // เพื่อให้ผู้ใช้รู้ว่ายังเชื่อมต่อกับ server ได้ แต่ต้อง join ห้องใหม่
+      if (isConnected && socketClient && socketClient.id) {
+        setMyPlayerId(socketClient.id); // ตั้ง myPlayerId สำหรับการ join ใหม่
+        addMessage(
+          "คุณไม่ได้อยู่ในห้องอีกต่อไป กรุณาสร้างหรือเข้าร่วมห้องใหม่",
+          "info"
+        );
+      }
+    };
+
+    socketClient.on("reconnected", handleReconnected);
+    socketClient.on("reconnectFailed", handleReconnectFailed);
+    // --- สิ้นสุดการเพิ่ม Event Listeners ใหม่ ---
+
     socketClient.on("playersData", (activePlayers) => {
       console.log("[Client] Received 'playersData':", activePlayers);
-
       setPlayerData(activePlayers);
-
-      const me = activePlayers.find((p) => p.id === myPlayerId);
-
-      if (me) {
-        setIsDealer(me.isDealer);
-
-        if (typeof me.hasStayed === "boolean") {
-          setHasStayed(me.hasStayed);
+      // ตรวจสอบว่า myPlayerId มีค่าหรือไม่ก่อนใช้ find
+      if (myPlayerId) {
+        const me = activePlayers.find((p) => p.id === myPlayerId);
+        if (me) {
+          setIsDealer(me.isDealer);
+          if (typeof me.hasStayed === "boolean") {
+            setHasStayed(me.hasStayed);
+          }
         }
       }
     });
@@ -499,47 +598,34 @@ function App() {
     return () => {
       if (socketClient) {
         socketClient.off("connect", onConnect);
-
         socketClient.off("disconnect", onDisconnect);
-
         socketClient.off("connect_error", onConnectError);
-
         socketClient.off("roomCreated");
-
         socketClient.off("joinedRoom");
 
+        // --- เพิ่มการ cleanup สำหรับ listener ใหม่ ---
+        socketClient.off("reconnected", handleReconnected);
+        socketClient.off("reconnectFailed", handleReconnectFailed);
+        // --- สิ้นสุดการ cleanup ---
+
         socketClient.off("playersData");
-
         socketClient.off("yourCards");
-
         socketClient.off("gameStarted");
-
         socketClient.off("currentTurn");
-
         socketClient.off("turnTimerUpdate");
-
         socketClient.off("result");
-
         socketClient.off("gameEnded");
-
         socketClient.off("resetGame");
-
         socketClient.off("enableShowResult");
-
         socketClient.off("errorMessage");
-
         socketClient.off("message");
-
         socketClient.off("lockRoom");
-
         socketClient.off("playerLeft");
-
         socketClient.off("roomSettings");
-
         socketClient.off("player_revealed_pok");
       }
     };
-  }, [myPlayerId, name, roomId, currentTurnId, playerData]); // playerData ถูกเพิ่มแล้ว // Countdown timer effect
+  }, [myPlayerId, name, roomId, currentTurnId, playerData, isConnected]);
 
   useEffect(() => {
     // Countdown timer effect
