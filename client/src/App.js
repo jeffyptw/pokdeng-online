@@ -1237,7 +1237,7 @@ function App() {
           </p>
         )}{" "}
         <button className="btn-inroom-endgame" onClick={handleExitGame}>
-          ออกจากเกม (เริ่มใหม่){" "}
+          ออกจากเกม{" "}
         </button>{" "}
       </div>
     );

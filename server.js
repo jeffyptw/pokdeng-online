@@ -35,7 +35,7 @@ const VALUES = [
 ];
 const DEFAULT_TURN_DURATION = 30;
 const DEFAULT_BET_AMOUNT = 5;
-const RECONNECT_GRACE_PERIOD_MS = 30000; // 30 วินาที (ปรับค่าได้ตามต้องการ)
+const RECONNECT_GRACE_PERIOD_MS = 60000; // 30 วินาที (ปรับค่าได้ตามต้องการ)
 const rooms = {}; // Global rooms object
 
 // --- Game Logic Functions ---
@@ -1509,7 +1509,7 @@ io.on("connection", (socket) => {
           `[Server] Player ${playerInRoom.name} (${
             socket.id
           }) from room ${roomId} disconnected. Starting reconnect timer for ${
-            RECONNECT_GRACE_PERIOD_MS / 1000
+            RECONNECT_GRACE_PERIOD_MS * 1000
           }s.`
         );
 
