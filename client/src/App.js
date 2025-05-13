@@ -15,8 +15,6 @@ let socketClient = null;
 const DEFAULT_TURN_DURATION = 30;
 
 function App() {
-  const [isReconnecting, setIsReconnecting] = useState(false);
-
   const [isConnected, setIsConnected] = useState(false);
 
   const [myPlayerId, setMyPlayerId] = useState(null);
@@ -174,6 +172,18 @@ function App() {
 
         setInputBetAmount(data.betAmount.toString());
       }
+      if (socketClient && socketClient.id) {
+        // ตรวจสอบให้แน่ใจว่า socketClient.id มีค่า
+        localStorage.setItem("pokDengRoomId", data.roomId);
+        localStorage.setItem("pokDengPlayerId", socketClient.id); // ใช้ socketClient.id ปัจจุบัน
+        console.log(
+          `[Client] Saved to localStorage: roomId=${data.roomId}, playerId=${socketClient.id}`
+        );
+      } else {
+        console.warn(
+          "[Client] Could not save to localStorage: socketClient.id is not available in roomCreated."
+        );
+      }
     });
 
     socketClient.on("joinedRoom", (data) => {
@@ -192,6 +202,18 @@ function App() {
       );
 
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
+      if (socketClient && socketClient.id) {
+        // ตรวจสอบให้แน่ใจว่า socketClient.id มีค่า
+        localStorage.setItem("pokDengRoomId", data.roomId);
+        localStorage.setItem("pokDengPlayerId", socketClient.id); // ใช้ socketClient.id ปัจจุบัน
+        console.log(
+          `[Client] Saved to localStorage: roomId=${data.roomId}, playerId=${socketClient.id}`
+        );
+      } else {
+        console.warn(
+          "[Client] Could not save to localStorage: socketClient.id is not available in joinedRoom."
+        );
+      }
     });
 
     socketClient.on("playersData", (activePlayers) => {
@@ -515,41 +537,6 @@ function App() {
         socketClient.off("roomSettings");
 
         socketClient.off("player_revealed_pok");
-
-        socketClient.on("reconnect_attempt", (attemptNumber) => {
-          console.log(`Attempting to reconnect: ${attemptNumber}`);
-          setIsReconnecting(true);
-          addMessage(
-            "กำลังพยายามเชื่อมต่อกับเซิร์ฟเวอร์อีกครั้ง...",
-            "warning"
-          ); // เพิ่มข้อความแจ้งเตือน
-        });
-
-        socketClient.on("reconnect", (attemptNumber) => {
-          console.log(
-            `Successfully reconnected after ${attemptNumber} attempts`
-          );
-          setIsReconnecting(false);
-          addMessage("เชื่อมต่อกับเซิร์ฟเวอร์สำเร็จแล้ว!", "success");
-          // อาจจะต้องมีการขอข้อมูลเกมล่าสุดอีกครั้ง ถ้า Server ไม่ได้ส่งมาให้ทันทีหลัง reconnect
-          // เช่น ถ้าอยู่ในห้องแล้ว ก็อาจจะ emit event ขอข้อมูลห้องอีกครั้ง
-          // หรือส่วนใหญ่ Server ที่เราแก้ไขไป จะส่ง playersData มาให้อยู่แล้วเมื่อ re-join สำเร็จ
-        });
-
-        socketClient.on("reconnect_error", (error) => {
-          console.error("Reconnection failed:", error);
-          setIsReconnecting(false); // หรืออาจจะยัง true แล้วมี UI บอกว่าเชื่อมต่อไม่ได้
-          addMessage(
-            "ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ได้ โปรดตรวจสอบอินเทอร์เน็ต",
-            "error"
-          );
-        });
-
-        socketClient.on("reconnect_failed", () => {
-          console.error("Failed to reconnect after multiple attempts");
-          setIsReconnecting(false);
-          addMessage("ล้มเหลวในการเชื่อมต่อกับเซิร์ฟเวอร์หลายครั้ง", "error");
-        });
       }
     };
   }, [myPlayerId, name, roomId, currentTurnId, playerData]); // playerData ถูกเพิ่มแล้ว // Countdown timer effect
@@ -1275,21 +1262,6 @@ function App() {
           >
             {roomLocked ? "ล็อค" : "เปิด"}{" "}
           </button>{" "}
-        </p>{" "}
-        <p style={{ color: roomLocked ? "red" : "green" }}>
-          สถานะผู้เล่น:{" "}
-          {isReconnecting && (
-            <div
-              style={{
-                textAlign: "center",
-                padding: "10px",
-                backgroundColor: "orange",
-                color: "white",
-              }}
-            >
-              กำลังพยายามเชื่อมต่อกับเซิร์ฟเวอร์อีกครั้ง...
-            </div>
-          )}
         </p>{" "}
       </header>{" "}
       {errorMsg && (
