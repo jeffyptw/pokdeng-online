@@ -1509,7 +1509,7 @@ io.on("connection", (socket) => {
           `[Server] Player ${playerInRoom.name} (${
             socket.id
           }) from room ${roomId} disconnected. Starting reconnect timer for ${
-            RECONNECT_GRACE_PERIOD_MS * 1000
+            RECONNECT_GRACE_PERIOD_MS / 1000
           }s.`
         );
 
