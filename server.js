@@ -468,20 +468,20 @@ function initializePlayer(id, name, initialBalance, isDealer = false) {
 function getRoomPlayerData(room) {
   if (!room || !room.players) return [];
 
-  let playerNumber = 1; // Display all players, including disconnected ones, so client knows who was in the room
+  let playerNumber = 1;
 
-  return room.players.map((p) => {
+  const activePlayersForRoleAssignment = room.players.filter(
+    (p) => !p.disconnectedMidGame
+  );
+
+  return activePlayersForRoleAssignment.map((p) => {
     let displayRole = p.baseRole;
 
-    if (!p.isDealer && !p.disconnectedMidGame) {
-      // Assign leg numbers only to active non-dealers
-
+    if (!p.isDealer) {
       displayRole = `ขาที่ ${playerNumber}`;
 
       playerNumber++;
-    } else if (!p.isDealer && p.disconnectedMidGame) {
-      displayRole = `(หลุด) ขา`;
-    }
+    } // p.role = displayRole; // This mutation might be problematic if players array is shared. Let's return new object.
 
     return {
       id: p.id,
@@ -490,15 +490,11 @@ function getRoomPlayerData(room) {
 
       balance: p.balance,
 
-      role: displayRole,
+      role: displayRole, // ใช้ displayRole ที่คำนวณใหม่
 
       isDealer: p.isDealer,
 
-      hasStayed: p.hasStayed,
-
-      disconnectedMidGame: p.disconnectedMidGame, // Send this status to client
-
-      hasPlayedThisRound: p.hasPlayedThisRound, // Send this status // Client might not need to see gameOutcomeThisRound for OTHERS until roundResults
+      hasStayed: p.hasStayed, // ส่ง hasPok ไปให้ client ด้วย ถ้าต้องการให้ client รู้ // hasPok: p.hasPok
     };
   });
 }
@@ -1132,69 +1128,64 @@ io.on("connection", (socket) => {
   socket.on("joinRoom", ({ roomId, playerName, initialBalance }) => {
     try {
       const room = rooms[roomId];
+
       if (!room) return socket.emit("errorMessage", { text: "ไม่พบห้อง" });
+
       if (room.isLocked && !room.gameStarted)
-        return socket.emit("errorMessage", { text: "ห้องถูกล็อคโดยเจ้ามือ" });
-      if (room.gameStarted && !room.roundOver && !room.summarySent)
-        return socket.emit("errorMessage", { text: "เกมในห้องนี้เริ่มไปแล้ว" });
+        return socket.emit("errorMessage", { text: "ห้องถูกล็อค" });
+
+      if (room.gameStarted)
+        return socket.emit("errorMessage", { text: "เกมเริ่มไปแล้ว" });
+
       if (room.players.length >= 17)
-        return socket.emit("errorMessage", {
-          text: "ห้องเต็มแล้ว (สูงสุด 17 คนรวมเจ้ามือ)",
-        });
-      if (
-        room.players.find((p) => p.id === socket.id || p.socketId === socket.id)
-      )
-        return socket.emit("errorMessage", {
-          text: "คุณอยู่ในห้องนี้แล้วด้วย ID อื่น",
-        });
+        return socket.emit("errorMessage", { text: "ห้องเต็ม" });
+
+      if (room.players.find((p) => p.id === socket.id))
+        return socket.emit("errorMessage", { text: "คุณอยู่ในห้องนี้แล้ว" });
+
       if (!playerName || playerName.trim() === "")
-        return socket.emit("errorMessage", { text: "กรุณาใส่ชื่อผู้เล่น" });
-      if (
-        room.players.find(
-          (p) => p.name.toLowerCase() === playerName.trim().toLowerCase()
-        )
-      )
+        return socket.emit("errorMessage", { text: "กรุณาใส่ชื่อขาไพ่" });
+
+      // --- เพิ่มโค้ดเช็คชื่อซ้ำ ---
+      if (room.players.find((p) => p.name === playerName.trim())) {
         return socket.emit("errorMessage", {
           text: "มีผู้เล่นอื่นใช้ชื่อนี้แล้ว กรุณาเปลี่ยนชื่อ",
         });
+      }
+      // --- สิ้นสุดโค้ดเช็คชื่อซ้ำ ---
 
       const bal = parseInt(initialBalance);
+
       if (isNaN(bal) || bal < 10 || (bal % 10 !== 0 && bal % 5 !== 0))
         return socket.emit("errorMessage", {
           text: "เงินเริ่มต้นไม่ถูกต้อง (ขั้นต่ำ 10, ลงท้าย 0 หรือ 5)",
         });
 
-      // สมมติว่า initializePlayer คืน object player พื้นฐานมา
-      const player = initializePlayer(
-        socket.id, // ควรจะเป็น ID ถาวร ไม่ใช่ socket.id ถ้าต้องการ reconnect แต่ตามโค้ดเดิมใช้ socket.id เป็น id หลักไปก่อน
-        playerName.trim(),
-        bal,
-        false, // isDealer
-        socket.id // socketId
-      );
-
-      // --- การเปลี่ยนแปลงเริ่มต้นที่นี่ ---
-      // 1. ตรวจสอบและกำหนด initialBalance (เพื่อให้แน่ใจว่ามี ตามที่ endgame ต้องการใช้)
-      player.initialBalance = bal; // กำหนด initialBalance โดยตรง
-
-      // 2. กำหนดสถานะการเชื่อมต่อเริ่มต้น
-      player.disconnectedMidGame = false; // เพิ่ม property นี้และกำหนดค่าเริ่มต้น
-      // --- การเปลี่ยนแปลงสิ้นสุดที่นี่ ---
+      const player = initializePlayer(socket.id, playerName.trim(), bal, false); // .trim() เพื่อป้องกันชื่อที่มีช่องว่างนำหน้า/ตามหลัง
 
       room.players.push(player);
+
       socket.join(roomId);
+
       socket.emit("joinedRoom", {
         roomId: room.id,
         dealerName: room.dealerName,
-        betAmount: room.betAmount, // ควรจะเป็น room.minBet หรือค่าที่เกี่ยวข้อง
+        betAmount: room.betAmount,
       });
-      io.to(roomId).emit("playersData", getRoomPlayerData(room)); // ส่งข้อมูลผู้เล่นทั้งหมด (รวมคนใหม่)
+
+      const currentPlayersData = getRoomPlayerData(room);
+      io.to(roomId).emit("playersData", currentPlayersData);
+
+      const joinedPlayerDisplay = currentPlayersData.find(
+        (p) => p.id === player.id
+      );
+
       io.to(roomId).emit("message", {
-        text: `${player.name} ได้เข้าร่วมห้อง.`,
+        text: `${player.name} ได้เข้าร่วมห้อง.`, // ใช้ player.name ที่ผ่านการ trim แล้ว
       });
+
       console.log(
-        // เพิ่ม Log แสดง initialBalance ตอนเข้าห้อง
-        `[Server] ${player.name} (${socket.id}) joined room ${roomId} with initial balance ${player.initialBalance}`
+        `[Server] ${player.name} (${socket.id}) joined room ${roomId}` // ใช้ player.name ที่ผ่านการ trim แล้ว
       );
     } catch (error) {
       console.error("[Server] Error joining room:", error);
@@ -1669,277 +1660,145 @@ io.on("connection", (socket) => {
     }
   });
 
-  //socket.on("endGame",
-  socket.on("endGame", ({ roomId }) => {
+  socket.on("endGame", (roomId) => {
     try {
       const room = rooms[roomId];
 
-      if (!room) {
-        // ส่ง 'roomNotFound' แทน 'errorMessage' เพื่อให้ Client จัดการเฉพาะทางได้ ถ้าต้องการ
-        // return socket.emit("errorMessage", { text: "ไม่พบห้อง" });
-        return socket.emit("roomNotFound", {
-          roomId: roomId,
-          message: "ไม่พบห้องที่ต้องการจบเกม",
-        });
-      }
+      if (!room || socket.id !== room.dealerId) return;
 
-      // ควรใช้ room.dealerId ที่เก็บ ID ถาวรของผู้เล่น ไม่ใช่ socket.id ที่อาจเปลี่ยนได้หากมีการ reconnect
-      // สมมติว่า room.dealerId เก็บ ID ถาวรที่ตรงกับ player.id
-      const requestingPlayer = room.players.find(
-        (p) => p.socketId === socket.id
-      ); // หาผู้เล่นที่ส่ง request ด้วย socketId ปัจจุบัน
-      if (!requestingPlayer || requestingPlayer.id !== room.dealerId) {
-        // เปรียบเทียบ ID ถาวรของผู้เล่นกับ dealerId ของห้อง
-        return socket.emit("errorMessage", {
-          text: "เฉพาะเจ้ามือเท่านั้นที่สามารถจบเกมได้",
-        });
-      }
+      const finalPlayerData = getRoomPlayerData(room);
 
-      // เพิ่มการตรวจสอบว่าเกมได้เริ่มไปแล้วหรือยัง หรืออยู่ในสถานะที่จบได้
-      // if (!room.gameStarted && !room.roundOver) { // ตัวอย่างเงื่อนไข (อาจปรับตาม logic ของคุณ)
-      //    return socket.emit("errorMessage", { text: "ยังไม่มีการเล่นเกมในรอบนี้" });
-      // }
+      const gameSummary = finalPlayerData.map((fp) => {
+        const originalPlayer = room.players.find((op) => op.id === fp.id);
 
-      // --- การเปลี่ยนแปลงเริ่มต้นที่นี่ ---
-      // 1. ตั้งค่าสถานะห้องให้ชัดเจน (นอกเหนือจาก summarySent)
-      room.status = "ended"; // เพิ่ม property นี้ หรือใช้ summarySent เป็นตัวแทนก็ได้
-      room.gameStarted = false; // เกมไม่ถือว่ากำลังดำเนินอยู่
-      room.roundOver = true; // รอบปัจจุบัน (และเกม) จบลง
-      room.summarySent = true; // ทำเครื่องหมายว่าส่งสรุปแล้ว (สำคัญสำหรับ logic disconnect)
-
-      // 2. หยุด Timer (ถ้ามี)
-      clearTurnTimer(room); // ตรวจสอบว่ามีฟังก์ชัน clearTurnTimer และเรียกใช้ถูกต้อง
-
-      // --- การเปลี่ยนแปลงสิ้นสุดที่นี่ ---
-
-      // คำนวณสรุป (โค้ดเดิมดูถูกต้องแล้ว)
-      const gameSummary = room.players.map((player) => {
-        // การคำนวณ netChange ดูถูกต้อง
-        const netChange = player.balance - player.initialBalance;
         return {
-          id: player.id, // ID ถาวรของผู้เล่น
-          name: player.name,
-          role: player.role, // บทบาทสุดท้าย (อาจจะเป็น 'เจ้ามือ' หรือ 'ผู้เล่น')
-          initialBalance: player.initialBalance,
-          finalBalance: player.balance, // ยอดเงินสุดท้าย
-          netChange: netChange,
-          disconnectedMidGame: player.disconnectedMidGame || false, // สถานะการหลุดระหว่างเกม
-          isDealer: player.id === room.dealerId, // ตรวจสอบว่าเป็นเจ้ามือหรือไม่ จาก ID ถาวร
+          id: fp.id,
+
+          name: fp.name,
+
+          role: fp.role,
+
+          initialBalance: originalPlayer.initialBalance,
+
+          finalBalance: fp.balance,
+
+          netChange: fp.balance - originalPlayer.initialBalance,
         };
       });
 
-      // ส่งสรุปให้ทุกคนในห้อง (โค้ดเดิมดูถูกต้อง)
-      // เปลี่ยนชื่อ event จาก 'showGameSummary' เป็นชื่อที่สื่อความหมายมากขึ้น เช่น 'gameEndedSummary' ถ้าต้องการ
-      io.to(roomId).emit("showGameSummary", gameSummary); // หรือ io.to(roomId).emit("gameEndedSummary", { summary: gameSummary });
+      io.to(roomId).emit("gameEnded", gameSummary);
 
-      // ส่งข้อความแจ้งเตือน (โค้ดเดิมดูถูกต้อง)
-      const dealer = room.players.find((p) => p.id === room.dealerId); // หาเจ้ามือจาก ID ถาวร
       io.to(roomId).emit("message", {
-        text: `--- เกมจบลงแล้ว เจ้ามือ (${
-          dealer ? dealer.name : room.dealerName // ใช้ชื่อจาก player object ถ้าเจอ หรือจาก room.dealerName สำรอง
-        }) สรุปยอด ---`,
-        type: "system", // หรือ 'info' หรือ 'game-event'
+        text: `เจ้ามือ ${room.dealerName} ได้จบเกม.`,
       });
 
-      console.log(
-        `[Server] Game session ended in room ${roomId} by dealer ${requestingPlayer.name} (ID: ${requestingPlayer.id}, Socket: ${socket.id}). Summary sent.`
+      const socketsInRoom = Array.from(
+        io.sockets.adapter.rooms.get(roomId) || []
       );
-    } catch (error) {
-      console.error(`[Server] Error ending game in room ${roomId}:`, error);
-      // แจ้งข้อผิดพลาดกลับไปยังผู้ส่ง request เท่านั้น
-      socket.emit("errorMessage", {
-        text: "เกิดข้อผิดพลาดในการจบเกมและสรุปยอด",
+
+      socketsInRoom.forEach((socketId) => {
+        const clientSocket = io.sockets.sockets.get(socketId);
+
+        if (clientSocket) clientSocket.leave(roomId);
       });
+
+      clearTurnTimer(room);
+
+      delete rooms[roomId];
+
+      console.log(`[Server] Room ${roomId} ended by dealer ${socket.id}`);
+    } catch (error) {
+      console.error("[Server] Error ending game:", error);
+
+      socket.emit("errorMessage", { text: "เกิดข้อผิดพลาดในการจบเกม" });
     }
   });
 
-  //socket.on("disconnect"
   socket.on("disconnect", () => {
     console.log(`[Server] User disconnected: ${socket.id}`);
-    let roomIdPlayerWasIn = null;
-    let playerWhoLeft = null;
-    let roomPlayerWasIn = null;
-    let playerIndexInRoom = -1;
 
-    // ค้นหาห้องและผู้เล่นที่เกี่ยวข้องกับ socket ที่หลุดการเชื่อมต่อ
-    for (const id in rooms) {
-      const room = rooms[id];
-      // **สำคัญ:** ค้นหาด้วย socket.id ที่ตรงกับ player.socketId ที่เก็บไว้ตอน join
-      const pIndex = room.players.findIndex((p) => p.socketId === socket.id);
-      if (pIndex !== -1) {
-        roomIdPlayerWasIn = id;
-        roomPlayerWasIn = room;
-        playerWhoLeft = room.players[pIndex];
-        playerIndexInRoom = pIndex; // เก็บ index ไว้ใช้กรณีต้องการลบออกจาก array
-        break; // เจอแล้ว ออกจาก loop
-      }
-    }
+    for (const roomId in rooms) {
+      const room = rooms[roomId];
 
-    // ถ้าเจอห้องและผู้เล่นที่หลุด
-    if (roomPlayerWasIn && playerWhoLeft) {
-      // --- ส่วนของการจัดการข้อมูลผู้เล่นที่หลุด ---
-      console.log(
-        `[Server] Player ${playerWhoLeft.name} (ID: ${playerWhoLeft.id}, Socket: ${socket.id}) disconnected from room ${roomIdPlayerWasIn}. Current room state: gameStarted=${roomPlayerWasIn.gameStarted}, summarySent=${roomPlayerWasIn.summarySent}`
-      );
+      const playerIndex = room.players.findIndex((p) => p.id === socket.id);
 
-      // แจ้งผู้เล่นคนอื่นในห้อง (อาจแจ้งก่อนหรือหลังจัดการข้อมูลก็ได้)
-      io.to(roomIdPlayerWasIn).emit("playerLeft", {
-        id: playerWhoLeft.id, // ส่ง ID ของผู้เล่นที่ออกไปด้วย
-        name: playerWhoLeft.name,
-        message: "หลุดการเชื่อมต่อ", // ใช้คำว่า "หลุดการเชื่อมต่อ" จะชัดเจนกว่า
-      });
+      if (playerIndex !== -1) {
+        const player = room.players[playerIndex];
 
-      // ทำเครื่องหมายว่าผู้เล่นหลุด ถ้าเกมกำลังดำเนินอยู่ *และ* ยังไม่มีการส่งสรุปยอด
-      if (roomPlayerWasIn.gameStarted && !roomPlayerWasIn.summarySent) {
-        if (!playerWhoLeft.disconnectedMidGame) {
-          // ทำเครื่องหมายเฉพาะครั้งแรกที่หลุดในเกมนั้น
-          playerWhoLeft.disconnectedMidGame = true;
-          // playerWhoLeft.socketId = null; // ล้าง socketId เพื่อแสดงว่าไม่ active แต่ยังอยู่ในห้อง
-          console.log(
-            `[Server] Marked ${playerWhoLeft.name} as disconnectedMidGame in room ${roomIdPlayerWasIn}. Data retained for summary.`
-          );
+        console.log(
+          `[Server] ${player.role} (${player.name}) disconnected from room ${roomId}.`
+        );
 
-          // จัดการเรื่อง turn ถ้าผู้เล่นที่หลุดเป็น current turn
-          // สมมติว่า currentTurnPlayerId เก็บ ID ถาวรของผู้เล่น
-          if (roomPlayerWasIn.currentTurnPlayerId === playerWhoLeft.id) {
-            io.to(roomIdPlayerWasIn).emit("message", {
-              text: `${playerWhoLeft.name} หลุดการเชื่อมต่อระหว่างตาของตนเอง.`,
-              type: "warning", // หรือ type อื่นที่เหมาะสม
-            });
-            clearTurnTimer(roomPlayerWasIn); // หยุด timer ของคนที่หลุด
-            // เรียกฟังก์ชัน advanceTurn (ต้องมั่นใจว่า advanceTurn ข้ามผู้เล่นที่มี disconnectedMidGame = true)
-            advanceTurn(roomIdPlayerWasIn);
-            console.log(
-              `[Server] Advanced turn in room ${roomIdPlayerWasIn} because current player ${playerWhoLeft.name} disconnected.`
-            );
+        io.to(roomId).emit("playerLeft", {
+          name: player.name,
+
+          message: "ออกจากห้องแล้ว",
+        });
+
+        if (room.gameStarted && !player.disconnectedMidGame) {
+          player.disconnectedMidGame = true;
+
+          player.hasStayed = true;
+
+          player.actionTakenThisTurn = true;
+
+          if (room.currentTurnPlayerId === player.id) {
+            clearTurnTimer(room);
+
+            advanceTurn(roomId);
           }
+        } else if (!room.gameStarted) {
+          room.players.splice(playerIndex, 1);
+        }
+
+        const activePlayersRemaining = room.players.filter(
+          (p) => !p.disconnectedMidGame
+        );
+
+        if (activePlayersRemaining.length === 0) {
+          console.log(`[Server] Room ${roomId} empty. Deleting.`);
+
+          clearTurnTimer(room);
+
+          delete rooms[roomId];
         } else {
-          console.log(
-            `[Server] Player ${playerWhoLeft.name} was already marked as disconnectedMidGame.`
-          );
-          // playerWhoLeft.socketId = null; // อาจจะยังคงล้าง socketId อยู่ดี
-        }
-        // *** ไม่ลบผู้เล่นออกจาก roomPlayerWasIn.players array ***
-        // เพื่อให้ข้อมูลยังอยู่สำหรับคำนวณสรุปตอน endGame
-      } else {
-        // กรณีอื่นๆ: เกมยังไม่เริ่ม หรือ สรุปยอดไปแล้ว หรือ ไม่ได้อยู่ในสถานะ gameStarted
-        // สามารถลบผู้เล่นออกจาก array ได้เลย เพราะไม่ต้องการข้อมูลสำหรับสรุปแล้ว
-        roomPlayerWasIn.players.splice(playerIndexInRoom, 1);
-        console.log(
-          `[Server] Removed ${playerWhoLeft.name} from room ${roomIdPlayerWasIn} players array (Game not started OR Summary already sent).`
-        );
-      }
+          const activeDealer = activePlayersRemaining.find((p) => p.isDealer);
 
-      // --- ส่วนของการจัดการห้อง (ตรวจสอบเจ้ามือ, ลบห้อง) ---
+          if (!activeDealer && player.isDealer) {
+            const newDealer = activePlayersRemaining[0];
 
-      // หาผู้เล่นที่ยัง "Active" (ไม่ได้ถูก mark ว่าหลุด และควรจะมี socketId - แต่การเช็ค disconnectedMidGame สำคัญกว่า)
-      // ในที่นี้ "Active" หมายถึงคนที่ยังสามารถเล่นต่อได้ หรือยังเชื่อมต่ออยู่ (ถ้าไม่นับคนที่หลุดไปแล้ว)
-      const activePlayersRemaining = roomPlayerWasIn.players.filter(
-        (p) => !p.disconnectedMidGame
-      );
-      // นับจำนวน socket ที่ยังเชื่อมต่อกับ room ID นี้จริงๆ (อาจต่างจาก activePlayersRemaining ถ้ารวมคนที่ disconnect แต่ข้อมูลยังอยู่)
-      const connectedSocketsCount =
-        io.sockets.adapter.rooms.get(roomIdPlayerWasIn)?.size || 0;
-      console.log(
-        `[Server] Room ${roomIdPlayerWasIn}: Active players remaining (not marked DC): ${activePlayersRemaining.length}, Connected sockets: ${connectedSocketsCount}`
-      );
+            if (newDealer) {
+              newDealer.isDealer = true;
 
-      // เงื่อนไขการลบห้อง:
-      // 1. ไม่มีผู้เล่นเหลือใน array เลย (หลังจาก splice ข้างบน)
-      // 2. หรือ ผู้เล่นทุกคนใน array ถูก mark ว่า disconnectedMidGame
-      // 3. หรือ ไม่มี socket เชื่อมต่อกับห้องนี้แล้ว (ปลอดภัยสุดในการลบ)
-      const shouldDeleteRoom =
-        roomPlayerWasIn.players.length === 0 ||
-        roomPlayerWasIn.players.every((p) => p.disconnectedMidGame) ||
-        connectedSocketsCount === 0;
+              newDealer.baseRole = "เจ้ามือ";
 
-      if (shouldDeleteRoom) {
-        console.log(
-          `[Server] Deleting room ${roomIdPlayerWasIn}. Reason: No players left in array OR all marked disconnected OR no connected sockets.`
-        );
-        clearTurnTimer(roomPlayerWasIn); // หยุด timer ก่อนลบ
-        delete rooms[roomIdPlayerWasIn];
-        // ไม่ต้องทำอะไรต่อ เพราะห้องถูกลบแล้ว
-        return; // ออกจากฟังก์ชัน disconnect
-      } else {
-        // ห้องยังไม่ถูกลบ: จัดการเรื่องเจ้ามือถ้าจำเป็น และส่งข้อมูลอัปเดต
-        console.log(
-          `[Server] Room ${roomIdPlayerWasIn} still exists. Checking for dealer change and updating players.`
-        );
+              newDealer.role = "เจ้ามือ";
 
-        // ตรวจสอบการเปลี่ยนเจ้ามือ ถ้าคนที่หลุดเป็นเจ้ามือ *และ* ยังมีผู้เล่น active เหลืออยู่
-        if (
-          playerWhoLeft.id === roomPlayerWasIn.dealerId &&
-          activePlayersRemaining.length > 0
-        ) {
-          // หาเจ้ามือใหม่จากคนที่ยัง active
-          const newDealer = activePlayersRemaining[0]; // เอาคนแรกที่ active
-          if (newDealer) {
-            // อัปเดตข้อมูลเจ้ามือใน room object
-            roomPlayerWasIn.dealerId = newDealer.id;
-            roomPlayerWasIn.dealerName = newDealer.name;
+              room.dealerId = newDealer.id;
 
-            // อัปเดตสถานะ isDealer ใน player object ของทั้งคู่
-            playerWhoLeft.isDealer = false; // คนที่หลุดไม่ใช่เจ้ามือแล้ว (แม้ข้อมูลจะยังอยู่)
-            const newDealerIndex = roomPlayerWasIn.players.findIndex(
-              (p) => p.id === newDealer.id
-            );
-            if (newDealerIndex !== -1) {
-              roomPlayerWasIn.players[newDealerIndex].isDealer = true;
-              roomPlayerWasIn.players[newDealerIndex].role = "เจ้ามือ"; // อัปเดต role ด้วย
-              // อาจจะต้องอัปเดต baseRole ด้วยถ้าใช้
-              // roomPlayerWasIn.players[newDealerIndex].baseRole = "เจ้ามือ";
+              room.dealerName = newDealer.name;
+
+              io.to(roomId).emit("message", {
+                text: `${newDealer.name} เป็นเจ้ามือใหม่.`,
+              });
+            } else {
+              io.to(roomId).emit("message", {
+                text: "เกิดปัญหา: ไม่สามารถหาเจ้ามือใหม่ได้",
+              });
+
+              clearTurnTimer(room);
+
+              delete rooms[roomId];
             }
-
-            // แจ้งทุกคนในห้อง
-            io.to(roomIdPlayerWasIn).emit("message", {
-              text: `${newDealer.name} เป็นเจ้ามือใหม่.`,
-              type: "system",
-            });
-            // อาจมี event เฉพาะสำหรับการเปลี่ยนเจ้ามือ เพื่อให้ client อัปเดต UI
-            io.to(roomIdPlayerWasIn).emit("dealerChanged", {
-              dealerId: newDealer.id,
-              dealerName: newDealer.name,
-            });
-            console.log(
-              `[Server] New dealer assigned in room ${roomIdPlayerWasIn}: ${newDealer.name} (ID: ${newDealer.id})`
-            );
-          } else {
-            // ไม่ควรเกิดขึ้น ถ้า activePlayersRemaining.length > 0 แต่เผื่อไว้
-            console.error(
-              `[Server] Error: Could not find a new dealer in room ${roomIdPlayerWasIn} even though active players exist.`
-            );
-            io.to(roomIdPlayerWasIn).emit("message", {
-              text: `เกิดข้อผิดพลาด: ไม่สามารถหาเจ้ามือใหม่ได้หลังจากเจ้ามือเดิมหลุดการเชื่อมต่อ.`,
-              type: "error",
-            });
-            // อาจจะต้องพิจารณาจบเกม หรือให้ admin จัดการ
           }
-        } else if (
-          playerWhoLeft.id === roomPlayerWasIn.dealerId &&
-          activePlayersRemaining.length === 0
-        ) {
-          // เจ้ามือหลุด และไม่มี active player เหลือ -> ห้องควรจะถูกลบไปแล้วโดย logic ก่อนหน้า แต่ log ไว้เผื่อ
-          console.log(
-            `[Server] Dealer ${playerWhoLeft.name} disconnected, and no active players remain. Room should have been deleted.`
-          );
+
+          if (rooms[roomId]) {
+            io.to(roomId).emit("playersData", getRoomPlayerData(room));
+          }
         }
 
-        // ส่งข้อมูลผู้เล่นล่าสุด (รวมสถานะ disconnected และการเปลี่ยนเจ้ามือ) ให้ทุกคนที่ยังเชื่อมต่ออยู่
-        // ใช้ getRoomPlayerData ซึ่งควรจะกรองข้อมูลที่ไม่จำเป็นออกก่อนส่ง
-        io.to(roomIdPlayerWasIn).emit(
-          "playersData",
-          getRoomPlayerData(roomPlayerWasIn) // ฟังก์ชันนี้ควรจะเตรียมข้อมูลผู้เล่นสำหรับส่งให้ client
-        );
-        console.log(
-          `[Server] Updated playersData sent to room ${roomIdPlayerWasIn}`
-        );
+        break;
       }
-    } // end if (roomPlayerWasIn && playerWhoLeft)
-    else {
-      console.log(
-        `[Server] Disconnected socket ${socket.id} was not found in any active room.`
-      );
     }
   });
 });
