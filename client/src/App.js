@@ -1056,8 +1056,6 @@ function App() {
     return (
       <div className="App-lobby">
         <h2>ป๊อกเด้ง ออนไลน์</h2>
-        <p>Persistent ID (Debug): {persistentPlayerId}</p>
-        <p>Socket ID ปัจจุบัน: {myPlayerId || "N/A"}</p>
         {errorMsg && (
           <p
             className="error-message"
@@ -1104,18 +1102,6 @@ function App() {
           onChange={(e) => setInputRoomId(e.target.value)}
         />
         <button
-          onClick={() =>
-            setInputRoomId(
-              (window.crypto?.randomUUID &&
-                window.crypto.randomUUID().substring(0, 6)) ||
-                `r${Date.now()}`.substring(0, 7)
-            )
-          }
-          style={{ marginLeft: "5px" }}
-        >
-          สุ่ม ID
-        </button>
-        <button
           onClick={handleJoinRoom}
           disabled={
             !inputRoomId.trim() || !isConnected || !name.trim() || !money.trim()
@@ -1157,36 +1143,42 @@ function App() {
   return (
     <div className="App">
       <header>
+        {" "}
         <h1>
-          ห้อง:&nbsp;
+          ห้อง:&nbsp;{" "}
           <button
             className="text-button2"
             onClick={handleCopyRoomId}
             title="คลิกเพื่อคัดลอกรหัสห้อง"
           >
-            {roomId}
-          </button>
-        </h1>
+            {roomId}{" "}
+          </button>{" "}
+        </h1>{" "}
         <p>
           คุณ: {name}{" "}
           {isDealer ? "(เจ้ามือ)" : `(${myCurrentPlayerData?.role || "ขาไพ่"})`}{" "}
           | เงินคงเหลือ:{" "}
-          {myCurrentPlayerData?.balance?.toLocaleString() || money} | SocketID:{" "}
-          {myPlayerId}
-        </p>
+          {myCurrentPlayerData?.balance?.toLocaleString() || money} |
+          ห้อง:&nbsp;{" "}
+          <button
+            className="text-button"
+            onClick={handleCopyRoomId}
+            title="คลิกเพื่อคัดลอกรหัสห้อง"
+          >
+            {roomId}{" "}
+          </button>{" "}
+        </p>{" "}
         <p style={{ color: roomLocked ? "red" : "green" }}>
           สถานะห้อง:{" "}
           <button
             className="text-button2"
             onClick={handleToggleLockRoom}
-            disabled={!isDealer || gameStarted}
-            title="คลิกเพื่อ ล็อค/ปลดล็อค ห้อง"
+            title="คลิกเพื่อคัดลอกรหัสห้อง"
           >
-            {roomLocked ? "ล็อค" : "เปิด"}
-          </button>
-        </p>
-      </header>
-
+            {roomLocked ? "ล็อค" : "เปิด"}{" "}
+          </button>{" "}
+        </p>{" "}
+      </header>{" "}
       {errorMsg && (
         <p
           className="error-message"
@@ -1200,107 +1192,81 @@ function App() {
           {errorMsg}
         </p>
       )}
-
       {!gameStarted && isDealer && (!result || result.length === 0) && (
         <div className="dealer-controls pre-game">
-          <h4>ตั้งค่าเกม (เจ้ามือ): ขั้นต่ำ 5 บาท</h4>
+          <h4>ตั้งค่าเกม (เจ้ามือ): ขั้นต่ำ 5 บาท</h4>{" "}
           <div>
-            <label>เงินเดิมพัน: </label>
+            <label>เงินเดิมพัน: </label>{" "}
             <input
               type="number"
               value={inputBetAmount}
               onChange={(e) => setInputBetAmount(e.target.value)}
               step="5"
               min="5"
-            />
+            />{" "}
             <button className="btn-inroom-setting" onClick={handleSetBet}>
-              ตั้งค่า
-            </button>
-          </div>
+              ตั้งค่า{" "}
+            </button>{" "}
+          </div>{" "}
         </div>
-      )}
-
+      )}{" "}
       <div className="players-list">
+        {" "}
         <h4>
           ราคาเดิมพันต่อรอบ:{" "}
           {betAmount > 0
             ? `${betAmount.toLocaleString()} บาท`
-            : "รอเจ้ามือกำหนด"}
+            : "รอเจ้ามือกำหนด"}{" "}
         </h4>
-        <h4>ขาไพ่ในห้อง: ({playerData.length} คน)</h4>
+        <h4>ขาไพ่ในห้อง: ({playerData.length} คน)</h4>{" "}
         <ul>
-          {playerData.map((p) => (
+          {" "}
+          {playerData.map((user) => (
             <li
-              key={p.persistentId || p.id}
-              className={`${
-                p.id === currentTurnId ? "current-turn-player" : ""
-              } ${
-                p.isTemporarilyDisconnected ? "player-disconnected-ingame" : ""
-              }`}
+              key={user.id}
+              className={user.id === currentTurnId ? "current-turn-player" : ""}
             >
-              <strong>{p.name}</strong> ({p.role}) - เงิน:{" "}
-              {p.balance?.toLocaleString()} บาท
-              {p.id === currentTurnId &&
+              {user.name} ({user.role}) - เงิน: {user.balance?.toLocaleString()}{" "}
+              บาท{" "}
+              {user.id === currentTurnId &&
                 currentTurnInfo.timeLeft > 0 &&
                 gameStarted &&
-                ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}
-              {p.isTemporarilyDisconnected && (
-                <span className="status-disconnected-ingame">
-                  (ขาดการเชื่อมต่อ)
-                </span>
-              )}
-              {/* Display status from new code if server provides it */}
-              {p.displayStatus && <span> ({p.displayStatus})</span>}
-              {revealedPokPlayers[p.id] &&
-                p.id !== myPlayerId &&
+                ` (กำลังเล่น... ${currentTurnInfo.timeLeft}วิ)`}{" "}
+              {revealedPokPlayers[user.id] &&
+                user.id !== myPlayerId &&
                 gameStarted &&
                 (!result || result.length === 0) && (
                   <div className="revealed-pok-cards">
                     <strong>ไพ่ที่ป๊อก:</strong>{" "}
-                    {revealedPokPlayers[p.id].cards.map((card, cIdx) => (
+                    {revealedPokPlayers[user.id].cards.map((card, cIdx) => (
                       <span key={cIdx} className="card-display">
-                        {getCardDisplay(card)}
+                        {getCardDisplay(card)}{" "}
                       </span>
                     ))}{" "}
-                    <em>{revealedPokPlayers[p.id].handDetails.type}</em>
+                    <em>{revealedPokPlayers[user.id].handDetails.type}</em>{" "}
                   </div>
-                )}
-              {/* Show card counts or simplified card view for others (from new code) */}
-              {p.id !== myPlayerId &&
-                gameStarted &&
-                p.cards &&
-                p.cards.length > 0 &&
-                (!result || result.length === 0) &&
-                !revealedPokPlayers[p.id] && (
-                  <div className="other-player-cards">
-                    ไพ่: {p.cards.map((_) => "🂠").join(" ")} (
-                    {p.cardCount || p.cards.length})
-                  </div>
-                )}
+                )}{" "}
             </li>
-          ))}
-        </ul>
-      </div>
-
+          ))}{" "}
+        </ul>{" "}
+      </div>{" "}
       {gameStarted &&
         myCards &&
         myCards.length > 0 &&
         (!result || result.length === 0) && (
           <div className="my-cards-area">
+            {" "}
             <h2>
               ไพ่ของคุณ:{" "}
               {myCards.map((card, idx) => (
-                <span key={idx} className="card">
-                  {getCardDisplay(card)}{" "}
-                </span>
-              ))}
-            </h2>
+                <span key={idx}>{getCardDisplay(card)} </span>
+              ))}{" "}
+            </h2>{" "}
             <p>
-              <h2>{myHandType}</h2>
-            </p>
+              <h2>{myHandType}</h2>{" "}
+            </p>{" "}
           </div>
         )}
-
       {/* Player Betting Controls (from new code logic, adapted for player's turn pre-draw) */}
       {canPlayerBet && !isDealer && (
         <div className="player-actions betting-phase">
@@ -1333,7 +1299,6 @@ function App() {
           </div>
         </div>
       )}
-
       {/* Player Draw/Stay Controls (from original, now checks isMyTurn) */}
       {isMyTurn &&
         myCards.length >= 2 &&
@@ -1356,7 +1321,6 @@ function App() {
             </div>
           </div>
         )}
-
       {/* Turn Indicators (from original) */}
       {!isDealer &&
         currentTurnId &&
@@ -1364,10 +1328,10 @@ function App() {
         gameStarted &&
         (!result || result.length === 0) && (
           <p className="turn-indicator">
-            รอ... ({currentTurnInfo.role}) {currentTurnInfo.name} (
-            {currentTurnInfo.timeLeft} วิ) ⌛
+            รอ... ({currentTurnInfo.role}) {currentTurnInfo.name} ({" "}
+            {currentTurnInfo.timeLeft} วิ) ⌛{" "}
           </p>
-        )}
+        )}{" "}
       {isDealer &&
         currentTurnId &&
         currentTurnId !== myPlayerId &&
@@ -1375,75 +1339,83 @@ function App() {
         (!result || result.length === 0) && (
           <p className="turn-indicator">
             ขาไพ่ที่ ({currentTurnInfo.role}) {currentTurnInfo.name}{" "}
-            กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...
+            กำลังตัดสินใจ ({currentTurnInfo.timeLeft} วิ)...{" "}
           </p>
-        )}
+        )}{" "}
       {isDealer &&
         !currentTurnId &&
         gameStarted &&
         showResultBtn &&
         (!result || result.length === 0) && (
           <div className="turn-indicator">
+            {" "}
             <button className="btn-inroom-endgame2" onClick={handleShowResult}>
-              เปิดไพ่ดวล
-            </button>
+              เปิดไพ่ดวล{" "}
+            </button>{" "}
           </div>
-        )}
+        )}{" "}
       {isDealer &&
         !currentTurnId &&
         gameStarted &&
         !showResultBtn &&
         (!result || result.length === 0) && (
           <p className="turn-indicator">รอขาไพ่ทุกคนตัดสินใจ...</p>
-        )}
-
-      {/* Results Display (from original) */}
+        )}{" "}
       {result && result.length > 0 && (
         <div className="results-display">
+          {" "}
           <h3>
             ผลลัพธ์รอบที่ {gameRound}: (เดิมพัน: {betAmount?.toLocaleString()}{" "}
-            บาท)
-          </h3>
+            บาท){" "}
+          </h3>{" "}
           <table>
+            {" "}
             <thead>
+              {" "}
               <tr>
-                <th>ชื่อขาไพ่</th>
-                <th>ไพ่</th>
-                <th>แต้ม</th>
-                <th>ประเภท</th>
-                <th>ผล</th>
-                <th>ได้/เสีย</th>
-                <th>เงินคงเหลือ</th>
-              </tr>
-            </thead>
+                <th>ชื่อขาไพ่</th> <th>ไพ่</th>
+                <th>แต้ม</th> <th>ประเภท</th>
+                <th>ผล</th> <th>ได้/เสีย</th>
+                <th>เงินคงเหลือ</th>{" "}
+              </tr>{" "}
+            </thead>{" "}
             <tbody>
+              {" "}
               {result.map((r, i) => (
                 <tr
                   key={r.id || i}
-                  className={`${r.id === myPlayerId ? "my-result-row" : ""} ${
-                    r.disconnectedMidGame ? "disconnected-result-row" : ""
-                  }`}
+                  className={
+                    r.id === myPlayerId
+                      ? "my-result-row"
+                      : r.disconnectedMidGame
+                      ? "disconnected-result-row"
+                      : ""
+                  }
                 >
+                  {" "}
                   <td>
-                    {r.name} ({r.role || "N/A"})
+                    {r.name} ({r.role || "N/A"}){" "}
                   </td>
                   <td>{r.cardsDisplay || "N/A"}</td>
-                  <td>{r.score}</td>
-                  <td>{r.specialType}</td>
+                  <td>{r.score}</td> <td>{r.specialType}</td>{" "}
                   <td>
                     {r.outcome === "ชนะ" && "✅ ชนะ"}
                     {r.outcome === "แพ้" && "❌ แพ้"}
-                    {r.outcome === "เสมอ" && "🤝 เสมอ"}
-                    {r.outcome === "เจ้ามือ" && "เจ้ามือ"}
+                    {r.outcome === "เสมอ" && "🤝 เสมอ"}{" "}
+                    {r.outcome === "เจ้ามือ" && "เจ้ามือ"}{" "}
                     {r.outcome === "ขาดการเชื่อมต่อ" && "ขาดการเชื่อมต่อ"}{" "}
                     {![
                       "ชนะ",
+
                       "แพ้",
+
                       "เสมอ",
+
                       "เจ้ามือ",
+
                       "ขาดการเชื่อมต่อ",
-                    ].includes(r.outcome) && r.outcome}
-                  </td>
+                    ].includes(r.outcome) && r.outcome}{" "}
+                  </td>{" "}
                   <td
                     className={
                       r.moneyChange > 0
@@ -1453,75 +1425,74 @@ function App() {
                         : ""
                     }
                   >
+                    {" "}
                     {r.moneyChange !== 0
                       ? `${
                           r.moneyChange > 0 ? "+" : ""
                         }${r.moneyChange?.toLocaleString()} บาท`
-                      : "-"}
+                      : "-"}{" "}
                   </td>
-                  <td>{r.balance?.toLocaleString()} บาท</td>
+                  <td>{r.balance?.toLocaleString()} บาท</td>{" "}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              ))}{" "}
+            </tbody>{" "}
+          </table>{" "}
         </div>
-      )}
-
-      {/* Dealer Post-Round/Pre-Next-Round Controls (from original) */}
+      )}{" "}
       {isDealer &&
         (!gameStarted || (result && result.length > 0)) &&
         !showSummary && (
           <div className="turn-indicator">
+            {" "}
             <button
               className="btn-inroom-start1"
               onClick={handleStartGame}
               disabled={betAmount <= 0}
             >
-              &nbsp;&nbsp; &nbsp;
+              &nbsp;&nbsp; &nbsp;{" "}
               {gameRound > 0 || (result && result.length > 0)
                 ? "เริ่มเกมรอบใหม่"
                 : "เริ่มเกม"}
-              &nbsp;&nbsp;&nbsp;
-            </button>
+              &nbsp;&nbsp;&nbsp;{" "}
+            </button>{" "}
             <button
               className="btn-inroom-restart"
               onClick={handleResetGameHandler}
             >
-              รีเซ็ตตา&สับไพ่
-            </button>
+              รีเซ็ตตา&สับไพ่{" "}
+            </button>{" "}
             <button className="btn-inroom-result" onClick={handleEndGame}>
-              จบเกม&ดูสรุปยอด
-            </button>
+              จบเกม&ดูสรุปยอด{" "}
+            </button>{" "}
           </div>
-        )}
+        )}{" "}
       {!isDealer &&
         result &&
         result.length > 0 &&
         !gameStarted &&
         !showSummary && (
           <p className="btn-inroom-waitinggame">
-            <center>--- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---</center>
+            {" "}
+            <center>--- รอเจ้ามือเริ่มรอบใหม่ หรือ จบเกม ---</center>{" "}
           </p>
-        )}
-
-      <div className="turn-indicator" style={{ marginTop: "20px" }}>
+        )}{" "}
+      <div className="turn-indicator">
         {" "}
-        {/* Ensure some space */}
         <button className="btn-inroom-endgame" onClick={handleExitGame}>
-          ออกจากห้อง
-        </button>
-      </div>
-
+          ออกจากห้อง{" "}
+        </button>{" "}
+      </div>{" "}
       <div className="messages-log">
-        <h4>ประวัติข้อความ/เหตุการณ์:</h4>
+        <h4>ประวัติข้อความ/เหตุการณ์:</h4>{" "}
         <div className="messages-box" ref={messagesEndRef}>
+          {" "}
           {messages.map((msg, index) => (
-            <p key={index} className={`message-type-${msg.type || "system"}`}>
-              {msg.text}
+            <p key={index} className={`message-type-${msg.type}`}>
+              {msg.text}{" "}
             </p>
-          ))}
-        </div>
-      </div>
+          ))}{" "}
+        </div>{" "}
+      </div>{" "}
     </div>
   );
 }
