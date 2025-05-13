@@ -112,6 +112,8 @@ function App() {
       );
     }
   };
+  const [showSummaryView, setShowSummaryView] = useState(false);
+  const [gameSummaryData, setGameSummaryData] = useState(null);
 
   useEffect(() => {
     if (!socketClient) {
@@ -145,7 +147,31 @@ function App() {
 
       setIsConnected(false);
     }
-
+    socketClient.on("gameEndedSummary", (data) => {
+      // สมมติว่า server ส่ง event นี้กลับมา
+      console.log("[Client] Received 'gameEndedSummary'", data);
+      setGameSummaryData(data.summary); // data.summary ควรมีข้อมูลสรุปทั้งหมด
+      setShowSummaryView(true);
+      setInRoom(false); // หรืออาจจะยังอยู่ในห้องแต่แสดง view อื่น
+      setGameStarted(false);
+      // เคลียร์ states อื่นๆ ที่เกี่ยวกับรอบเกมปัจจุบัน
+    });
+    socketClient.on("roomNotFound", (data) => {
+      // Event จาก Server ถ้าห้องหาไม่เจอจริงๆ
+      console.error(`[Client] Error: Room ${data.roomId} not found on server.`);
+      setMessages((prevMessages) => [
+        ...prevMessages,
+        {
+          type: "error",
+          text: `[${new Date().toLocaleTimeString()}] ข้อผิดพลาด: ไม่พบห้อง ${
+            data.roomId
+          } (อาจถูกปิดไปแล้ว)`,
+        },
+      ]);
+      setInRoom(false); // ออกจากห้องไปเลย
+      setRoomId("");
+      // อาจจะ reset state อื่นๆ ที่เกี่ยวข้องกับการอยู่ในห้อง
+    });
     socketClient.on("connect", onConnect);
 
     socketClient.on("disconnect", onDisconnect);
@@ -842,18 +868,26 @@ function App() {
   };
 
   const handleResetGameHandler = () => {
-    if (socketClient && socketClient.connected && isDealer) {
-      console.log("[Client] Emitting 'resetGame' for room:", roomId);
-
-      socketClient.emit("resetGame", roomId);
+    if (roomId && isDealer) {
+      console.log(`[Client] Emitting 'resetGame' for room: ${roomId}`);
+      socketClient.emit("resetGame", { roomId });
+      // การ reset ควรจะเคลียร์สถานะเกมปัจจุบันฝั่ง client ด้วย
+      // เช่น myCards, currentTurnId, gameStarted, result เป็นต้น
+      // setMyCards([]);
+      // setCurrentTurnId(null);
+      // setGameStarted(false);
+      // setResult([]);
+      // setHasStayed(false);
+      // setCanDraw(false);
+      // setShowResultButton(false);
     }
   };
 
   const handleEndGame = () => {
-    if (socketClient && socketClient.connected && isDealer) {
-      console.log("[Client] Emitting 'endGame' for room:", roomId);
-
-      socketClient.emit("endGame", roomId);
+    if (roomId && isDealer) {
+      console.log(`[Client] Emitting 'endGame' for room: ${roomId}`);
+      socketClient.emit("endGame", { roomId });
+      // ไม่ต้องทำอะไรเพิ่ม รอ event 'gameEndedSummary' จาก server
     }
   };
 
