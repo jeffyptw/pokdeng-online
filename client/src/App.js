@@ -6,11 +6,58 @@ import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์
 
 const SERVER_URL = "https://pokdeng-online-th.onrender.com";
 // const SERVER_URL = "http://localhost:3001"; // สำหรับทดสอบ Local
+
 let socketClient = null;
 const DEFAULT_TURN_DURATION = 30;
+const MAX_ROUNDS_TO_STORE_IN_LS = 10; // จำกัดจำนวนรอบที่เก็บใน LS
 
-// MODIFICATION: Helper function for Local Storage key
-const getLocalStorageSummaryKey = (roomId) => `pokdeng_summary_${roomId}`;
+// --- Local Storage Utility Functions ---
+const getLocalStorageKey = (roomId, playerId) => {
+  if (!roomId || !playerId) return null;
+  return `pokdeng_game_state_${roomId}_${playerId}`;
+};
+
+const saveGameStateToLocalStorage = (roomId, playerId, gameStateUpdate) => {
+  const key = getLocalStorageKey(roomId, playerId);
+  if (!key) return;
+  try {
+    const currentData = loadGameStateFromLocalStorage(roomId, playerId) || {};
+    const newData = {
+      ...currentData,
+      ...gameStateUpdate,
+      lastUpdated: new Date().toISOString(),
+    };
+    localStorage.setItem(key, JSON.stringify(newData));
+    console.log("[LS] Game state saved for", key, newData);
+  } catch (error) {
+    console.error("[LS] Error saving game state:", error);
+  }
+};
+
+const loadGameStateFromLocalStorage = (roomId, playerId) => {
+  const key = getLocalStorageKey(roomId, playerId);
+  if (!key) return null;
+  try {
+    const data = localStorage.getItem(key);
+    if (data) {
+      const parsedData = JSON.parse(data);
+      console.log("[LS] Game state loaded for", key, parsedData);
+      return parsedData;
+    }
+    return null;
+  } catch (error) {
+    console.error("[LS] Error loading game state:", error);
+    return null;
+  }
+};
+
+// const clearGameStateFromLocalStorage = (roomId, playerId) => {
+//   const key = getLocalStorageKey(roomId, playerId);
+//   if (!key) return;
+//   localStorage.removeItem(key);
+//   console.log("[LS] Game state cleared for", key);
+// };
+// --- End Local Storage Utility Functions ---
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -48,9 +95,10 @@ function App() {
   const [errorMsg, setErrorMsg] = useState("");
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
+  const endGameFallbackTimerRef = useRef(null);
 
   useEffect(() => {
-    //messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    // messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const addMessage = (text, type = "info") => {
@@ -75,6 +123,59 @@ function App() {
     }
   };
 
+  // Effect for initial load from Local Storage
+  useEffect(() => {
+    if (roomId && myPlayerId && inRoom) {
+      // Ensure player is in a specific room
+      const savedState = loadGameStateFromLocalStorage(roomId, myPlayerId);
+      if (savedState) {
+        addMessage("ตรวจพบข้อมูลเกมที่บันทึกไว้ กำลังกู้คืน...", "info");
+        if (typeof savedState.gameRound === "number") {
+          setGameRound(savedState.gameRound);
+        }
+        if (
+          !result.length &&
+          savedState.allRoundResults &&
+          savedState.allRoundResults.length > 0
+        ) {
+          // Restore last round's result if not already shown and game might have been interrupted
+          const latestRoundData =
+            savedState.allRoundResults[savedState.allRoundResults.length - 1];
+          if (latestRoundData && latestRoundData.data) {
+            // Check if this result corresponds to the current gameRound or next expected one
+            if (latestRoundData.round === savedState.gameRound) {
+              // Or some logic to ensure it's relevant
+              setResult(latestRoundData.data);
+              // If game was not started but result is there, means it was end of last round
+              if (!gameStarted) {
+                addMessage(
+                  `กู้คืนผลลัพธ์รอบที่ ${latestRoundData.round} จาก Local Storage`,
+                  "info"
+                );
+              }
+            }
+          }
+        }
+        // If summary was shown before reload and summaryData is available in LS
+        // This part is tricky, as `showSummary` is usually triggered by server.
+        // If `handleEndGame` is the primary way to show summary from LS on failure, this might be less critical.
+        // However, if the page was reloaded WHILE summary was shown:
+        if (
+          savedState.lastGameSummary &&
+          summaryData.length === 0 &&
+          !gameStarted &&
+          result.length > 0
+        ) {
+          // A heuristic: if game is not started, but there are results, player might have been on summary
+          // Or, if a flag in LS indicated summary was active. For now, this is a simple check.
+          // A more robust way would be to save `showSummary` state to LS too.
+          // For now, if lastGameSummary exists, we allow handleEndGame to potentially load it.
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, myPlayerId, inRoom]); // Add other relevant states if needed for re-triggering restoration logic
+
   useEffect(() => {
     if (!socketClient) {
       console.log("[Client] Initializing new socket connection to", SERVER_URL);
@@ -87,13 +188,11 @@ function App() {
       setIsConnected(true);
       addMessage("เชื่อมต่อกับ Server สำเร็จแล้ว!", "success");
     }
-
     function onDisconnect(reason) {
       console.log("[Client] Disconnected from server. Reason:", reason);
       addMessage(`การเชื่อมต่อกับ Server หลุด! (${reason})`, "error");
       setIsConnected(false);
     }
-
     function onConnectError(err) {
       console.error("[Client] Connection Attempt Error:", err);
       addMessage(`พยายามเชื่อมต่อ Server ไม่สำเร็จ: ${err.message}`, "error");
@@ -117,8 +216,6 @@ function App() {
         setBetAmount(data.betAmount);
         setInputBetAmount(data.betAmount.toString());
       }
-      setShowSummary(false);
-      setSummaryData([]);
     });
 
     socketClient.on("joinedRoom", (data) => {
@@ -132,8 +229,6 @@ function App() {
         "success"
       );
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
-      setShowSummary(false);
-      setSummaryData([]);
     });
 
     socketClient.on("playersData", (activePlayers) => {
@@ -180,9 +275,11 @@ function App() {
       setResult([]);
       setHasStayed(false);
       setShowResultBtn(false);
-      setShowSummary(false);
+      setShowSummary(false); // Reset summary on new game start
       setRevealedPokPlayers({});
-      setGameRound(0);
+      // Clear previous game summary from LS for this player/room when a new game truly starts
+      // Or, keep it as "lastGameSummary" and it will be overwritten when the current game ends.
+      // For now, let's rely on gameEnded to update lastGameSummary.
     });
 
     socketClient.on("currentTurn", (turnData) => {
@@ -228,8 +325,9 @@ function App() {
         "[Client] Event 'result' from server:",
         roundResultsFromServer
       );
+      let sortedResults = [];
       if (Array.isArray(roundResultsFromServer)) {
-        const sortedResults = [...roundResultsFromServer].sort((a, b) => {
+        sortedResults = [...roundResultsFromServer].sort((a, b) => {
           const isADealer = a.role === "เจ้ามือ";
           const isBDealer = b.role === "เจ้ามือ";
           if (isADealer && !isBDealer) return -1;
@@ -243,15 +341,44 @@ function App() {
           }
           return 0;
         });
-        setResult(sortedResults);
-      } else {
-        setResult([]);
       }
+
+      setResult(sortedResults);
+      const updatedGameRound = gameRound + 1; // Calculate new round number before state update
+      setGameRound(updatedGameRound);
+
+      // Save to Local Storage
+      if (roomId && myPlayerId && sortedResults.length > 0) {
+        const currentSavedState = loadGameStateFromLocalStorage(
+          roomId,
+          myPlayerId
+        ) || { allRoundResults: [] };
+        const newRoundResultEntry = {
+          round: updatedGameRound,
+          data: sortedResults,
+          timestamp: new Date().toISOString(),
+        };
+
+        let updatedRoundResultsList = (
+          currentSavedState.allRoundResults || []
+        ).filter((r) => r.round !== updatedGameRound);
+        updatedRoundResultsList.push(newRoundResultEntry);
+
+        if (updatedRoundResultsList.length > MAX_ROUNDS_TO_STORE_IN_LS) {
+          updatedRoundResultsList = updatedRoundResultsList.slice(
+            -MAX_ROUNDS_TO_STORE_IN_LS
+          );
+        }
+        saveGameStateToLocalStorage(roomId, myPlayerId, {
+          gameRound: updatedGameRound,
+          allRoundResults: updatedRoundResultsList,
+        });
+      }
+
       setGameStarted(false);
       setCurrentTurnId(null);
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
       setShowResultBtn(false);
-      setGameRound((prev) => prev + 1);
     });
 
     socketClient.on("resetGame", () => {
@@ -265,8 +392,8 @@ function App() {
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
       setShowResultBtn(false);
       setRevealedPokPlayers({});
-      setShowSummary(false);
-      setGameRound(0);
+      // Optionally clear round results from LS or reset gameRound if needed
+      // saveGameStateToLocalStorage(roomId, myPlayerId, { allRoundResults: [], gameRound: 0 });
     });
 
     socketClient.on("player_revealed_pok", (data) => {
@@ -295,26 +422,35 @@ function App() {
       }
     });
 
-    socketClient.on("gameEnded", (gameSummaryFromServer) => {
-      console.log(
-        "[Client] Event 'gameEnded'. Summary:",
-        gameSummaryFromServer
-      );
-      // Server should ideally send isDealer status for each player in gameSummaryFromServer
-      // The mapping below is a client-side fallback
-      const processedGameSummary = gameSummaryFromServer.map((p) => ({
+    socketClient.on("gameEnded", (gameSummary) => {
+      console.log("[Client] Event 'gameEnded'. Summary:", gameSummary);
+      if (endGameFallbackTimerRef.current) {
+        // Clear fallback timer if server responded
+        clearTimeout(endGameFallbackTimerRef.current);
+        endGameFallbackTimerRef.current = null;
+      }
+
+      const processedSummary = gameSummary.map((p) => ({
         ...p,
         isDealer:
-          playerData.find((pd) => pd.id === p.id)?.isDealer || // Check current playerData
-          p.isDealer || // Check if server already provided it
-          p.role === "เจ้ามือ", // Fallback based on role name
+          playerData.find((pd) => pd.id === p.id)?.isDealer ||
+          p.role === "เจ้ามือ",
       }));
-
-      setSummaryData(processedGameSummary); // This will trigger the useEffect to save to LS
+      setSummaryData(processedSummary);
       setShowSummary(true);
       setGameStarted(false);
-      setResult([]); // Clear last round's result display
+      setResult([]); // Clear round result when game truly ends
       setCurrentTurnId(null);
+
+      // Save summary to Local Storage
+      if (roomId && myPlayerId) {
+        saveGameStateToLocalStorage(roomId, myPlayerId, {
+          lastGameSummary: processedSummary,
+          // Optional: clear allRoundResults now that the game is over,
+          // or keep them as history of the game that just ended.
+          // allRoundResults: [] // If you want to clear round history after game ends
+        });
+      }
     });
 
     socketClient.on("errorMessage", (msg) =>
@@ -326,7 +462,6 @@ function App() {
     socketClient.on("playerLeft", (data) =>
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`)
     );
-
     socketClient.on("roomSettings", (settings) => {
       console.log("[Client] Received 'roomSettings'. Data:", settings);
       if (settings && typeof settings.betAmount === "number") {
@@ -372,25 +507,21 @@ function App() {
         socketClient.off("roomSettings");
         socketClient.off("player_revealed_pok");
       }
-    };
-  }, [myPlayerId, name, roomId, currentTurnId, playerData]);
-
-  // MODIFICATION: useEffect to save summaryData to Local Storage
-  useEffect(() => {
-    if (roomId && summaryData && summaryData.length > 0) {
-      try {
-        const key = getLocalStorageSummaryKey(roomId);
-        console.log(
-          `[Client] Saving summaryData for room ${roomId} to Local Storage (Key: ${key}):`,
-          summaryData
-        );
-        localStorage.setItem(key, JSON.stringify(summaryData));
-      } catch (e) {
-        console.error("[Client] Error saving summaryData to Local Storage:", e);
-        addMessage("ไม่สามารถบันทึกสรุปเกมลงใน Local Storage", "error");
+      if (endGameFallbackTimerRef.current) {
+        // Cleanup timer on component unmount or effect re-run
+        clearTimeout(endGameFallbackTimerRef.current);
       }
-    }
-  }, [summaryData, roomId]);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    myPlayerId,
+    name,
+    roomId,
+    currentTurnId,
+    playerData,
+    gameRound,
+    addMessage,
+  ]); // Added gameRound, addMessage
 
   useEffect(() => {
     let timer;
@@ -423,9 +554,11 @@ function App() {
     myCards.length,
     gameStarted,
     roomId,
+    addMessage, // addMessage is used in this effect
   ]);
 
   useEffect(() => {
+    // useEffect สำหรับคำนวณ transferSummary
     if (showSummary && summaryData.length > 0 && myPlayerId) {
       const currentUserSummary = summaryData.find((p) => p.id === myPlayerId);
       if (!currentUserSummary) {
@@ -435,54 +568,46 @@ function App() {
         setTransferSummary({ toPay: [], toReceive: [] });
         return;
       }
-      // Ensure isDealer is correctly identified for the current user from summaryData
       const amIDealer = currentUserSummary.isDealer;
       const toPayList = [];
       const toReceiveList = [];
 
       if (!amIDealer) {
-        // Current user is a Player
         if (currentUserSummary.netChange < 0) {
-          // Player lost money
           const dealer = summaryData.find((p) => p.isDealer === true);
           if (dealer) {
             toPayList.push({
-              // Player pays dealer
               name: dealer.name,
-              role: dealer.role, // Should be "เจ้ามือ"
+              role: dealer.role,
               amount: Math.abs(currentUserSummary.netChange),
             });
           }
         } else if (currentUserSummary.netChange > 0) {
-          // Player won money
           const dealer = summaryData.find((p) => p.isDealer === true);
           if (dealer) {
             toReceiveList.push({
-              // Player receives from dealer
               name: dealer.name,
-              role: dealer.role, // Should be "เจ้ามือ"
+              role: dealer.role,
               amount: currentUserSummary.netChange,
             });
           }
         }
       } else {
-        // Current user is the Dealer
+        // Current user is the dealer
         summaryData.forEach((player) => {
-          if (player.id === myPlayerId || player.isDealer) return; // Skip self or other potential dealers if any
-
-          // player.netChange is from the perspective of that player
+          if (player.id === myPlayerId || player.isDealer) return; // Skip self and other potential dealers (though usually one)
           if (player.netChange > 0) {
-            // This player won (means dealer lost to this player)
+            // Player won money from dealer
             toPayList.push({
-              // Dealer pays this player
+              // Dealer has to pay this player
               name: player.name,
               role: player.role,
               amount: player.netChange,
             });
           } else if (player.netChange < 0) {
-            // This player lost (means dealer won against this player)
+            // Player lost money to dealer
             toReceiveList.push({
-              // Dealer receives from this player
+              // Dealer will receive this from player
               name: player.name,
               role: player.role,
               amount: Math.abs(player.netChange),
@@ -631,7 +756,7 @@ function App() {
     ) {
       console.log("[Client] Emitting 'stay' in room:", roomId);
       socketClient.emit("stay", roomId);
-      setHasStayed(true);
+      setHasStayed(true); // Optimistic update
     } else {
       addMessage("ไม่สามารถอยู่ได้ในขณะนี้", "error");
     }
@@ -646,7 +771,7 @@ function App() {
       showResultBtn
     ) {
       console.log("[Client] Emitting 'showResult' for room:", roomId);
-      socketClient.emit("showResult", roomId);
+      socketClient.emit("showResult", roomId); // Server will send "result" event
     } else {
       addMessage("ไม่สามารถแสดงผลได้ในขณะนี้", "error");
     }
@@ -659,117 +784,82 @@ function App() {
     }
   };
 
-  // MODIFICATION: handleEndGame to load from Local Storage and then emit to server
   const handleEndGame = () => {
-    if (!roomId) {
-      addMessage("ไม่ได้อยู่ในห้อง หรือยังไม่ได้เชื่อมต่อ", "error");
-      return;
-    }
-
-    const localStorageKey = getLocalStorageSummaryKey(roomId);
-    const storedSummaryJson = localStorage.getItem(localStorageKey);
-
-    if (isDealer) {
-      // Action for Dealer
-      console.log(
-        "[Client] 'End Game & Show Summary' clicked by dealer for room:",
-        roomId
-      );
-      if (storedSummaryJson) {
-        try {
-          const parsedSummary = JSON.parse(storedSummaryJson);
-          if (Array.isArray(parsedSummary) && parsedSummary.length > 0) {
-            console.log(
-              "[Client] Dealer loaded summaryData from Local Storage for display:",
-              parsedSummary
-            );
-            setSummaryData(parsedSummary);
-          } else {
-            console.log(
-              "[Client] Dealer: Local Storage summary was empty/invalid for key:",
-              localStorageKey
-            );
-            setSummaryData([]);
-          }
-        } catch (e) {
-          console.error(
-            "[Client] Dealer: Error parsing summaryData from LS (key: " +
-              localStorageKey +
-              "):",
-            e
-          );
-          setSummaryData([]);
-        }
-      } else {
-        console.log(
-          "[Client] Dealer: No summaryData in LS for this room (key:",
-          localStorageKey,
-          "). Requesting from server."
-        );
-      }
-
-      setShowSummary(true);
-
+    if (isDealer && roomId && myPlayerId) {
+      // Check if user is dealer and in a room
       if (socketClient && socketClient.connected) {
+        console.log("[Client] Emitting 'endGame' for room:", roomId);
         socketClient.emit("endGame", roomId);
-      } else {
-        addMessage(
-          "การเชื่อมต่อ Server หลุด ไม่สามารถส่งคำสั่งจบเกมได้ (แสดงผลจากข้อมูลล่าสุดที่มี)",
-          "warning"
-        );
-      }
-    } else {
-      // Action for Player
-      console.log("[Client] Player clicked 'View Summary' for room:", roomId);
-      if (storedSummaryJson) {
-        try {
-          const parsedSummary = JSON.parse(storedSummaryJson);
-          if (Array.isArray(parsedSummary) && parsedSummary.length > 0) {
-            console.log(
-              "[Client] Player loaded summaryData from Local Storage:",
-              parsedSummary
-            );
-            setSummaryData(parsedSummary);
-            setShowSummary(true);
-          } else {
-            addMessage(
-              "ยังไม่มีข้อมูลสรุปเกมที่บันทึกไว้ หรือข้อมูลไม่ถูกต้อง",
-              "info"
-            );
-            setShowSummary(false);
-          }
-        } catch (e) {
-          console.error(
-            "[Client] Player: Error parsing summaryData from LS (key: " +
-              localStorageKey +
-              "):",
-            e
-          );
-          addMessage(
-            "เกิดข้อผิดพลาดในการโหลดข้อมูลสรุปจาก Local Storage",
-            "error"
-          );
-          setShowSummary(false);
+
+        // Clear previous timer if any
+        if (endGameFallbackTimerRef.current) {
+          clearTimeout(endGameFallbackTimerRef.current);
         }
+
+        // Set a fallback timer in case server doesn't respond
+        endGameFallbackTimerRef.current = setTimeout(() => {
+          // Check if summary is already shown (e.g. server responded quickly)
+          // Need to access current value of showSummary, not the one from closure.
+          // A state check or ref would be better, but for now, this is illustrative.
+          // This requires `showSummary` to be accurate at the time of timeout.
+          if (!document.querySelector(".App-summary")) {
+            // A simple check if summary UI is not yet rendered
+            addMessage(
+              "Server ไม่ตอบสนองการจบเกม. กำลังโหลดสรุปจาก Local Storage...",
+              "warning"
+            );
+            const savedState = loadGameStateFromLocalStorage(
+              roomId,
+              myPlayerId
+            );
+            if (savedState && savedState.lastGameSummary) {
+              setSummaryData(savedState.lastGameSummary);
+              setShowSummary(true);
+              // Common state resets for game end
+              setGameStarted(false);
+              setResult([]);
+              setCurrentTurnId(null);
+              addMessage("แสดงสรุปเกมจากข้อมูลสำรอง (Local Storage)", "info");
+            } else {
+              addMessage(
+                "ไม่พบข้อมูลสรุปเกมใน Local Storage เพื่อแสดงผล",
+                "error"
+              );
+            }
+          }
+        }, 7000); // 7 seconds timeout
       } else {
+        // Socket not connected, try to load directly from LS
         addMessage(
-          "ยังไม่มีข้อมูลสรุปเกมใน Local Storage กรุณารอเจ้ามือจบเกม หรือตรวจสอบการเชื่อมต่อ",
+          "ไม่ได้เชื่อมต่อกับ Server. กำลังโหลดสรุปจาก Local Storage...",
           "info"
         );
-        setShowSummary(false);
+        const savedState = loadGameStateFromLocalStorage(roomId, myPlayerId);
+        if (savedState && savedState.lastGameSummary) {
+          setSummaryData(savedState.lastGameSummary);
+          setShowSummary(true);
+          setGameStarted(false);
+          setResult([]);
+          setCurrentTurnId(null);
+          addMessage("แสดงสรุปเกมจากข้อมูลสำรอง (Local Storage)", "info");
+        } else {
+          addMessage("ไม่พบข้อมูลสรุปเกมใน Local Storage", "error");
+        }
       }
+    } else {
+      addMessage(
+        "เฉพาะเจ้ามือเท่านั้นที่สามารถกดจบเกมได้ หรือคุณยังไม่ได้เข้าร่วมห้อง",
+        "error"
+      );
     }
   };
 
   const handleExitGame = () => {
-    if (roomId) {
-      const localStorageKey = getLocalStorageSummaryKey(roomId);
-      console.log(
-        "[Client] Exiting game, removing summary from Local Storage for key:",
-        localStorageKey
-      );
-      localStorage.removeItem(localStorageKey);
-    }
+    // Optional: clear local storage for this room if desired
+    // if (roomId && myPlayerId) {
+    //   clearGameStateFromLocalStorage(roomId, myPlayerId);
+    //   addMessage("ออกจากเกมและล้างข้อมูล Local Storage ของห้องนี้", "info");
+    // }
     window.location.reload();
   };
 
@@ -803,7 +893,7 @@ function App() {
         if (isDeng) type += " สองเด้ง";
       } else if (isDeng) {
         if (calculatedScore === 0) {
-          type = "บอดสองเด้ง"; // Clarified for "บอดสองเด้ง"
+          type = "บอดสองเด้ง"; // Corrected: Busted but still two of a kind or same suit
         } else {
           type = `${calculatedScore} แต้มสองเด้ง`;
         }
@@ -831,52 +921,54 @@ function App() {
         n_vals_for_straight.length === 3 &&
         n_vals_for_straight.every((n) => typeof n === "number" && !isNaN(n))
       ) {
-        // Normal straight (e.g., 2-3-4, 9-10-J)
         if (
           n_vals_for_straight[1] === n_vals_for_straight[0] + 1 &&
-          n_vals_for_straight[2] === n_vals_for_straight[1] + 1 &&
-          // Exclude A-2-3 for this specific check, handle K-A-2 or A-2-3 if needed as special cases
-          !(
-            n_vals_for_straight[0] === 1 &&
-            n_vals_for_straight[1] === 2 &&
-            n_vals_for_straight[2] === 3
-          )
+          n_vals_for_straight[2] === n_vals_for_straight[1] + 1
         ) {
-          is_straight_result = true;
+          if (
+            !(
+              n_vals_for_straight[0] === 1 &&
+              n_vals_for_straight[1] === 2 &&
+              n_vals_for_straight[2] === 3
+            )
+          ) {
+            is_straight_result = true;
+          }
         }
-        // Straight A-K-Q (1, 13, 12 after sort: 1, 12, 13)
         if (
+          // A23 also straight for some rules, but QKA is more common for high straight
           n_vals_for_straight[0] === 1 &&
-          n_vals_for_straight[1] === 12 &&
-          n_vals_for_straight[2] === 13
+          n_vals_for_straight[1] === 12 && // Q
+          n_vals_for_straight[2] === 13 // K  (A,K,Q)
         ) {
           is_straight_result = true;
+        } else if (
+          // A,2,3
+          n_vals_for_straight[0] === 1 &&
+          n_vals_for_straight[1] === 2 &&
+          n_vals_for_straight[2] === 3
+        ) {
+          is_straight_result = true; // Assuming A23 is a straight
         }
-        // Straight K-Q-J (13,12,11 after sort: 11,12,13) - covered by normal straight check
       }
       const is_sian_result = card_raw_values.every((v_str) =>
         ["J", "Q", "K"].includes(v_str)
-      ); // J, Q, K of any suit
-
+      );
       if (isTaong) {
-        // Highest
         type = `ตอง ${card_raw_values[0]}`;
       } else if (is_straight_result && isSameSuit) {
         type = "สเตรทฟลัช";
       } else if (is_sian_result) {
-        // JQK, not necessarily same suit or straight
         type = "เซียน";
       } else if (is_straight_result) {
-        type = "เรียง"; // Straight (not flush)
+        type = "เรียง";
       } else if (isSameSuit) {
-        // Flush (not straight, not taong)
         if (calculatedScore === 0) {
-          type = "บอดสามเด้ง"; // Clarified for "บอดสามเด้ง"
+          type = "สามเด้ง (บอด)";
         } else {
           type = `${calculatedScore} แต้มสามเด้ง`;
         }
       } else {
-        // Normal 3 cards, no special hands
         if (calculatedScore === 9) {
           type = "9 หลัง";
         } else if (calculatedScore === 8) {
@@ -888,9 +980,22 @@ function App() {
         }
       }
     }
-    if (type === "0 แต้ม" && cardsToRank.length > 0) {
-      // Catchall if somehow missed
-      type = "บอด";
+    if (type === "0 แต้ม" && cardsToRank.length > 0 && calculatedScore === 0) {
+      // Ensure it's explicitly 'บอด' if 0 points
+      if (
+        cardsToRank.length === 2 &&
+        (cardsToRank[0].suit === cardsToRank[1].suit ||
+          cardsToRank[0].value === cardsToRank[1].value)
+      ) {
+        // Already handled as "บอดสองเด้ง"
+      } else if (
+        cardsToRank.length === 3 &&
+        cardsToRank.map((c) => c.suit).every((s, _, arr) => s === arr[0])
+      ) {
+        // Already handled as "สามเด้ง (บอด)"
+      } else {
+        type = "บอด";
+      }
     }
     return { score: calculatedScore, type };
   };
@@ -908,8 +1013,7 @@ function App() {
   }
   const isMyTurn = currentTurnId === myPlayerId && gameStarted && !hasStayed;
 
-  // ... (ส่วน JSX เริ่มต้น)
-
+  // JSX part - Render UI
   if (showSummary) {
     const me = summaryData.find((p) => p.id === myPlayerId);
     return (
@@ -922,17 +1026,16 @@ function App() {
         <hr />
         {transferSummary.toReceive.length > 0 && (
           <>
-            {" "}
             <h3 style={{ color: "green", marginTop: "20px" }}>
-              ยอดที่จะได้รับ:{" "}
+              ยอดที่จะได้รับ:
             </h3>
             {transferSummary.toReceive.map((item, index) => (
               <p
                 key={`receive-${index}`}
                 style={{ color: "green", marginLeft: "20px" }}
               >
-                - จาก {item.name} ({item.role}): {item.amount.toLocaleString()}{" "}
-                บาท{" "}
+                - จาก {item.name} ({item.role}): {item.amount.toLocaleString()}
+                บาท
               </p>
             ))}
             <hr />
@@ -940,15 +1043,14 @@ function App() {
         )}
         {transferSummary.toPay.length > 0 && (
           <>
-            {" "}
             <h3 style={{ color: "red", marginTop: "20px" }}>ยอดที่ต้องโอน:</h3>
             {transferSummary.toPay.map((item, index) => (
               <p
                 key={`pay-${index}`}
                 style={{ color: "red", marginLeft: "20px" }}
               >
-                - ให้ {item.name} ({item.role}): {item.amount.toLocaleString()}{" "}
-                บาท{" "}
+                - ให้ {item.name} ({item.role}): {item.amount.toLocaleString()}
+                บาท
               </p>
             ))}
             <hr />
@@ -957,16 +1059,14 @@ function App() {
         {transferSummary.toReceive.length === 0 &&
           transferSummary.toPay.length === 0 && (
             <p style={{ textAlign: "center", marginTop: "20px" }}>
-              ไม่มีรายการได้เสียสำหรับคุณในรอบนี้{" "}
+              ไม่มีรายการได้เสียสำหรับคุณในรอบนี้
             </p>
           )}
         <h3 style={{ marginTop: "20px" }}>
           ยอดเงินคงเหลือของคุณ:{" "}
-          {(me?.finalBalance !== undefined
-            ? me.finalBalance
-            : parseInt(money)
-          )?.toLocaleString()}{" "}
-          บาท{" "}
+          {(me?.finalBalance !== undefined ? me.finalBalance : parseInt(money)) // Fallback to initial money if finalBalance not in summary (should not happen with good data)
+            ?.toLocaleString()}{" "}
+          บาท
         </h3>
         {me && (
           <p
@@ -980,18 +1080,17 @@ function App() {
             (ยอดเงินเริ่มต้น: {me.initialBalance?.toLocaleString()} บาท,
             กำไร/ขาดทุนสุทธิ:{" "}
             <span className={me.netChange >= 0 ? "profit" : "loss"}>
-              {" "}
               {me.netChange > 0
                 ? `+${me.netChange?.toLocaleString()}`
                 : me.netChange?.toLocaleString() || "0"}{" "}
-              บาท{" "}
+              บาท
             </span>
-            ){" "}
+            )
           </p>
         )}
         <button className="btn-inroom-endgame" onClick={handleExitGame}>
-          ออกจากเกม (เริ่มใหม่){" "}
-        </button>{" "}
+          ออกจากเกม (เริ่มใหม่)
+        </button>
       </div>
     );
   }
