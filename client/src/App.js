@@ -827,7 +827,7 @@ function App() {
               );
             }
           }
-        }, 7000); // 7 seconds timeout
+        }, 3000); // 3 seconds timeout
       } else {
         // Socket not connected, try to load directly from LS
         addMessage(
@@ -1471,7 +1471,7 @@ function App() {
           </p>
         )}{" "}
       <div className="turn-indicator">
-        {!isDealer && result && result.length === 0 && !showSummary && (
+        {!isDealer && (
           <button className="btn-inroom-endgame" onClick={handleEndGame}>
             ออกจากห้อง
           </button>
