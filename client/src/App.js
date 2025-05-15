@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react"; // เพิ่ม useCallback
 import io from "socket.io-client";
 import "./App.css"; // ตรวจสอบว่าคุณมีไฟล์นี้ หรือลบการ import ถ้าไม่ใช้
 
@@ -8,49 +8,127 @@ const SERVER_URL = "https://pokdeng-online-th.onrender.com";
 let socketClient = null;
 const DEFAULT_TURN_DURATION = 30;
 
-// Helper functions for Local Storage
-const getLocalStorageKey = (playerId, roomId) => {
-  if (!playerId || !roomId) return null;
-  return `pokdeng_gamedata_${playerId}_${roomId}`;
-};
+// --- Helper functions for Local Storage ---
+const LOCAL_STORAGE_KEY_PREFIX = "pokdeng_game_history_";
 
-const saveGameDataToLocalStorage = (playerId, roomId, dataToSave) => {
-  const key = getLocalStorageKey(playerId, roomId);
-  if (!key) {
-    console.warn(
-      "[LocalStorage] Cannot save data: playerId or roomId missing."
-    );
+/**
+ * บันทึกผลลัพธ์ของรอบเกมลง Local Storage
+ * @param {string} roomId - ID ของห้อง
+ * @param {string} playerId - ID ของผู้เล่นปัจจุบัน
+ * @param {number} roundNumber - หมายเลขรอบของเกม
+ * @param {Array} resultData - ข้อมูลผลลัพธ์ของรอบ (จาก server)
+ * @param {number} betAmountForRound - จำนวนเงินเดิมพันสำหรับรอบนั้น
+ */
+const saveRoundResultToLocalStorage = (
+  roomId,
+  playerId,
+  roundNumber,
+  resultData,
+  betAmountForRound
+) => {
+  if (
+    !roomId ||
+    !playerId ||
+    typeof roundNumber === "undefined" ||
+    !resultData ||
+    resultData.length === 0
+  ) {
+    console.warn("[LocalStorage] ข้อมูลไม่ครบถ้วนสำหรับการบันทึก:", {
+      roomId,
+      playerId,
+      roundNumber,
+      resultData,
+    });
     return;
   }
+
+  const key = `${LOCAL_STORAGE_KEY_PREFIX}${roomId}_${playerId}`;
   try {
-    localStorage.setItem(key, JSON.stringify(dataToSave));
-    console.log("[LocalStorage] Data saved for key:", key, dataToSave);
+    let history = [];
+    const storedHistory = localStorage.getItem(key);
+    if (storedHistory) {
+      try {
+        const parsedHistory = JSON.parse(storedHistory);
+        if (Array.isArray(parsedHistory)) {
+          history = parsedHistory;
+        }
+      } catch (e) {
+        console.error(
+          "[LocalStorage] ไม่สามารถอ่านข้อมูลประวัติเดิมได้, เริ่มต้นใหม่:",
+          e
+        );
+        history = []; // ถ้า parse ไม่ได้ ให้เริ่มเป็น array ว่าง
+      }
+    }
+
+    const newRoundEntry = {
+      round: roundNumber,
+      timestamp: new Date().toISOString(),
+      betAmount: betAmountForRound,
+      players: resultData.map((player) => ({
+        // เก็บเฉพาะข้อมูลที่จำเป็นและปลอดภัย
+        name: player.name,
+        role: player.role,
+        cards: player.cards ? player.cards.map((c) => ({ ...c })) : [], // clone cards array and objects
+        handDetails: player.handDetails ? { ...player.handDetails } : {}, // clone handDetails
+        score: player.score,
+        netChange: player.netChange, // ผลได้เสียสำหรับผู้เล่นนี้ในรอบนี้
+        isMe: player.id === playerId, // ระบุว่าเป็นผู้เล่นคนนี้หรือไม่
+      })),
+    };
+
+    // ตรวจสอบว่ารอบนี้ (ตาม roundNumber) ถูกบันทึกไปแล้วหรือยัง
+    const existingEntryIndex = history.findIndex(
+      (entry) => entry.round === roundNumber
+    );
+    if (existingEntryIndex > -1) {
+      // ถ้ามีอยู่แล้ว ให้อัปเดต (เผื่อข้อมูลมีการเปลี่ยนแปลงเล็กน้อย หรือ event มาซ้ำ)
+      history[existingEntryIndex] = newRoundEntry;
+      console.log(
+        `[LocalStorage] อัปเดตผลลัพธ์รอบที่ ${roundNumber} สำหรับห้อง ${roomId}, ผู้เล่น ${playerId}`
+      );
+    } else {
+      history.push(newRoundEntry);
+    }
+
+    // เรียงตามรอบ เผื่อมีการบันทึกไม่ตามลำดับ (ไม่น่าเกิด แต่ป้องกันไว้)
+    history.sort((a, b) => a.round - b.round);
+
+    // จำกัดจำนวนประวัติที่เก็บ (เช่น 50 รอบล่าสุด)
+    const MAX_HISTORY_LENGTH = 50;
+    if (history.length > MAX_HISTORY_LENGTH) {
+      history = history.slice(history.length - MAX_HISTORY_LENGTH);
+    }
+
+    localStorage.setItem(key, JSON.stringify(history));
+    // console.log(`[LocalStorage] บันทึกผลลัพธ์รอบที่ ${roundNumber} (เดิมพัน: ${betAmountForRound}) สำหรับห้อง ${roomId}, ผู้เล่น ${playerId}`);
   } catch (error) {
-    console.error("[LocalStorage] Error saving data:", error);
-    // Consider informing the user if storage is full, etc.
+    console.error("[LocalStorage] เกิดข้อผิดพลาดในการบันทึกผลลัพธ์:", error);
   }
 };
 
-const loadGameDataFromLocalStorage = (playerId, roomId) => {
-  const key = getLocalStorageKey(playerId, roomId);
-  if (!key) {
-    console.warn(
-      "[LocalStorage] Cannot load data: playerId or roomId missing."
-    );
-    return null;
-  }
+/**
+ * โหลดประวัติเกมจาก Local Storage
+ * @param {string} roomId - ID ของห้อง
+ * @param {string} playerId - ID ของผู้เล่นปัจจุบัน
+ * @returns {Array} - Array ของข้อมูลประวัติ หรือ Array ว่างถ้าไม่มี
+ */
+const loadGameHistoryFromLocalStorage = (roomId, playerId) => {
+  if (!roomId || !playerId) return [];
+  const key = `${LOCAL_STORAGE_KEY_PREFIX}${roomId}_${playerId}`;
   try {
-    const storedData = localStorage.getItem(key);
-    if (storedData) {
-      console.log("[LocalStorage] Data loaded for key:", key);
-      return JSON.parse(storedData);
+    const storedHistory = localStorage.getItem(key);
+    if (storedHistory) {
+      const history = JSON.parse(storedHistory);
+      return Array.isArray(history) ? history : [];
     }
-    return null;
+    return [];
   } catch (error) {
-    console.error("[LocalStorage] Error loading data:", error);
-    return null;
+    console.error("[LocalStorage] เกิดข้อผิดพลาดในการโหลดประวัติ:", error);
+    return [];
   }
 };
+// --- End Helper functions for Local Storage ---
 
 function App() {
   const [isConnected, setIsConnected] = useState(false);
@@ -77,7 +155,7 @@ function App() {
   const [countdown, setCountdown] = useState(DEFAULT_TURN_DURATION);
   const [result, setResult] = useState([]);
   const [showResultBtn, setShowResultBtn] = useState(false);
-  const [gameRound, setGameRound] = useState(0); // Tracks number of completed rounds, or next round number
+  const [gameRound, setGameRound] = useState(0); // รอบเกม (เริ่มจาก 0 สำหรับรอบแรก)
   const [showSummary, setShowSummary] = useState(false);
   const [summaryData, setSummaryData] = useState([]);
   const [transferSummary, setTransferSummary] = useState({
@@ -89,53 +167,72 @@ function App() {
   const [messages, setMessages] = useState([]);
   const messagesEndRef = useRef(null);
 
-  useEffect(() => {
-    //messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  // --- State for Local Storage History ---
+  const [localHistory, setLocalHistory] = useState([]);
+  const [showLocalHistoryUI, setShowLocalHistoryUI] = useState(false); // ควบคุมการแสดงผล UI ประวัติ
 
-  const addMessage = (text, type = "info") => {
+  // --- Refs for stable access to state within socket handlers ---
+  const roomIdRef = useRef(roomId);
+  const myPlayerIdRef = useRef(myPlayerId);
+  const gameRoundRef = useRef(gameRound);
+  const betAmountRef = useRef(betAmount);
+
+  useEffect(() => {
+    roomIdRef.current = roomId;
+  }, [roomId]);
+  useEffect(() => {
+    myPlayerIdRef.current = myPlayerId;
+  }, [myPlayerId]);
+  useEffect(() => {
+    gameRoundRef.current = gameRound;
+  }, [gameRound]);
+  useEffect(() => {
+    betAmountRef.current = betAmount;
+  }, [betAmount]);
+
+  // Memoize addMessage to stabilize its reference
+  const addMessage = useCallback((text, type = "info") => {
     const fullText = `[${new Date().toLocaleTimeString()}] ${text}`;
     setMessages((prev) => {
       const newMessages = [...prev, { text: fullText, type }];
-      if (newMessages.length > 20)
-        return newMessages.slice(newMessages.length - 20);
-      return newMessages;
+      return newMessages.length > 20
+        ? newMessages.slice(newMessages.length - 20)
+        : newMessages;
     });
-    if (
-      type === "error" ||
-      type === "success" ||
-      type === "info" ||
-      type === "highlight"
-    ) {
+    if (["error", "success", "info", "highlight"].includes(type)) {
       setErrorMsg(text);
       setTimeout(
         () => setErrorMsg((current) => (current === text ? "" : current)),
         type === "error" ? 7000 : 5000
       );
     }
-  };
+  }, []); // setErrorMsg and setMessages are stable
+
+  useEffect(() => {
+    // messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
     if (!socketClient) {
-      console.log("[Client] Initializing new socket connection to", SERVER_URL);
+      console.log("[Client] เริ่มการเชื่อมต่อ socket ใหม่ไปที่", SERVER_URL);
       socketClient = io(SERVER_URL, { transports: ["websocket"] });
     }
 
     function onConnect() {
-      console.log("[Client] Connected to server with ID:", socketClient.id);
+      console.log("[Client] เชื่อมต่อกับ Server สำเร็จ ID:", socketClient.id);
       setMyPlayerId(socketClient.id);
       setIsConnected(true);
       addMessage("เชื่อมต่อกับ Server สำเร็จแล้ว!", "success");
     }
 
     function onDisconnect(reason) {
-      console.log("[Client] Disconnected from server. Reason:", reason);
+      console.log("[Client] การเชื่อมต่อกับ Server หลุด. เหตุผล:", reason);
       addMessage(`การเชื่อมต่อกับ Server หลุด! (${reason})`, "error");
       setIsConnected(false);
     }
 
     function onConnectError(err) {
-      console.error("[Client] Connection Attempt Error:", err);
+      console.error("[Client] ข้อผิดพลาดในการพยายามเชื่อมต่อ:", err);
       addMessage(`พยายามเชื่อมต่อ Server ไม่สำเร็จ: ${err.message}`, "error");
       setIsConnected(false);
     }
@@ -157,19 +254,7 @@ function App() {
         setBetAmount(data.betAmount);
         setInputBetAmount(data.betAmount.toString());
       }
-      // Clear previous room data from local storage if any for this player
-      if (myPlayerId && data.roomId) {
-        const keys = Object.keys(localStorage);
-        keys.forEach((key) => {
-          if (
-            key.startsWith(`pokdeng_gamedata_${myPlayerId}_`) &&
-            key !== getLocalStorageKey(myPlayerId, data.roomId)
-          ) {
-            localStorage.removeItem(key);
-            console.log(`[LocalStorage] Removed old room data: ${key}`);
-          }
-        });
-      }
+      setGameRound(0); // เริ่มรอบที่ 0 เมื่อสร้างห้อง
     });
 
     socketClient.on("joinedRoom", (data) => {
@@ -183,53 +268,22 @@ function App() {
         "success"
       );
       if (typeof data.betAmount === "number") setBetAmount(data.betAmount);
-
-      // Clear previous room data from local storage if any for this player
-      if (myPlayerId && data.roomId) {
-        const keys = Object.keys(localStorage);
-        keys.forEach((key) => {
-          if (
-            key.startsWith(`pokdeng_gamedata_${myPlayerId}_`) &&
-            key !== getLocalStorageKey(myPlayerId, data.roomId)
-          ) {
-            localStorage.removeItem(key);
-            console.log(`[LocalStorage] Removed old room data: ${key}`);
-          }
-        });
-      }
-      // Attempt to load data for this room
-      const existingRoomData = loadGameDataFromLocalStorage(
-        myPlayerId,
-        data.roomId
-      );
-      if (existingRoomData) {
-        addMessage(`พบข้อมูลที่บันทึกไว้สำหรับห้อง ${data.roomId}`, "info");
-        if (existingRoomData.rounds) {
-          const roundKeys = Object.keys(existingRoomData.rounds);
-          if (roundKeys.length > 0) {
-            const latestRoundNumber = Math.max(...roundKeys.map(Number));
-            // Potentially set gameRound or other states if needed for restoration
-            // For now, just logging that data exists.
-            console.log(
-              "[LocalStorage] Loaded rounds data:",
-              existingRoomData.rounds
-            );
-          }
-        }
-        if (existingRoomData.summary) {
-          // Potentially set summaryData if game was already ended and user is rejoining to see summary
-          console.log(
-            "[LocalStorage] Loaded summary data:",
-            existingRoomData.summary
-          );
-        }
+      setGameRound(data.currentRound || 0); // รับรอบปัจจุบันจาก server หรือเริ่มที่ 0
+      // โหลดประวัติทันทีเมื่อเข้าร่วมห้องสำเร็จ
+      if (socketClient.id && data.roomId) {
+        // socketClient.id คือ myPlayerId ที่เพิ่ง set
+        const loadedHistory = loadGameHistoryFromLocalStorage(
+          data.roomId,
+          socketClient.id
+        );
+        setLocalHistory(loadedHistory);
       }
     });
 
     socketClient.on("playersData", (activePlayers) => {
-      console.log("[Client] Received 'playersData':", activePlayers);
+      // console.log("[Client] Received 'playersData':", activePlayers);
       setPlayerData(activePlayers);
-      const me = activePlayers.find((p) => p.id === myPlayerId);
+      const me = activePlayers.find((p) => p.id === myPlayerIdRef.current); // ใช้ Ref
       if (me) {
         setIsDealer(me.isDealer);
         if (typeof me.hasStayed === "boolean") {
@@ -239,12 +293,7 @@ function App() {
     });
 
     socketClient.on("yourCards", (cardsFromServer) => {
-      console.log(
-        `[Client ${
-          myPlayerId || socketClient?.id
-        }] Received 'yourCards'. Data:`,
-        JSON.stringify(cardsFromServer)
-      );
+      // console.log(`[Client ${myPlayerIdRef.current || socketClient?.id}] Received 'yourCards'. Data:`, JSON.stringify(cardsFromServer));
       if (
         Array.isArray(cardsFromServer) &&
         cardsFromServer.every(
@@ -255,7 +304,7 @@ function App() {
         setMyCards(cardsFromServer);
       } else {
         console.warn(
-          "[Client] 'yourCards' received non-array of objects or invalid data:",
+          "[Client] 'yourCards' received invalid data:",
           cardsFromServer
         );
         setMyCards([]);
@@ -272,11 +321,11 @@ function App() {
       setShowResultBtn(false);
       setShowSummary(false);
       setRevealedPokPlayers({});
-      // gameRound is typically reset by dealer action or managed per round
+      // gameRound จะถูกจัดการโดย server หรือเพิ่มเมื่อ 'result'
     });
 
     socketClient.on("currentTurn", (turnData) => {
-      console.log("[Client] Event 'currentTurn':", turnData);
+      // console.log("[Client] Event 'currentTurn':", turnData);
       setCurrentTurnId(turnData.id);
       setCurrentTurnInfo({
         name: turnData.name,
@@ -284,8 +333,11 @@ function App() {
         timeLeft: turnData.timeLeft,
       });
       setCountdown(turnData.timeLeft || DEFAULT_TURN_DURATION);
-      if (turnData.id === myPlayerId) {
-        const meInPlayerData = playerData.find((p) => p.id === myPlayerId);
+      if (turnData.id === myPlayerIdRef.current) {
+        // ใช้ Ref
+        const meInPlayerData = playerData.find(
+          (p) => p.id === myPlayerIdRef.current
+        ); // ใช้ Ref
         if (!(meInPlayerData && meInPlayerData.hasStayed)) {
           setHasStayed(false);
         }
@@ -294,21 +346,23 @@ function App() {
 
     socketClient.on("turnTimerUpdate", (timerData) => {
       if (currentTurnId === timerData.playerId) {
+        // currentTurnId จาก state ได้
         setCurrentTurnInfo((prev) => ({
           ...prev,
           timeLeft: timerData.timeLeft,
         }));
-        if (timerData.playerId === myPlayerId) setCountdown(timerData.timeLeft);
+        if (timerData.playerId === myPlayerIdRef.current)
+          setCountdown(timerData.timeLeft); // ใช้ Ref
       }
     });
 
     socketClient.on("enableShowResult", (canShow) => {
-      console.log("[Client] Enable Show Result:", canShow);
+      // console.log("[Client] Enable Show Result:", canShow);
       setShowResultBtn(canShow);
     });
 
     socketClient.on("lockRoom", (isLockedFromServer) => {
-      console.log("[Client] Room lock status from server:", isLockedFromServer);
+      // console.log("[Client] Room lock status from server:", isLockedFromServer);
       setRoomLocked(isLockedFromServer);
       addMessage(isLockedFromServer ? "ห้องถูกล็อค" : "ห้องถูกปลดล็อค");
     });
@@ -318,9 +372,8 @@ function App() {
         "[Client] Event 'result' from server:",
         roundResultsFromServer
       );
-      let sortedResults = [];
       if (Array.isArray(roundResultsFromServer)) {
-        sortedResults = [...roundResultsFromServer].sort((a, b) => {
+        const sortedResults = [...roundResultsFromServer].sort((a, b) => {
           const isADealer = a.role === "เจ้ามือ";
           const isBDealer = b.role === "เจ้ามือ";
           if (isADealer && !isBDealer) return -1;
@@ -335,41 +388,43 @@ function App() {
           return 0;
         });
         setResult(sortedResults);
+
+        // --- LOCAL STORAGE SAVE ---
+        const currentRoomIdVal = roomIdRef.current;
+        const currentPlayerIdVal = myPlayerIdRef.current;
+        const currentRoundVal = gameRoundRef.current; // gameRound คือรอบที่เพิ่งจบไป
+        const currentBetAmountVal = betAmountRef.current;
+
+        if (
+          currentRoomIdVal &&
+          currentPlayerIdVal &&
+          sortedResults.length > 0
+        ) {
+          saveRoundResultToLocalStorage(
+            currentRoomIdVal,
+            currentPlayerIdVal,
+            currentRoundVal,
+            sortedResults,
+            currentBetAmountVal
+          );
+          // อัปเดต state ของ localHistory ทันทีหากกำลังแสดงผลอยู่
+          if (showLocalHistoryUI) {
+            const updatedHistory = loadGameHistoryFromLocalStorage(
+              currentRoomIdVal,
+              currentPlayerIdVal
+            );
+            setLocalHistory(updatedHistory);
+          }
+        }
+        // --- END LOCAL STORAGE SAVE ---
       } else {
         setResult([]);
       }
-
       setGameStarted(false);
       setCurrentTurnId(null);
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
       setShowResultBtn(false);
-
-      const finishedRoundNumber = gameRound; // Current gameRound is the round that just finished
-      setGameRound((prev) => prev + 1); // Increment for the next round
-
-      // Save round result to Local Storage
-      if (myPlayerId && roomId) {
-        const existingData = loadGameDataFromLocalStorage(
-          myPlayerId,
-          roomId
-        ) || {
-          rounds: {},
-          summary: null,
-          lastUpdated: "",
-        };
-        if (!existingData.rounds) existingData.rounds = {};
-
-        existingData.rounds[finishedRoundNumber] = {
-          timestamp: new Date().toISOString(),
-          resultData: sortedResults,
-        };
-        existingData.lastUpdated = new Date().toISOString();
-        saveGameDataToLocalStorage(myPlayerId, roomId, existingData);
-        addMessage(
-          `ผลลัพธ์รอบ ${finishedRoundNumber} ถูกบันทึกลง Local Storage แล้ว`,
-          "info"
-        );
-      }
+      setGameRound((prev) => prev + 1); // เพิ่มรอบสำหรับรอบถัดไป
     });
 
     socketClient.on("resetGame", () => {
@@ -383,11 +438,13 @@ function App() {
       setCurrentTurnInfo({ name: "", role: "", timeLeft: 0 });
       setShowResultBtn(false);
       setRevealedPokPlayers({});
-      setGameRound(0); // Reset game round counter
+      // gameRound อาจจะถูก reset โดย server หรือคงไว้เพื่อเริ่มรอบใหม่ในห้องเดิม
+      // หากต้องการ reset round number ด้วย ต้องให้ server ส่งมา หรือ client จัดการเอง
+      // setGameRound(0); // ถ้าต้องการเริ่มนับรอบใหม่ทั้งหมด
     });
 
     socketClient.on("player_revealed_pok", (data) => {
-      console.log("[Client] Player revealed Pok:", data);
+      // console.log("[Client] Player revealed Pok:", data);
       if (data && data.playerId && data.cards && data.handDetails) {
         addMessage(
           `${data.role || "ขาไพ่"} (${data.name}) ${
@@ -412,41 +469,22 @@ function App() {
       }
     });
 
-    socketClient.on("gameEnded", (gameSummaryFromServer) => {
-      console.log(
-        "[Client] Event 'gameEnded'. Summary:",
-        gameSummaryFromServer
+    socketClient.on("gameEnded", (gameSummary) => {
+      console.log("[Client] Event 'gameEnded'. Summary:", gameSummary);
+      setSummaryData(
+        gameSummary.map((p) => ({
+          ...p,
+          isDealer:
+            playerData.find((pd) => pd.id === p.id)?.isDealer ||
+            p.role === "เจ้ามือ",
+        }))
       );
-      const processedSummary = gameSummaryFromServer.map((p) => ({
-        ...p,
-        isDealer:
-          playerData.find((pd) => pd.id === p.id)?.isDealer ||
-          p.role === "เจ้ามือ",
-      }));
-      setSummaryData(processedSummary);
       setShowSummary(true);
       setGameStarted(false);
       setResult([]);
       setCurrentTurnId(null);
-
-      // Save game summary to Local Storage
-      if (myPlayerId && roomId) {
-        const existingData = loadGameDataFromLocalStorage(
-          myPlayerId,
-          roomId
-        ) || {
-          rounds: {},
-          summary: null,
-          lastUpdated: "",
-        };
-        existingData.summary = {
-          timestamp: new Date().toISOString(),
-          summaryData: processedSummary,
-        };
-        existingData.lastUpdated = new Date().toISOString();
-        saveGameDataToLocalStorage(myPlayerId, roomId, existingData);
-        addMessage("สรุปผลเกมถูกบันทึกลง Local Storage แล้ว", "success");
-      }
+      // ณ จุดนี้ เกมทั้ง session สิ้นสุด อาจจะไม่ต้องบันทึก local storage เพิ่มเติม
+      // เว้นแต่ว่า gameSummary คือผลสรุปของรอบสุดท้าย ซึ่ง event 'result' ควรจะจัดการไปแล้ว
     });
 
     socketClient.on("errorMessage", (msg) =>
@@ -458,8 +496,9 @@ function App() {
     socketClient.on("playerLeft", (data) =>
       addMessage(`${data.name} ${data.message || "ออกจากห้อง"}`)
     );
+
     socketClient.on("roomSettings", (settings) => {
-      console.log("[Client] Received 'roomSettings'. Data:", settings);
+      // console.log("[Client] Received 'roomSettings'. Data:", settings);
       if (settings && typeof settings.betAmount === "number") {
         addMessage(
           `[EVENT] ราคาเดิมพันอัปเดตเป็น: ${settings.betAmount} (จาก roomSettings)`,
@@ -467,8 +506,8 @@ function App() {
         );
         setBetAmount(settings.betAmount);
         const amIDealer = playerData.find(
-          (p) => p.id === myPlayerId && p.isDealer
-        );
+          (p) => p.id === myPlayerIdRef.current && p.isDealer
+        ); // ใช้ Ref
         if (amIDealer) {
           setInputBetAmount(settings.betAmount.toString());
         }
@@ -504,8 +543,11 @@ function App() {
         socketClient.off("player_revealed_pok");
       }
     };
-  }, [myPlayerId, name, roomId, currentTurnId, playerData, gameRound]); // Added gameRound
+    // Dependencies for socket setup. `addMessage` is memoized.
+    // `playerData` อาจจะไม่จำเป็นถ้าการอ้างอิงถึงมันถูกจัดการผ่าน ref หรือ state อื่นๆ ที่เหมาะสม
+  }, [addMessage, name]); // `name` ใช้ใน roomCreated, `playerData` อาจจะต้องพิจารณาอีกครั้ง
 
+  // Countdown timer effect
   useEffect(() => {
     let timer;
     if (
@@ -524,7 +566,7 @@ function App() {
     ) {
       if (socketClient && socketClient.connected) {
         addMessage("หมดเวลา! ทำการ 'อยู่' อัตโนมัติ", "info");
-        socketClient.emit("stay", roomId);
+        socketClient.emit("stay", roomIdRef.current); // ใช้ Ref
         setHasStayed(true);
       }
     }
@@ -536,10 +578,10 @@ function App() {
     myPlayerId,
     myCards.length,
     gameStarted,
-    roomId,
-    // addMessage, // addMessage causes re-runs if not memoized, usually safe to omit if its definition is stable
-  ]);
+    addMessage,
+  ]); // roomId ไม่ได้ใช้ตรงๆ ในนี้แล้ว
 
+  // useEffect สำหรับคำนวณ transferSummary
   useEffect(() => {
     if (showSummary && summaryData.length > 0 && myPlayerId) {
       const currentUserSummary = summaryData.find((p) => p.id === myPlayerId);
@@ -550,45 +592,42 @@ function App() {
         setTransferSummary({ toPay: [], toReceive: [] });
         return;
       }
-      const amIDealer = currentUserSummary.isDealer;
+      const amIDealerNow = currentUserSummary.isDealer;
       const toPayList = [];
       const toReceiveList = [];
-      if (!amIDealer) {
+      if (!amIDealerNow) {
         if (currentUserSummary.netChange < 0) {
           const dealer = summaryData.find((p) => p.isDealer === true);
-          if (dealer) {
+          if (dealer)
             toPayList.push({
               name: dealer.name,
               role: dealer.role,
               amount: Math.abs(currentUserSummary.netChange),
             });
-          }
         } else if (currentUserSummary.netChange > 0) {
           const dealer = summaryData.find((p) => p.isDealer === true);
-          if (dealer) {
+          if (dealer)
             toReceiveList.push({
               name: dealer.name,
               role: dealer.role,
               amount: currentUserSummary.netChange,
             });
-          }
         }
       } else {
         summaryData.forEach((player) => {
           if (player.id === myPlayerId) return;
-          if (player.netChange > 0) {
+          if (player.netChange > 0)
             toPayList.push({
               name: player.name,
               role: player.role,
               amount: player.netChange,
             });
-          } else if (player.netChange < 0) {
+          else if (player.netChange < 0)
             toReceiveList.push({
               name: player.name,
               role: player.role,
               amount: Math.abs(player.netChange),
             });
-          }
         });
       }
       setTransferSummary({ toPay: toPayList, toReceive: toReceiveList });
@@ -597,6 +636,23 @@ function App() {
     }
   }, [showSummary, summaryData, myPlayerId]);
 
+  // --- Effect for loading local history when component mounts or relevant IDs change ---
+  useEffect(() => {
+    const currentRoomIdVal = roomIdRef.current;
+    const currentPlayerIdVal = myPlayerIdRef.current;
+    if (currentRoomIdVal && currentPlayerIdVal) {
+      const loadedHistory = loadGameHistoryFromLocalStorage(
+        currentRoomIdVal,
+        currentPlayerIdVal
+      );
+      setLocalHistory(loadedHistory);
+      // console.log("[LocalStorage] โหลดประวัติเมื่อ roomId/myPlayerId เปลี่ยน:", loadedHistory);
+    } else {
+      setLocalHistory([]); // เคลียร์ประวัติถ้าไม่มีห้องหรือผู้เล่น
+    }
+  }, [roomId, myPlayerId]); // ทำงานเมื่อ roomId หรือ myPlayerId จาก state เปลี่ยน (ซึ่งจะอัปเดต ref ด้วย)
+
+  // --- Handlers ---
   const handleCreateRoom = () => {
     if (!socketClient || !isConnected) {
       addMessage("ยังไม่ได้เชื่อมต่อกับ Server", "error");
@@ -616,7 +672,6 @@ function App() {
     }
     console.log("[Client] Emitting 'createRoom'");
     socketClient.emit("createRoom", { playerName: name, initialBalance: bal });
-    setGameRound(0); // Reset game round when creating a new room
   };
 
   const handleJoinRoom = () => {
@@ -646,7 +701,6 @@ function App() {
       playerName: name,
       initialBalance: bal,
     });
-    setGameRound(0); // Reset game round when joining a new room
   };
 
   const handleSetBet = () => {
@@ -658,7 +712,10 @@ function App() {
         (amount % 10 === 0 || amount % 5 === 0)
       ) {
         console.log("[Client] Emitting 'setBetAmount' with amount:", amount);
-        socketClient.emit("setBetAmount", { roomId, amount });
+        socketClient.emit("setBetAmount", {
+          roomId: roomIdRef.current,
+          amount,
+        }); // ใช้ Ref
       } else {
         addMessage(
           "จำนวนเงินเดิมพันต้องเป็นตัวเลข, ไม่น้อยกว่า 5 และลงท้ายด้วย 0 หรือ 5",
@@ -673,16 +730,22 @@ function App() {
   const handleToggleLockRoom = () => {
     if (socketClient && isConnected && isDealer && !gameStarted) {
       console.log("[Client] Emitting 'lockRoom' with new state:", !roomLocked);
-      socketClient.emit("lockRoom", { roomId, lock: !roomLocked });
+      socketClient.emit("lockRoom", {
+        roomId: roomIdRef.current,
+        lock: !roomLocked,
+      }); // ใช้ Ref
     }
   };
 
   const handleCopyRoomId = () => {
-    if (!roomId) return;
+    if (!roomIdRef.current) return; // ใช้ Ref
     navigator.clipboard
-      .writeText(roomId)
+      .writeText(roomIdRef.current)
       .then(() =>
-        addMessage(`คัดลอกเลขห้อง "${roomId}" เรียบร้อยแล้ว`, "success")
+        addMessage(
+          `คัดลอกเลขห้อง "${roomIdRef.current}" เรียบร้อยแล้ว`,
+          "success"
+        )
       )
       .catch((err) => {
         console.error("คัดลอกไม่สำเร็จ:", err);
@@ -691,19 +754,24 @@ function App() {
   };
 
   const handleStartGame = () => {
-    if (socketClient && socketClient.connected && roomId && isDealer) {
-      if (betAmount <= 0) {
+    if (
+      socketClient &&
+      socketClient.connected &&
+      roomIdRef.current &&
+      isDealer
+    ) {
+      // ใช้ Ref
+      if (betAmountRef.current <= 0) {
         addMessage("กรุณากำหนดเงินเดิมพันก่อนเริ่มเกม", "error");
         return;
-      }
+      } // ใช้ Ref
       console.log(
         "[Client] Attempting 'startGame'. RoomId:",
-        roomId,
+        roomIdRef.current,
         "IsDealer:",
         isDealer
       );
-      socketClient.emit("startGame", roomId);
-      setGameRound(0); // Game round count starts from 0 for the first round
+      socketClient.emit("startGame", roomIdRef.current); // ใช้ Ref
     } else {
       addMessage("ไม่สามารถเริ่มเกมได้", "error");
     }
@@ -718,8 +786,8 @@ function App() {
       !hasStayed &&
       myCards.length < 3
     ) {
-      console.log("[Client] Emitting 'drawCard' in room:", roomId);
-      socketClient.emit("drawCard", roomId);
+      console.log("[Client] Emitting 'drawCard' in room:", roomIdRef.current); // ใช้ Ref
+      socketClient.emit("drawCard", roomIdRef.current); // ใช้ Ref
     } else {
       addMessage("ไม่สามารถจั่วไพ่ได้ในขณะนี้", "error");
     }
@@ -733,8 +801,8 @@ function App() {
       currentTurnId === myPlayerId &&
       !hasStayed
     ) {
-      console.log("[Client] Emitting 'stay' in room:", roomId);
-      socketClient.emit("stay", roomId);
+      console.log("[Client] Emitting 'stay' in room:", roomIdRef.current); // ใช้ Ref
+      socketClient.emit("stay", roomIdRef.current); // ใช้ Ref
       setHasStayed(true);
     } else {
       addMessage("ไม่สามารถอยู่ได้ในขณะนี้", "error");
@@ -749,8 +817,11 @@ function App() {
       gameStarted &&
       showResultBtn
     ) {
-      console.log("[Client] Emitting 'showResult' for room:", roomId);
-      socketClient.emit("showResult", roomId);
+      console.log(
+        "[Client] Emitting 'showResult' for room:",
+        roomIdRef.current
+      ); // ใช้ Ref
+      socketClient.emit("showResult", roomIdRef.current); // ใช้ Ref
     } else {
       addMessage("ไม่สามารถแสดงผลได้ในขณะนี้", "error");
     }
@@ -758,58 +829,19 @@ function App() {
 
   const handleResetGameHandler = () => {
     if (socketClient && socketClient.connected && isDealer) {
-      console.log("[Client] Emitting 'resetGame' for room:", roomId);
-      socketClient.emit("resetGame", roomId); // Server should handle gameRound reset
+      console.log("[Client] Emitting 'resetGame' for room:", roomIdRef.current); // ใช้ Ref
+      socketClient.emit("resetGame", roomIdRef.current); // ใช้ Ref
     }
   };
 
   const handleEndGame = () => {
     if (socketClient && socketClient.connected && isDealer) {
-      console.log("[Client] Emitting 'endGame' for room:", roomId);
-      socketClient.emit("endGame", roomId);
-      // Summary data will be saved when 'gameEnded' event is received.
-      // You can also attempt to show it from local storage here if needed for immediate review.
-      if (myPlayerId && roomId) {
-        const gameData = loadGameDataFromLocalStorage(myPlayerId, roomId);
-        if (gameData && gameData.summary) {
-          addMessage(
-            "กำลังแสดงสรุปผลเกม (ข้อมูลอาจมาจาก Local Storage หาก Server ช้า)",
-            "info"
-          );
-          console.log(
-            "[LocalStorage] Summary data on EndGame:",
-            gameData.summary
-          );
-        }
-      }
+      console.log("[Client] Emitting 'endGame' for room:", roomIdRef.current); // ใช้ Ref
+      socketClient.emit("endGame", roomIdRef.current); // ใช้ Ref
     }
   };
 
   const handleExitGame = () => {
-    if (myPlayerId && roomId) {
-      const savedRoomData = loadGameDataFromLocalStorage(myPlayerId, roomId);
-      if (savedRoomData) {
-        console.log(
-          `[LocalStorage] ข้อมูลที่บันทึกไว้สำหรับห้อง ${roomId} (ผู้เล่น ${myPlayerId}):`,
-          savedRoomData
-        );
-        addMessage(
-          "ข้อมูลเกมที่บันทึกไว้ถูกแสดงใน Console Log (กด F12)",
-          "info"
-        );
-      } else {
-        addMessage(
-          "ไม่มีข้อมูลเกมที่บันทึกไว้สำหรับห้องนี้ใน Local Storage",
-          "info"
-        );
-      }
-    }
-    // Optional: Clear the specific room's data from local storage upon exiting,
-    // or leave it for potential rejoining or later review.
-    // if (myPlayerId && roomId) {
-    //   localStorage.removeItem(getLocalStorageKey(myPlayerId, roomId));
-    //   addMessage("ข้อมูล Local Storage สำหรับห้องนี้ถูกล้างแล้ว", "info");
-    // }
     window.location.reload();
   };
 
@@ -820,10 +852,29 @@ function App() {
       typeof card.suit !== "undefined"
     )
       return `${card.value}${card.suit}`;
-    console.warn("[Client] getCardDisplay received invalid card object:", card);
+    // console.warn("[Client] getCardDisplay received invalid card object:", card);
     return "?";
   };
 
+  // --- Function to toggle Local History UI ---
+  const toggleShowLocalHistory = () => {
+    if (!showLocalHistoryUI) {
+      // ถ้ากำลังจะเปิดดู ให้โหลดข้อมูลล่าสุด
+      const currentRoomIdVal = roomIdRef.current;
+      const currentPlayerIdVal = myPlayerIdRef.current;
+      if (currentRoomIdVal && currentPlayerIdVal) {
+        const loadedHistory = loadGameHistoryFromLocalStorage(
+          currentRoomIdVal,
+          currentPlayerIdVal
+        );
+        setLocalHistory(loadedHistory);
+      }
+    }
+    setShowLocalHistoryUI((prev) => !prev);
+  };
+
+  // ... (calculateRankForDisplay, myCurrentPlayerData, myHandType, isMyTurn - เหมือนเดิม) ...
+  // (ฟังก์ชัน getCardPoint, calculateRankForDisplay ไม่เปลี่ยนแปลง)
   const getCardPoint = (v) =>
     ["J", "Q", "K", "10"].includes(v) ? 0 : v === "A" ? 1 : parseInt(v);
 
@@ -833,7 +884,6 @@ function App() {
     const calculatedScore =
       cardsToRank.reduce((sum, c) => sum + getCardPoint(c.value), 0) % 10;
     let type = `${calculatedScore} แต้ม`;
-
     if (cardsToRank.length === 2) {
       const isPok = calculatedScore === 8 || calculatedScore === 9;
       const isDeng =
@@ -879,38 +929,27 @@ function App() {
           is_straight_result = true;
         }
         if (
-          // QKA (A=1, Q=12, K=13) or 10JQ, JQK
-          (n_vals_for_straight[0] === 1 &&
-            n_vals_for_straight[1] === 12 &&
-            n_vals_for_straight[2] === 13) ||
-          (n_vals_for_straight[0] === 10 &&
-            n_vals_for_straight[1] === 11 &&
-            n_vals_for_straight[2] === 12) || // 10 J Q
-          (n_vals_for_straight[0] === 11 &&
-            n_vals_for_straight[1] === 12 &&
-            n_vals_for_straight[2] === 13) // J Q K
+          n_vals_for_straight[0] === 1 &&
+          n_vals_for_straight[1] === 12 &&
+          n_vals_for_straight[2] === 13
         ) {
+          // QKA
           is_straight_result = true;
         }
       }
       const is_sian_result = card_raw_values.every((v_str) =>
         ["J", "Q", "K"].includes(v_str)
       );
-
-      if (isTaong) {
-        type = `ตอง ${card_raw_values[0]}`;
-      } else if (is_straight_result && isSameSuit) {
-        type = "สเตรทฟลัช";
-      } else if (is_sian_result) {
-        type = "เซียน";
-      } else if (is_straight_result) {
-        type = "เรียง";
-      } else if (isSameSuit) {
+      if (isTaong) type = `ตอง ${card_raw_values[0]}`;
+      else if (is_straight_result && isSameSuit) type = "สเตรทฟลัช";
+      else if (is_sian_result) type = "เซียน";
+      else if (is_straight_result) type = "เรียง";
+      else if (isSameSuit)
         type =
           calculatedScore === 0
-            ? "บอดสามเด้ง"
+            ? "สามเด้ง (บอด)"
             : `${calculatedScore} แต้มสามเด้ง`;
-      } else {
+      else {
         if (calculatedScore === 9) type = "9 หลัง";
         else if (calculatedScore === 8) type = "8 หลัง";
         else type = calculatedScore === 0 ? "บอด" : `${calculatedScore} แต้ม`;
