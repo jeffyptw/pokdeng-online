@@ -35,7 +35,6 @@ const VALUES = [
 ];
 const DEFAULT_TURN_DURATION = 30;
 const DEFAULT_BET_AMOUNT = 5;
-const RECONNECT_GRACE_PERIOD_MS = 60000; // 30 วินาที (ปรับค่าได้ตามต้องการ)
 const rooms = {}; // Global rooms object
 
 // --- Game Logic Functions ---
@@ -282,23 +281,21 @@ function getHandRank(cardsInput) {
 // --- End Game Logic ---
 
 // --- Global Helper/Utility & Core Game Flow Functions ---
-function initializePlayer(id, name, balance, isDealer) {
+function initializePlayer(id, name, initialBalance, isDealer = false) {
   return {
-    id: id,
-    name: name,
-    balance: balance,
-    initialBalance: balance, // Keep track of initial balance for summary
-    role: isDealer ? "เจ้ามือ" : "ขา", // Initial role before numbering
-    baseRole: isDealer ? "เจ้ามือ" : "ขา", // Fixed role type
+    id,
+    name,
+    initialBalance: parseInt(initialBalance),
+    balance: parseInt(initialBalance),
     cards: [],
     handDetails: null,
     hasStayed: false,
-    actionTakenThisTurn: false, // Has player made an action in their current turn
-    hasPok: false, // Specifically for 2-card Pok
-    isDealer: isDealer,
+    isDealer,
+    baseRole: isDealer ? "เจ้ามือ" : "ขา", // Store base role
+    role: isDealer ? "เจ้ามือ" : "ขา",
+    actionTakenThisTurn: false,
     disconnectedMidGame: false,
-    // เพิ่ม field ใหม่ตรงนี้
-    reconnectTimeoutId: null, // จะเก็บ ID ของ setTimeout
+    hasPok: false,
   };
 }
 
@@ -1354,328 +1351,154 @@ io.on("connection", (socket) => {
       socket.emit("errorMessage", { text: "เกิดข้อผิดพลาดในการจบเกม" });
     }
   });
-  socket.on("attemptReconnect", ({ roomId, playerId, oldSocketId }) => {
-    try {
-      const room = rooms[roomId];
-      if (!room) {
-        socket.emit("reconnectFailed", {
-          message: "ไม่พบห้อง (อาจจะถูกปิดไปแล้ว)",
-        });
-        console.log(
-          `[Server] Reconnect attempt failed for player ${playerId}: Room ${roomId} not found.`
-        );
-        return;
-      }
 
-      const playerIndex = room.players.findIndex((p) => p.id === playerId);
-      const playerInRoom =
-        playerIndex !== -1 ? room.players[playerIndex] : null;
-
-      const playerInAllEver = room.allPlayersEver.find(
-        (p) => p.id === playerId
-      );
-
-      if (playerInRoom && playerInRoom.reconnectTimeoutId) {
-        // ผู้เล่นนี้อยู่ในสถานะกำลังรอเชื่อมต่อใหม่!
-        console.log(
-          `[Server] Player ${playerInRoom.name} (${playerId} - old socket ${oldSocketId}) is attempting to reconnect to room ${roomId} with new socket ${socket.id}.`
-        );
-
-        clearTimeout(playerInRoom.reconnectTimeoutId); // <--- สำคัญมาก: ยกเลิก timer การลบผู้เล่น
-        playerInRoom.reconnectTimeoutId = null;
-
-        // อัปเดต socket.id ของผู้เล่นให้เป็นอันใหม่
-        // เพราะ socket.id จะเปลี่ยนทุกครั้งที่ client เชื่อมต่อใหม่
-        // แต่ playerId ของเรา (ที่เราใช้ในการระบุตัวตนผู้เล่นในเกม) จะยังคงเดิม
-        playerInRoom.id = socket.id; // <--- อัปเดต socket ID ใน player object หลัก
-        // (ตรงนี้ต้องระวัง ถ้า playerId ของคุณคือ socket.id เดิม)
-        // ถ้า playerId ของคุณเป็นค่า unique ที่สร้างขึ้นเอง (ไม่ใช่ socket.id)
-        // คุณอาจจะต้องอัปเดต property ที่เก็บ socket.id จริงๆ เช่น playerInRoom.socketId = socket.id;
-        // และ playerId ยังคงเดิม
-        // จากโค้ดของคุณ playerId คือ socket.id ดังนั้นการทำแบบนี้ถูกต้องแล้ว
-
-        // อัปเดต ID ใน allPlayersEver ด้วย ถ้าจำเป็น (ขึ้นอยู่กับว่าคุณใช้ ID ไหนอ้างอิงใน allPlayersEver)
-        // โค้ดของคุณใช้ socket.id เป็น id หลัก ดังนั้นก็ควรจะอัปเดตที่นี่ด้วย
-        if (playerInAllEver) {
-          // เนื่องจาก player.id ใน room.players จะเปลี่ยนไป เราต้องหา playerInAllEver ด้วย oldSocketId
-          // หรือถ้า playerId ของคุณเป็นค่าคงที่ที่ไม่เปลี่ยน (เช่น uuid ที่สร้างตอน join) ก็ใช้ค่านั้นหา
-          // สมมติว่า playerId ที่ส่งมาคือ oldSocketId
-          const playerToUpdateInAllEver = room.allPlayersEver.find(
-            (p) => p.id === oldSocketId
-          );
-          if (playerToUpdateInAllEver) {
-            playerToUpdateInAllEver.id = socket.id; // อัปเดต socket ID ใหม่
-            playerToUpdateInAllEver.stillInRoom = true; // ยืนยันว่ายังอยู่ในห้อง
-          }
-        }
-
-        socket.join(roomId); // ให้ socket ใหม่นี้ join เข้า room
-
-        // แจ้งผู้เล่นคนนั้นว่าเชื่อมต่อสำเร็จ และส่งข้อมูลห้อง/เกมทั้งหมดให้
-        socket.emit("reconnected", {
-          roomId: room.id,
-          dealerName: room.dealerName,
-          betAmount: room.betAmount,
-          gameStarted: room.gameStarted,
-          myPlayerId: socket.id, // Player ID ใหม่ (คือ socket.id ใหม่)
-          isDealer: playerInRoom.isDealer,
-          // สามารถส่งข้อมูลอื่นๆ ที่จำเป็นให้ client ได้เลย เช่น myCards ถ้าเกมกำลังดำเนินอยู่
-        });
-
-        // ส่ง myCards ถ้าเกมเริ่มแล้วและผู้เล่นมีไพ่อยู่
-        if (
-          room.gameStarted &&
-          playerInRoom.cards &&
-          playerInRoom.cards.length > 0
-        ) {
-          socket.emit("yourCards", playerInRoom.cards);
-        }
-
-        // ส่งข้อมูลผู้เล่นทั้งหมดในห้อง (รวมถึงคนที่เพิ่งกลับมาด้วย ID ใหม่)
-        io.to(roomId).emit("playersData", getRoomPlayerData(room));
-
-        // แจ้งผู้เล่นคนอื่นในห้องว่าผู้เล่นคนนี้กลับมาแล้ว
-        io.to(roomId).emit("message", {
-          text: `${playerInRoom.name} กลับเข้ามาในห้องแล้ว!`,
-          type: "info",
-        });
-
-        // ถ้าเป็นตาของผู้เล่นที่เพิ่งกลับมา และเกมกำลังดำเนินอยู่ ให้เริ่ม turn timer ใหม่
-        if (room.gameStarted && room.currentTurnPlayerId === socket.id) {
-          // ตรวจสอบว่าผู้เล่นยังไม่ hasStayed หรือ actionTakenThisTurn
-          if (!playerInRoom.hasStayed && !playerInRoom.actionTakenThisTurn) {
-            clearTurnTimer(room); // เคลียร์ timer เก่า (ถ้ามี)
-            startPlayerTurnTimer(room, socket.id);
-            io.to(socket.id).emit("yourTurn", {
-              turnDuration: room.turnTimerInterval ? DEFAULT_TURN_DURATION : 0, // หรือค่าจาก room.turnDuration
-              handDetails: playerInRoom.handDetails,
-              canDraw: playerInRoom.cards.length < 3 && !playerInRoom.isDealer, // ตรวจสอบเงื่อนไขการจั่วอีกครั้ง
-              isDealer: playerInRoom.isDealer,
-            });
-          }
-        }
-        console.log(
-          `[Server] Player ${playerInRoom.name} (${socket.id}) reconnected successfully to room ${roomId}.`
-        );
-      } else if (playerInRoom && !playerInRoom.reconnectTimeoutId) {
-        // ผู้เล่นอยู่ในห้อง แต่ไม่ได้อยู่ในสถานะรอ reconnect (อาจจะหลุดไปนานแล้ว หรือเป็นผู้เล่นอื่นที่ ID ซ้ำ?)
-        // กรณีนี้ไม่ควรเกิดขึ้นถ้าตรรกะถูกต้อง
-        socket.emit("reconnectFailed", {
-          message: "สถานะไม่ถูกต้องสำหรับการเชื่อมต่อใหม่",
-        });
-        console.log(
-          `[Server] Reconnect attempt for player ${playerId} in room ${roomId} found player but no reconnect timer (already processed or error).`
-        );
-      } else {
-        // ไม่พบผู้เล่น (อาจจะหมดเวลาไปแล้วจริงๆ และถูกลบไปแล้ว) หรือ roomId ผิด
-        socket.emit("reconnectFailed", {
-          message:
-            "ไม่สามารถเชื่อมต่อกลับเข้าห้องได้ (อาจจะหมดเวลาหรือข้อมูลไม่ถูกต้อง)",
-        });
-        console.log(
-          `[Server] Reconnect attempt failed for player ${playerId}: Player not found in room ${roomId} or no active reconnect timer.`
-        );
-        // ณ จุดนี้ client อาจจะต้องกลับไปหน้า lobby หรือพยายาม join room ใหม่
-      }
-    } catch (error) {
-      console.error("[Server] Error during attemptReconnect:", error);
-      socket.emit("reconnectFailed", {
-        message: "เกิดข้อผิดพลาดบนเซิร์ฟเวอร์ระหว่างพยายามเชื่อมต่อใหม่",
-      });
-    }
-  });
   socket.on("disconnect", () => {
     console.log(`[Server] User disconnected: ${socket.id}`);
     for (const roomId in rooms) {
       const room = rooms[roomId];
       const playerIndex = room.players.findIndex((p) => p.id === socket.id);
-      const playerInRoom =
-        playerIndex !== -1 ? room.players[playerIndex] : null;
       const playerInAllEver = room.allPlayersEver.find(
         (p) => p.id === socket.id
-      );
+      ); // Find in allPlayersEver
 
-      if (playerInRoom) {
-        // ถ้าผู้เล่นยังอยู่ในรายชื่อ active players (room.players)
-        // แทนที่จะลบผู้เล่นทันที หรือตั้ง disconnectedMidGame ทันที
-        // เราจะเริ่มนับเวลาถอยหลังสำหรับการเชื่อมต่อใหม่
+      if (playerInAllEver) {
+        // Check if player was ever in this room's allPlayersEver list
+        playerInAllEver.stillInRoom = false; // Mark as not in room anymore
+        // playerInAllEver.currentBalance is already their last known balance
 
-        if (playerInRoom.reconnectTimeoutId) {
-          // ถ้ามี timer อยู่แล้ว (ไม่ควรเกิดขึ้นบ่อย แต่ป้องกันไว้) ให้เคลียร์ของเก่า
-          clearTimeout(playerInRoom.reconnectTimeoutId);
-        }
-
-        console.log(
-          `[Server] Player ${playerInRoom.name} (${
-            socket.id
-          }) from room ${roomId} disconnected. Starting reconnect timer for ${
-            RECONNECT_GRACE_PERIOD_MS / 1000
-          }s.`
-        );
-
-        // แจ้งผู้เล่นคนอื่นว่าการเชื่อมต่อไม่เสถียร (แทนที่จะบอกว่าออกไปแล้วทันที)
-        // คุณอาจจะอยากเพิ่มสถานะใหม่ให้ playerData เช่น 'connection_unstable'
-        // หรือแค่ส่ง message
-        io.to(roomId).emit("message", {
-          text: `การเชื่อมต่อของ ${playerInRoom.name} ไม่เสถียร... กำลังรอการเชื่อมต่อกลับ`,
-          type: "warning", // อาจจะเพิ่ม type ให้ message เพื่อให้ client แสดงผลต่างกัน
-        });
-        // อาจจะยังไม่ต้อง emit 'playerLeft' ทันที หรือถ้าจะ emit ก็ควรบอกว่าเป็นสถานะ 'unstable'
-
-        playerInRoom.reconnectTimeoutId = setTimeout(() => {
-          // --- ส่วนนี้จะทำงานถ้าผู้เล่นไม่กลับมาเชื่อมต่อภายใน RECONNECT_GRACE_PERIOD_MS ---
+        if (playerIndex !== -1) {
+          // If they were also in the active players list
+          const player = room.players[playerIndex];
           console.log(
-            `[Server] Reconnect grace period expired for ${playerInRoom.name} (${socket.id}) in room ${roomId}. Proceeding with full disconnect.`
-          );
-
-          // ตรวจสอบอีกครั้งว่าผู้เล่นยังอยู่ในห้องและสถานะ timer ยังถูกต้อง
-          // (เผื่อกรณีมีการแก้ไข player object จากส่วนอื่นในระหว่างรอ timeout)
-          const currentRoomState = rooms[roomId];
-          if (!currentRoomState) {
-            console.log(
-              `[Server] Room ${roomId} no longer exists. Skipping disconnect finalization for ${socket.id}`
-            );
-            return;
-          }
-          const stillPlayerIndex = currentRoomState.players.findIndex(
-            (p) =>
-              p.id === socket.id &&
-              p.reconnectTimeoutId === playerInRoom.reconnectTimeoutId
-          );
-
-          if (stillPlayerIndex === -1) {
-            console.log(
-              `[Server] Player ${socket.id} no longer in expected state for disconnect finalization in room ${roomId}. Skipping.`
-            );
-            return;
-          }
-          const playerToFullyDisconnect =
-            currentRoomState.players[stillPlayerIndex];
-
-          // --- โค้ดเดิมของคุณสำหรับการจัดการผู้เล่นหลุดจริงๆ จะย้ายมาอยู่ในนี้ ---
-          if (playerInAllEver) {
-            playerInAllEver.stillInRoom = false;
-          }
-
-          console.log(
-            `[Server] ${
-              playerToFullyDisconnect.role || playerToFullyDisconnect.name
-            } (${
-              playerToFullyDisconnect.name
-            }) fully disconnected from room ${roomId}.`
+            `[Server] ${player.role || player.name} (${
+              player.name
+            }) disconnected from room ${roomId}.`
           );
           io.to(roomId).emit("playerLeft", {
-            playerId: playerToFullyDisconnect.id,
-            name: playerToFullyDisconnect.name,
-            message: "ออกจากห้องแล้ว / หลุดการเชื่อมต่อถาวร",
+            // Inform other players
+            playerId: player.id, // Send ID for client to handle
+            name: player.name,
+            message: "ออกจากห้องแล้ว / หลุดการเชื่อมต่อ",
           });
 
-          if (
-            currentRoomState.gameStarted &&
-            !playerToFullyDisconnect.disconnectedMidGame
-          ) {
-            playerToFullyDisconnect.disconnectedMidGame = true;
-            playerToFullyDisconnect.hasStayed = true;
-            playerToFullyDisconnect.actionTakenThisTurn = true;
+          if (room.gameStarted && !player.disconnectedMidGame) {
+            player.disconnectedMidGame = true;
+            player.hasStayed = true; // Force them to "stay" with their current hand
+            player.actionTakenThisTurn = true;
 
-            if (
-              currentRoomState.currentTurnPlayerId ===
-              playerToFullyDisconnect.id
-            ) {
-              clearTurnTimer(currentRoomState);
-              advanceTurn(roomId);
+            // It's important that player.balance here is their final balance if game is ongoing
+            // The calculateAndEmitResults updates allPlayersEver[...].currentBalance
+
+            if (room.currentTurnPlayerId === player.id) {
+              clearTurnTimer(room); // Clear their turn timer
+              advanceTurn(roomId); // Move to the next player
             }
-          } else if (!currentRoomState.gameStarted) {
-            currentRoomState.players.splice(stillPlayerIndex, 1);
+          } else if (!room.gameStarted) {
+            // If game hasn't started, remove from active players list
+            // They remain in allPlayersEver for summary.
+            room.players.splice(playerIndex, 1);
           }
-
-          playerToFullyDisconnect.reconnectTimeoutId = null; // เคลียร์ ID ของ timer
-
           // Update playerData for remaining players
-          io.to(roomId).emit(
-            "playersData",
-            getRoomPlayerData(currentRoomState)
+          io.to(roomId).emit("playersData", getRoomPlayerData(room));
+        } else {
+          // Player was in allPlayersEver but not in current room.players (e.g. left earlier and game continued)
+          console.log(
+            `[Server] Previously joined player ${playerInAllEver.name} (ID: ${socket.id}) connection lost (already left active game or game ended for them). Their record in allPlayersEver is retained.`
           );
+          // Optionally, emit a generic "player connection lost" if needed, but playerLeft might be sufficient if they were active.
+        }
 
-          // Check if room should be deleted or new dealer assigned
-          const activePlayersRemaining = currentRoomState.players.filter(
-            (p) => !p.disconnectedMidGame && p.reconnectTimeoutId === null // นับเฉพาะคนที่ยังอยู่และไม่ได้กำลังรอ reconnect
-          );
-
-          if (
-            activePlayersRemaining.length === 0 &&
-            !currentRoomState.gameStarted
-          ) {
-            console.log(`[Server] Room ${roomId} is empty. Deleting.`);
-            clearTurnTimer(currentRoomState);
-            delete rooms[roomId];
-            return; // ออกจาก for...in loop ของ rooms ถ้าห้องถูกลบ
-          }
-
-          // Handle dealer disconnection (โค้ดส่วนนี้ของคุณค่อนข้างละเอียดดีแล้ว อาจจะต้องปรับนิดหน่อยให้เข้ากับ activePlayersRemaining ใหม่)
-          const originalDealerId = currentRoomState.dealerId; // เก็บ ID เจ้ามือเดิมไว้เปรียบเทียบ
-          if (playerToFullyDisconnect.id === originalDealerId) {
-            // ถ้าคนที่หลุดถาวรคือเจ้ามือ
-            const newDealer = activePlayersRemaining.find(
-              (p) => p.id !== originalDealerId
-            ); // หาคนอื่นใน active list
-            if (newDealer) {
-              const oldDealerPlayerObjectInPlayers =
-                currentRoomState.players.find((p) => p.id === originalDealerId);
-              if (oldDealerPlayerObjectInPlayers)
-                oldDealerPlayerObjectInPlayers.isDealer = false;
-
-              newDealer.isDealer = true;
-              newDealer.baseRole = "เจ้ามือ";
-              newDealer.role = "เจ้ามือ";
-              currentRoomState.dealerId = newDealer.id;
-              currentRoomState.dealerName = newDealer.name;
-
-              if (playerInAllEver)
-                playerInAllEver.baseRole = "ขา (อดีตเจ้ามือ)"; // อัปเดตใน allPlayersEver
-              const newDealerInAll = currentRoomState.allPlayersEver.find(
-                (p) => p.id === newDealer.id
-              );
-              if (newDealerInAll) newDealerInAll.baseRole = "เจ้ามือ";
-
-              io.to(roomId).emit("dealerChanged", {
-                dealerId: newDealer.id,
-                dealerName: newDealer.name,
-              });
-              io.to(roomId).emit("message", {
-                text: `${playerToFullyDisconnect.name} (เจ้ามือ) หลุดการเชื่อมต่อถาวร. ${newDealer.name} เป็นเจ้ามือใหม่.`,
-              });
-            } else {
-              // ไม่มีใครเป็นเจ้ามือใหม่ได้
-              io.to(roomId).emit("message", {
-                text: "เจ้ามือหลุดการเชื่อมต่อถาวร และไม่มีผู้เล่นอื่นเหลือที่จะเป็นเจ้ามือ. ห้องนี้อาจจะต้องปิด.",
-              });
-              // พิจารณาการจบเกมหรือลบห้องตรงนี้ถ้าจำเป็น
-              // ถ้ายังไม่มีการลบห้อง ก็อาจจะทำให้เกมค้างได้
-            }
-          }
-          // Ensure we don't operate on a deleted room
-          if (rooms[roomId]) {
-            // ตรวจสอบอีกครั้งว่าห้องยังอยู่
-            io.to(roomId).emit("playersData", getRoomPlayerData(rooms[roomId]));
-          }
-          // --- จบส่วนโค้dartเดิม ---
-        }, RECONNECT_GRACE_PERIOD_MS);
-
-        // อัปเดต player data เพื่อให้ client อื่นเห็นสถานะ "กำลังจะหลุด" หรือ "ไม่เสถียร" (ถ้าคุณเพิ่มสถานะนั้น)
-        // หรืออาจจะยังไม่ต้อง update playerData ทันที รอให้ client จัดการจาก message
-        // io.to(roomId).emit("playersData", getRoomPlayerData(room)); // พิจารณาว่าจำเป็นหรือไม่ตอนนี้
-      } else if (playerInAllEver) {
-        // ผู้เล่นคนนี้เคยอยู่ใน allPlayersEver แต่ไม่ได้อยู่ใน room.players ณ ตอนที่ disconnect
-        // อาจจะคือคนที่เคยอยู่ในห้องแล้วออกไปแล้ว หรือเกมจบไปแล้วสำหรับคนนั้น
-        // โค้ดเดิมของคุณส่วนนี้ดูโอเคแล้วครับ:
-        console.log(
-          `[Server] Previously joined player ${playerInAllEver.name} (ID: ${socket.id}) connection lost (already left active game or game ended for them). Their record in allPlayersEver is retained.`
+        // Check if room should be deleted or new dealer assigned (based on active players)
+        const activePlayersRemaining = room.players.filter(
+          (p) => !p.disconnectedMidGame
         );
-        playerInAllEver.stillInRoom = false; // ยืนยันว่าไม่ได้อยู่ในห้องแล้ว
+
+        if (activePlayersRemaining.length === 0 && room.gameStarted) {
+          // If game started and no one active left
+          console.log(
+            `[Server] Room ${roomId} has no active players left mid-game. Ending game automatically.`
+          );
+          // Ending the game automatically could be an option
+          // For now, we'll just log. The dealer might need to end it manually, or it waits.
+          // Or, if only disconnected players remain, the game might be stuck until dealer ends it.
+          // Consider if a game should auto-end if all players disconnect.
+          // For now, we won't auto-delete the room here unless explicitly told to.
+          // The dealer can still end it. If the dealer themself disconnected, see below.
+        } else if (activePlayersRemaining.length === 0 && !room.gameStarted) {
+          // No active players and game not started
+          console.log(
+            `[Server] Room ${roomId} is empty (no active players, game not started). Deleting.`
+          );
+          clearTurnTimer(room);
+          delete rooms[roomId];
+          return; // Exit since room is deleted
+        }
+
+        // Handle dealer disconnection
+        if (
+          playerInAllEver.baseRole === "เจ้ามือ" &&
+          playerInAllEver.id === room.dealerId &&
+          ((playerIndex !== -1 &&
+            room.players[playerIndex].disconnectedMidGame) ||
+            !playerInAllEver.stillInRoom)
+        ) {
+          // If the disconnected player was the current dealer
+          const newDealer = activePlayersRemaining.find(
+            (p) => p.id !== room.dealerId
+          ); // Find any other active player
+          if (newDealer) {
+            // Promote newDealer
+            const oldDealerPlayerObjectInPlayers = room.players.find(
+              (p) => p.id === room.dealerId
+            );
+            if (oldDealerPlayerObjectInPlayers)
+              oldDealerPlayerObjectInPlayers.isDealer = false; // Demote old dealer in players array
+
+            newDealer.isDealer = true;
+            newDealer.baseRole = "เจ้ามือ"; // Update their base role if needed for consistency
+            newDealer.role = "เจ้ามือ";
+            room.dealerId = newDealer.id;
+            room.dealerName = newDealer.name;
+
+            // Update in allPlayersEver as well
+            const oldDealerInAll = room.allPlayersEver.find(
+              (p) => p.id === socket.id
+            );
+            if (oldDealerInAll) oldDealerInAll.baseRole = "ขา (อดีตเจ้ามือ)"; // Or some other status
+
+            const newDealerInAll = room.allPlayersEver.find(
+              (p) => p.id === newDealer.id
+            );
+            if (newDealerInAll) newDealerInAll.baseRole = "เจ้ามือ";
+
+            io.to(roomId).emit("dealerChanged", {
+              dealerId: newDealer.id,
+              dealerName: newDealer.name,
+            });
+            io.to(roomId).emit("message", {
+              text: `${playerInAllEver.name} (เจ้ามือ) หลุดการเชื่อมต่อ. ${newDealer.name} เป็นเจ้ามือใหม่.`,
+            });
+            io.to(roomId).emit("playersData", getRoomPlayerData(room)); // Update with new dealer info
+          } else {
+            // No one else to be dealer, room might need to be closed if game can't continue
+            io.to(roomId).emit("message", {
+              text: "เจ้ามือหลุดการเชื่อมต่อ และไม่มีผู้เล่นอื่นเหลือที่จะเป็นเจ้ามือ. ห้องนี้อาจจะต้องปิด.",
+            });
+            // Consider auto-ending the game here and deleting the room if no new dealer can be assigned.
+            // For now, let the game state persist, manual endGame by new dealer or admin might be needed.
+            // Or, if the room is truly unrecoverable:
+            // clearTurnTimer(room);
+            // delete rooms[roomId];
+            // console.log(`[Server] Room ${roomId} deleted due to dealer disconnect and no replacement.`);
+            // return;
+          }
+        }
+        // Ensure we don't operate on a deleted room
+        if (rooms[roomId]) {
+          io.to(roomId).emit("playersData", getRoomPlayerData(room));
+        }
+        break; // Exit loop once player is found and handled
       }
-      // ถ้าผู้เล่นไม่ได้อยู่ใน room.players และไม่ได้อยู่ใน allPlayersEver ของห้องนี้ ก็ไม่ต้องทำอะไรสำหรับห้องนี้
-      // วน loop ไปห้องถัดไป
     }
   });
 });
