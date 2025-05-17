@@ -1476,11 +1476,9 @@ function App() {
         {isDealer &&
           (!gameStarted || (result && result.length > 0)) &&
           !showSummary && (
-            <div className="turn-indicator">
-              <button className="btn-inroom-endgame" onClick={handleEndGame}>
-                จบเกม&ดูสรุปยอด{" "}
-              </button>{" "}
-            </div>
+            <button className="btn-inroom-endgame" onClick={handleEndGame}>
+              จบเกม&ดูสรุปยอด
+            </button>
           )}
       </div>{" "}
       <div className="messages-log">
