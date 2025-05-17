@@ -1476,6 +1476,15 @@ function App() {
             ออกจากห้อง
           </button>
         )}
+        {isDealer &&
+          (!gameStarted || (result && result.length > 0)) &&
+          !showSummary && (
+            <div className="turn-indicator">
+              <button className="btn-inroom-endgame" onClick={handleEndGame}>
+                จบเกม&ดูสรุปยอด{" "}
+              </button>{" "}
+            </div>
+          )}
       </div>{" "}
       <div className="messages-log">
         <h4>ประวัติข้อความ/เหตุการณ์:</h4>{" "}
