@@ -1455,9 +1455,6 @@ function App() {
             >
               รีเซ็ตตา&สับไพ่{" "}
             </button>{" "}
-            <button className="btn-inroom-result" onClick={handleEndGame}>
-              จบเกม&ดูสรุปยอด{" "}
-            </button>{" "}
           </div>
         )}{" "}
       {!isDealer &&
