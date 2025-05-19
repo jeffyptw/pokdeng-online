@@ -1200,7 +1200,7 @@ function App() {
           >
             {roomLocked ? "ล็อค" : "เปิด"}{" "}
           </button>{" "}
-          |
+          |&nbsp;{" "}
           <button className="text-button" onClick={handleEndGame}>
             ออกจากห้อง
           </button>
