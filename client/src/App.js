@@ -1200,6 +1200,10 @@ function App() {
           >
             {roomLocked ? "ล็อค" : "เปิด"}{" "}
           </button>{" "}
+          |
+          <button className="text-button" onClick={handleEndGame}>
+            ออกจากห้อง
+          </button>
         </p>{" "}
       </header>{" "}
       {errorMsg && (
